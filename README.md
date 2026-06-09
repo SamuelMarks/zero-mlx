@@ -5,21 +5,21 @@
 [![Test Coverage](https://img.shields.io/badge/test_coverage-100%25-brightgreen.svg)](#)
 [![Doc Coverage](https://img.shields.io/badge/doc_coverage-100%25-brightgreen.svg)](#)
 
-Zero-dependency pure Python implementation of the [Apple MLX](https://github.com/ml-explore/mlx) API surface. 
+[Zero-dependency](https://en.wikipedia.org/wiki/Dependency_hell) pure [Python](https://www.python.org/) implementation of the [Apple MLX](https://github.com/ml-explore/mlx) API surface. 
 
 ## Why does this project exist?
 
-`zero-mlx` is a core frontend component of the larger **Abstract ML Machine Ecosystem**. The broader ecosystem is designed to solve the $N \times M$ translation problem in Machine Learning. Instead of writing bespoke translators from every ML framework (JAX, PyTorch, Keras, MLX) to every target hardware backend (WASM, WebGPU, TensorRT), we trace $N$ frontends into a strictly defined Intermediate Representation (IR, via `ml-switcheroo-ir`), which is then consumed by $M$ backends.
+`zero-mlx` is a core frontend component of the larger **Abstract ML Machine Ecosystem**. The broader ecosystem is designed to solve the $N \times M$ translation problem in [Machine Learning](https://en.wikipedia.org/wiki/Machine_learning). Instead of writing bespoke translators from every ML framework ([JAX](https://github.com/google/jax), [PyTorch](https://pytorch.org/), [Keras](https://keras.io/), [MLX](https://github.com/ml-explore/mlx)) to every target hardware backend ([WASM](https://webassembly.org/), [WebGPU](https://www.w3.org/TR/webgpu/), [TensorRT](https://developer.nvidia.com/tensorrt)), we trace $N$ frontends into a strictly defined [Intermediate Representation](https://en.wikipedia.org/wiki/Intermediate_representation) (IR, via `ml-switcheroo-ir`), which is then consumed by $M$ backends.
 
-This achieves a complete source-to-source and source-to-browser compilation pipeline utilizing **strictly zero external dependencies**, relying solely on the Python Standard Library and `numpy` for eager evaluations.
+This achieves a complete [source-to-source](https://en.wikipedia.org/wiki/Source-to-source_compiler) and source-to-browser compilation pipeline utilizing **strictly zero external dependencies**, relying solely on the [Python Standard Library](https://docs.python.org/3/library/) and [`numpy`](https://numpy.org/) for eager evaluations.
 
 Specifically, `zero-mlx`:
-- **Mimics MLX Semantics:** It replicates the eager, object-oriented, and stateful semantics of Apple's MLX framework.
-- **State Functionalization:** Under the hood, it seamlessly integrates with the `ml-switcheroo-compiler` to dynamically lift mutable MLX-style states (like neural network parameters) into purely functional graph inputs and outputs via an internal `lift_state` pass.
-- **Cross-Platform Compatibility:** By rewriting MLX code in pure Python, it enables execution, tracing, and compilation of MLX models on non-Apple hardware (like browsers via WASM/WebGPU, or native generic targets) without needing the core C++/Metal Apple-specific MLX binaries.
+- **Mimics MLX Semantics:** It replicates the eager, [object-oriented](https://en.wikipedia.org/wiki/Object-oriented_programming), and stateful semantics of Apple's MLX framework.
+- **State Functionalization:** Under the hood, it seamlessly integrates with the `ml-switcheroo-compiler` to dynamically lift mutable MLX-style states (like [neural network](https://en.wikipedia.org/wiki/Neural_network) parameters) into purely [functional](https://en.wikipedia.org/wiki/Functional_programming) graph inputs and outputs via an internal `lift_state` pass.
+- **Cross-Platform Compatibility:** By rewriting MLX code in pure [Python](https://www.python.org/), it enables execution, tracing, and compilation of [MLX](https://github.com/ml-explore/mlx) models on non-Apple hardware (like browsers via [WASM](https://webassembly.org/)/[WebGPU](https://www.w3.org/TR/webgpu/), or native generic targets) without needing the core [C++](https://isocpp.org/)/[Metal](https://developer.apple.com/metal/) Apple-specific MLX binaries.
 - **Zero-Dependency Tracing:** Uses ProxyTensors to overload Python math dunders, intercept eager operations, and record them to a TracerTape without needing heavy framework dependencies.
 
-In short, `zero-mlx` lets you write and execute standard MLX models, while transparently bridging them to universal backends and environments through the Abstract ML compiler stack.
+In short, `zero-mlx` lets you write and execute standard [MLX](https://github.com/ml-explore/mlx) models, while transparently bridging them to universal backends and environments through the Abstract ML compiler stack.
 
 ---
 
