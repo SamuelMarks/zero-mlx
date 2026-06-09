@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zero-mlx"
+version = "0.1.0"
+description = "Zero-dependency pure Python implementation of the MLX API surface."
+authors = [{ name = "Samuel Marks" }]
+requires-python = ">=3.10"
+dynamic = ["dependencies"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov"]
