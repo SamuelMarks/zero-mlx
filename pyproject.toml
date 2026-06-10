@@ -7,7 +7,7 @@ name = "zero-mlx"
 version = "0.1.0"
 description = "Zero-dependency pure Python implementation of the MLX API surface."
 authors = [{ name = "Samuel Marks" }]
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dynamic = ["dependencies"]
 
 [tool.hatch.metadata]
@@ -18,3 +18,11 @@ files = ["requirements.txt"]
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-cov"]
+
+dependencies = ["ml-switcheroo-compiler"]
+
+[tool.ruff.lint]
+ignore = ['E402', 'F401', 'F841', 'E741']
+
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-fail-under=80"

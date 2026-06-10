@@ -1,5 +1,6 @@
-"""Neural network module."""
+import ml_switcheroo
 
+"Neural network module."
 from .activations import (
     CELU,
     ELU,
@@ -51,18 +52,8 @@ from .layers import (
     Module,
     Sequential,
 )
-from .normalization import (
-    BatchNorm,
-    GroupNorm,
-    InstanceNorm,
-    LayerNorm,
-    RMSNorm,
-)
-from .positional_encoding import (
-    ALiBi,
-    RoPE,
-    SinusoidalPositionalEncoding,
-)
+from .normalization import BatchNorm, GroupNorm, InstanceNorm, LayerNorm, RMSNorm
+from .positional_encoding import ALiBi, RoPE, SinusoidalPositionalEncoding
 from .convolutions import (
     Conv1d,
     Conv2d,
@@ -72,11 +63,7 @@ from .convolutions import (
     ConvTranspose3d,
     Upsample,
 )
-from .recurrent import (
-    GRU,
-    LSTM,
-    RNN,
-)
+from .recurrent import GRU, LSTM, RNN
 from .transformer import (
     MultiHeadAttention,
     Transformer,
