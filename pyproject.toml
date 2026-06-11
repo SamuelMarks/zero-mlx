@@ -17,12 +17,13 @@ allow-direct-references = true
 files = ["requirements.txt"]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov"]
-
-dependencies = ["ml-switcheroo-compiler"]
+test = ["pytest", "pytest-cov", "numpy"]
 
 [tool.ruff.lint]
 ignore = ['E402', 'F401', 'F841', 'E741']
 
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-fail-under=80"
+
+[tool.mypy]
+ignore_missing_imports = true

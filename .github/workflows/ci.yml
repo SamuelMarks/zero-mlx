@@ -35,7 +35,7 @@ jobs:
 
     - name: Test & Coverage
       run: |
-        pytest --cov=src/zero_mlx --cov-report=xml
+        PYTHONPATH=src:tests/official pytest tests/official --cov=src/zero_mlx --cov-report=xml
         
     - name: Update Badges
       run: |
