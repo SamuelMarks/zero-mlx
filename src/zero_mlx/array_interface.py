@@ -22,15 +22,20 @@ def inject_interface(cls):
             The array representation.
 
         """
-        arr = self._tensor.__array__(dtype=dtype, copy=copy)
-        from ml_switcheroo.core.array_base_helper import fix_complex, array_with_base
+        import numpy as np
 
-        if dtype is None:
-            arr = fix_complex(arr, self.dtype.value)
+        kwargs = {}
+        if dtype is not None:
+            kwargs["dtype"] = dtype
+        if copy is not None:
+            kwargs["copy"] = copy
+
+        arr = np.array(self._tensor.data, **kwargs)
 
         if copy is False or copy is None:
             try:
-                return array_with_base(arr, self)
+                # We do not have array_with_base anymore, so just return arr
+                return arr
             except Exception:  # pragma: no cover
                 pass  # pragma: no cover
         return arr  # pragma: no cover

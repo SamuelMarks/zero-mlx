@@ -91,3 +91,19 @@ def to_mlx_dtype(dtype: SwitcherooDType) -> DType:
     if val == "bool":
         return DType.bool_
     return DType(val)
+
+
+class DtypeCategory(Enum):
+    """Type to hold categories of dtypes."""
+
+    complexfloating = "complexfloating"
+    floating = "floating"
+    inexact = "inexact"
+    signedinteger = "signedinteger"
+    unsignedinteger = "unsignedinteger"
+    integer = "integer"
+    number = "number"
+    generic = "generic"
+
+
+Dtype = DType

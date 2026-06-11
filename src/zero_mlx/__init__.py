@@ -3,6 +3,8 @@
 
 from zero_mlx.dtypes import (
     DType,
+    Dtype,
+    DtypeCategory,
     bool_,
     uint8,
     uint16,
@@ -96,6 +98,12 @@ class core:
 
     printoptions_precision = 5
 
+    import zero_mlx.linalg as linalg
+    import zero_mlx.metal as metal
+    import zero_mlx.fast as fast
+    from zero_mlx.device import Stream as StreamContext
+    from zero_mlx.at_mocker import AtMocker as ArrayAt
+
     @staticmethod
     def eval(*args: "array") -> tuple:
         """Evaluate."""
@@ -153,6 +161,8 @@ class printoptions:
 
 __all__ = [
     "DType",
+    "Dtype",
+    "DtypeCategory",
     "bool_",
     "uint8",
     "uint16",
@@ -248,9 +258,9 @@ __all__.extend(["zeros_like", "ones_like"])
 from zero_mlx.ops import maximum, minimum
 
 __all__.extend(["maximum", "minimum"])
-from zero_mlx.device import default_stream, Device
+from zero_mlx.device import default_stream, Device, DeviceType
 
-__all__.extend(["default_stream", "Device"])
+__all__.extend(["default_stream", "Device", "DeviceType"])
 from zero_mlx.ops import add
 
 __all__.append("add")
@@ -548,3 +558,167 @@ class CudaMock:
 
 cuda = CudaMock()
 __all__.append("cuda")
+
+from zero_mlx.at_mocker import AtMocker as ArrayAt
+from zero_mlx.array_iterator import ArrayIterator
+
+__all__.extend(["ArrayAt", "ArrayIterator"])
+from zero_mlx.device import Stream as StreamContext
+
+__all__.append("StreamContext")
+from zero_mlx.array_like import ArrayLike
+
+__all__.append("ArrayLike")
+from zero_mlx.export import FunctionExporter, exporter, export_function
+
+__all__.extend(["FunctionExporter", "exporter", "export_function"])
+from zero_mlx.new_ops import arccosh, arctan2, bitwise_invert
+
+__all__.extend(["arccosh", "arctan2", "bitwise_invert"])
+from zero_mlx.new_ops import clear_cache, concat, conj, contiguous
+
+__all__.extend(["clear_cache", "concat", "conj", "contiguous"])
+
+complexfloating = DtypeCategory.complexfloating
+floating = DtypeCategory.floating
+inexact = DtypeCategory.inexact
+signedinteger = DtypeCategory.signedinteger
+unsignedinteger = DtypeCategory.unsignedinteger
+integer = DtypeCategory.integer
+number = DtypeCategory.number
+generic = DtypeCategory.generic
+
+__all__.extend(
+    [
+        "complexfloating",
+        "floating",
+        "inexact",
+        "signedinteger",
+        "unsignedinteger",
+        "integer",
+        "number",
+        "generic",
+    ]
+)
+from zero_mlx.convolutions import (
+    conv1d,
+    conv2d,
+    conv3d,
+    conv_transpose1d,
+    conv_transpose2d,
+    conv_transpose3d,
+    conv_general,
+    convolve,
+    dequantize,
+)
+
+__all__.extend(
+    [
+        "conv1d",
+        "conv2d",
+        "conv3d",
+        "conv_transpose1d",
+        "conv_transpose2d",
+        "conv_transpose3d",
+        "conv_general",
+        "convolve",
+        "dequantize",
+    ]
+)
+
+from zero_mlx.new_ops import einsum, einsum_path
+
+__all__.extend(["einsum", "einsum_path"])
+
+import zero_mlx.distributed as distributed
+import zero_mlx.fast as fast
+
+__all__.extend(["distributed", "fast"])
+
+from zero_mlx.new_ops import (
+    flatten,
+    unflatten,
+    identity,
+    hadamard_transform,
+    gather_qmm,
+    quantized_matmul,
+    get_active_memory,
+    get_cache_memory,
+    reset_peak_memory,
+    set_cache_limit,
+    set_memory_limit,
+    set_wired_limit,
+    load,
+    save,
+    save_gguf,
+    save_safetensors,
+    savez,
+    savez_compressed,
+    import_function,
+    set_default_stream,
+)
+
+__all__.extend(
+    [
+        "flatten",
+        "unflatten",
+        "identity",
+        "hadamard_transform",
+        "gather_qmm",
+        "quantized_matmul",
+        "get_active_memory",
+        "get_cache_memory",
+        "reset_peak_memory",
+        "set_cache_limit",
+        "set_memory_limit",
+        "set_wired_limit",
+        "load",
+        "save",
+        "save_gguf",
+        "save_safetensors",
+        "savez",
+        "savez_compressed",
+        "import_function",
+        "set_default_stream",
+    ]
+)
+
+import zero_mlx.nn as nn
+
+__all__.append("nn")
+import zero_mlx.optimizers as optimizers
+
+__all__.append("optimizers")
+import zero_mlx.utils as utils
+
+__all__.append("utils")
+from zero_mlx.new_ops import permute_dims, slice, slice_update, tan, topk
+
+__all__.extend(["permute_dims", "slice", "slice_update", "tan", "topk"])
+import zero_mlx.metal as metal
+import zero_mlx.linalg as linalg
+
+__all__.extend(["metal", "linalg"])
+
+floating = DtypeCategory.floating
+generic = DtypeCategory.generic
+inexact = DtypeCategory.inexact
+integer = DtypeCategory.integer
+number = DtypeCategory.number
+signedinteger = DtypeCategory.signedinteger
+unsignedinteger = DtypeCategory.unsignedinteger
+
+__all__.extend(
+    [
+        "floating",
+        "generic",
+        "inexact",
+        "integer",
+        "number",
+        "signedinteger",
+        "unsignedinteger",
+    ]
+)
+from zero_mlx.new_ops import quantize
+
+__all__.append("quantize")

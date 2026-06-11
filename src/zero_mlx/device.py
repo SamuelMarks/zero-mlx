@@ -2,20 +2,16 @@
 
 from typing import Any
 from ml_switcheroo.core.config import config
-from ml_switcheroo.core.device import DeviceType
 
 
-class DeviceTypeMock:
-    """Mock class for DeviceType."""
+from enum import Enum
 
-    def __init__(self, name):
-        """Initialize the device type mock.
 
-        Args:
-            name: Name of the device.
+class DeviceType(Enum):
+    """Device type enum."""
 
-        """
-        self.name = name
+    cpu = "cpu"
+    gpu = "gpu"
 
     def __str__(self):
         """Return the device name as string."""
@@ -34,13 +30,13 @@ class DeviceTypeMock:
         """
         if isinstance(other, Device):
             return self.name == other.type.name
-        if isinstance(other, DeviceTypeMock):
+        if isinstance(other, DeviceType):
             return self.name == other.name
         return False  # pragma: no cover
 
 
-cpu = DeviceTypeMock("cpu")
-gpu = DeviceTypeMock("gpu")
+cpu = DeviceType.cpu
+gpu = DeviceType.gpu
 
 
 class Device:
@@ -70,7 +66,7 @@ class Device:
             other: The other device type.
 
         """
-        if isinstance(other, DeviceTypeMock):
+        if isinstance(other, DeviceType):
             return self.type.name == other.name
         return self.type == getattr(other, "type", None) and self.index == getattr(
             other, "index", None

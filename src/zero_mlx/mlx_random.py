@@ -459,3 +459,7 @@ def truncated_normal(lower, upper, shape=None, dtype=None, stream=None, key=None
     if dtype is None:
         dtype = mx.float32
     return array(res).astype(dtype)
+
+
+from zero_mlx.random_state import state
+# __all__ is handled by __init__ for random module functions

@@ -3,7 +3,7 @@
 
 from typing import Any, Tuple, Optional, List, Union
 import ml_switcheroo
-import ml_switcheroo.core.backend_ext as np
+import numpy as np
 from ml_switcheroo.core.config import config
 
 from zero_mlx.dtypes import DType, to_switcheroo_dtype
@@ -1097,6 +1097,17 @@ class array:
         if isinstance(res, np.ndarray) and res.ndim == 0:
             return array(res, dtype=self.dtype)  # pragma: no cover
         return array(res, dtype=self.dtype)
+
+    def __iter__(self):
+        """Return an iterator over the first dimension of the array.
+
+        Returns:
+            The ArrayIterator.
+
+        """
+        from zero_mlx.array_iterator import ArrayIterator
+
+        return ArrayIterator(self)
 
     def __setitem__(self, idx: Any, value: Any) -> None:
         """Compute __setitem__.

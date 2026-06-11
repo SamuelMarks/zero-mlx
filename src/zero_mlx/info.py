@@ -2,8 +2,7 @@
 
 from typing import Any
 from zero_mlx.dtypes import DType
-from ml_switcheroo.core.info import finfo as _ml_finfo, iinfo as _ml_iinfo
-from ml_switcheroo.core.dtype import DType as SwitcherooDType
+import numpy as np
 
 
 class _Info:
@@ -51,6 +50,22 @@ class _Info:
         return getattr(self._np_info, "eps", None)
 
 
+class _Bfloat16Info:
+    """Class representing bfloat16 type information."""
+
+    @property
+    def min(self) -> float:
+        return -3.389531389251535e38
+
+    @property
+    def max(self) -> float:
+        return 3.389531389251535e38
+
+    @property
+    def eps(self) -> float:
+        return 0.0078125
+
+
 def finfo(dtype: DType) -> _Info:
     """Get float info."""
     if not dtype.value.startswith("float") and not dtype.value.startswith("bfloat"):
@@ -58,15 +73,13 @@ def finfo(dtype: DType) -> _Info:
 
     np_val = dtype.value
     if np_val == "bfloat16":
-        np_val = "bfloat16"  # fixed since we support it now  # pragma: no cover
+        return _Info(_Bfloat16Info(), dtype)
 
-    s_dtype = SwitcherooDType(np_val)
-    return _Info(_ml_finfo(s_dtype), dtype)
+    return _Info(np.finfo(np_val), dtype)
 
 
 def iinfo(dtype: DType) -> _Info:
     """Get int info."""
     if not dtype.value.startswith("int") and not dtype.value.startswith("uint"):
         raise ValueError("iinfo only accepts int dtypes")
-    s_dtype = SwitcherooDType(dtype.value)
-    return _Info(_ml_iinfo(s_dtype), dtype)
+    return _Info(np.iinfo(dtype.value), dtype)
