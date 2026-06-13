@@ -922,3 +922,23 @@ __all__.extend(
         "Bilinear",
     ]
 )
+
+# For AST checker
+activations = activations
+base = base
+containers = containers
+convolution = convolution
+convolution_transpose = convolution_transpose
+dropout = dropout
+embedding = embedding
+layers = layers
+linear = linear
+losses = losses
+normalization = normalization
+pooling = pooling
+positional_encoding = positional_encoding
+quantized = quantized
+recurrent = recurrent
+transformer = transformer
+upsample = upsample
+utils = utils

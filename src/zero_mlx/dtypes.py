@@ -2,7 +2,7 @@
 """Dtypes for zero_mlx."""
 
 from enum import Enum
-from ml_switcheroo.core.dtype import DType as SwitcherooDType
+from ml_switcheroo_compiler.core.dtype import DType as SwitcherooDType
 
 
 class DType(Enum):

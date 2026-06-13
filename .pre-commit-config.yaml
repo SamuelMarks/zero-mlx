@@ -15,19 +15,33 @@ repos:
         types: [python]
         pass_filenames: false
 
-      - id: pytest-coverage
-        name: Run Pytest Coverage
-        entry: env PYTHONPATH=src pytest --cov=src/zero_mlx --cov-report=term-missing
+      - id: check-api-parity
+        name: Check API Parity against MLX
+        entry: python3 scripts/check_api_parity.py
         language: system
         types: [python]
         pass_filenames: false
 
-      - id: update-badges
-        name: Update Coverage Shields
-        entry: python3 scripts/update_badges.py
+      - id: check-compiler-test-completeness
+        name: Check Compiler Parity Test Completeness
+        entry: python3 scripts/check_compiler_test_completeness.py
         language: system
         types: [python]
         pass_filenames: false
+
+#      - id: pytest-coverage
+#        name: Run Pytest Coverage
+#        entry: env PYTHONPATH=src pytest --cov=src/zero_mlx --cov-report=term-missing
+#        language: system
+#        types: [python]
+#        pass_filenames: false
+#
+#      - id: update-badges
+#        name: Update Coverage Shields
+#        entry: python3 scripts/update_badges.py
+#        language: system
+#        types: [python]
+#        pass_filenames: false
 
       - id: build
         name: Build Package

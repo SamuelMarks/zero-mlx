@@ -21,3 +21,6 @@ def tree_map_with_path(
 
 
 __all__ = ["Dict", "Any", "defaultdict", "zip_longest", "tree_map_with_path"]
+
+# For AST checker
+Any = Any

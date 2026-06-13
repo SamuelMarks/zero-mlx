@@ -2,7 +2,7 @@
 
 import typing
 from typing import Optional, Any
-import ml_switcheroo.ops as sops
+import ml_switcheroo_compiler.ops as sops
 
 
 class Group:

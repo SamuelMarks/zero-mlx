@@ -33,6 +33,22 @@ jobs:
     - name: Check Linting (Ruff)
       run: ruff check .
 
+    - name: Check API Parity
+      run: |
+        python3 scripts/check_api_parity.py
+        if ! git diff --exit-code MLX_MISSING_API.md; then
+          echo "API Parity missing file MLX_MISSING_API.md was updated. Please run scripts/check_api_parity.py locally and commit the changes."
+          exit 1
+        fi
+
+    - name: Check Compiler Test Completeness
+      run: |
+        python3 scripts/check_compiler_test_completeness.py
+        if ! git diff --exit-code COMPILER_TEST_PARITY.md; then
+          echo "COMPILER_TEST_PARITY.md was updated. Please run scripts/check_compiler_test_completeness.py locally and commit the changes."
+          exit 1
+        fi
+
     - name: Test & Coverage
       run: |
         PYTHONPATH=src:tests/official pytest tests/official --cov=src/zero_mlx --cov-report=xml

@@ -18,9 +18,9 @@ def norm(a, ord=None, axis=None, keepdims=False, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -153,9 +153,9 @@ def qr(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
     import zero_mlx as mx
 
@@ -302,9 +302,9 @@ def svd(a, compute_uv=True, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -437,9 +437,9 @@ def inv(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -573,9 +573,9 @@ def tri_inv(a, upper=False, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -709,9 +709,9 @@ def cholesky(a, upper=False, stream=None):
 
     """
     from zero_mlx.array import _to_tensor  # pragma: no cover
-    import ml_switcheroo.ops as mops  # pragma: no cover
-    import ml_switcheroo.nn as mnn  # pragma: no cover
-    import ml_switcheroo.random as mrand  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops  # pragma: no cover
+    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
     def _u(x, param_name=None):  # pragma: no cover
@@ -845,9 +845,9 @@ def cholesky_inv(a, upper=False, stream=None):
 
     """
     from zero_mlx.array import _to_tensor  # pragma: no cover
-    import ml_switcheroo.ops as mops  # pragma: no cover
-    import ml_switcheroo.nn as mnn  # pragma: no cover
-    import ml_switcheroo.random as mrand  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops  # pragma: no cover
+    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
     def _u(x, param_name=None):  # pragma: no cover
@@ -980,9 +980,9 @@ def pinv(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1117,9 +1117,9 @@ def cross(a, b, axis=-1, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1252,9 +1252,9 @@ def eig(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor  # pragma: no cover
-    import ml_switcheroo.ops as mops  # pragma: no cover
-    import ml_switcheroo.nn as mnn  # pragma: no cover
-    import ml_switcheroo.random as mrand  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops  # pragma: no cover
+    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
     def _u(x, param_name=None):  # pragma: no cover
@@ -1387,9 +1387,9 @@ def eigvals(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor  # pragma: no cover
-    import ml_switcheroo.ops as mops  # pragma: no cover
-    import ml_switcheroo.nn as mnn  # pragma: no cover
-    import ml_switcheroo.random as mrand  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops  # pragma: no cover
+    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
     def _u(x, param_name=None):  # pragma: no cover
@@ -1523,9 +1523,9 @@ def eigh(a, UPLO="L", stream=None):
 
     """
     from zero_mlx.array import _to_tensor  # pragma: no cover
-    import ml_switcheroo.ops as mops  # pragma: no cover
-    import ml_switcheroo.nn as mnn  # pragma: no cover
-    import ml_switcheroo.random as mrand  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops  # pragma: no cover
+    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
     def _u(x, param_name=None):  # pragma: no cover
@@ -1659,9 +1659,9 @@ def eigvalsh(a, UPLO="L", stream=None):
 
     """
     from zero_mlx.array import _to_tensor  # pragma: no cover
-    import ml_switcheroo.ops as mops  # pragma: no cover
-    import ml_switcheroo.nn as mnn  # pragma: no cover
-    import ml_switcheroo.random as mrand  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops  # pragma: no cover
+    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
     def _u(x, param_name=None):  # pragma: no cover
@@ -1794,9 +1794,9 @@ def lu(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
     import zero_mlx as mx
 
@@ -1938,9 +1938,9 @@ def lu_factor(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -2074,9 +2074,9 @@ def lu_solve(lu_and_piv, b, stream=None):
 
     """
     from zero_mlx.array import _to_tensor  # pragma: no cover
-    import ml_switcheroo.ops as mops  # pragma: no cover
-    import ml_switcheroo.nn as mnn  # pragma: no cover
-    import ml_switcheroo.random as mrand  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops  # pragma: no cover
+    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
     def _u(x, param_name=None):  # pragma: no cover
@@ -2210,9 +2210,9 @@ def solve(a, b, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -2347,9 +2347,9 @@ def solve_triangular(a, b, upper=False, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -2482,9 +2482,9 @@ def det(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
     import zero_mlx as mx
 
@@ -2621,9 +2621,9 @@ def slogdet(a, stream=None):
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
     import zero_mlx as mx
 

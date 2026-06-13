@@ -8,7 +8,7 @@ def patch_ops():
     import zero_mlx.ops as ops
     from zero_mlx.array import array
     from zero_mlx.dtypes import DType
-    import ml_switcheroo.ops as sops
+    import ml_switcheroo_compiler.ops as sops
 
     orig_asarray = getattr(ops, "asarray", None)
 
@@ -356,7 +356,33 @@ def eval(*args):
     Args:
         *args: Arrays to evaluate.
     """
-    pass
+    import ml_switcheroo_compiler.tracing as tracing
+    import ml_switcheroo_compiler as compiler
+    from zero_mlx.array import array
+
+    if not tracing._tracer.is_tracing or not tracing._tracer.active_graph:
+        return
+
+    graph = tracing._tracer.active_graph
+
+    # We only want to evaluate nodes that are ProxyTensors
+    outputs = []
+    for arg in args:
+        if isinstance(arg, array) and hasattr(arg._tensor.data, "id"):
+            outputs.append(arg._tensor.data.id)
+
+    if not outputs:
+        return
+
+    graph.outputs = list(set(outputs))
+    # We pass an empty dict for inputs, since all data is either Constant or generated
+    results = compiler.evaluate_graph(graph, {})
+
+    for arg in args:
+        if isinstance(arg, array) and hasattr(arg._tensor.data, "id"):
+            out_id = arg._tensor.data.id
+            if out_id in results:
+                arg._tensor._data = results[out_id]
 
 
 def async_eval(*args):

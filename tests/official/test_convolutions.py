@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import zero_mlx as mx
-from ml_switcheroo.core.errors import UnimplementedMathError
+from ml_switcheroo_compiler.core.errors import UnimplementedMathError
 
 
 class TestConvolutions(unittest.TestCase):

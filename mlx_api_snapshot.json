@@ -1,0 +1,2381 @@
+{
+  "mlx.core": {
+    "ArrayAt": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "A helper object to apply updates at specific indices."
+    },
+    "ArrayIterator": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "A helper object to iterate over the 1st dimension of an array."
+    },
+    "ArrayLike": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "Any Python object which has an ``__mlx__array__`` method that"
+    },
+    "Device": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "A device to run operations on."
+    },
+    "DeviceType": {
+      "type": "EnumMeta",
+      "signature": "(value, names=None, *, module=None, qualname=None, type=None, start=1)",
+      "doc_str": "No documentation available."
+    },
+    "Dtype": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "DtypeCategory": {
+      "type": "EnumMeta",
+      "signature": "(value, names=None, *, module=None, qualname=None, type=None, start=1)",
+      "doc_str": "Type to hold categories of :class:`dtypes <Dtype>`."
+    },
+    "FunctionExporter": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "A context managing class for exporting multiple traces of the same"
+    },
+    "Stream": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "A stream for running operations on a given device."
+    },
+    "StreamContext": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "A context manager for setting the current device and stream."
+    },
+    "abs": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise absolute value."
+    },
+    "add": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise addition."
+    },
+    "addmm": {
+      "type": "nb_func",
+      "signature": "(c: array, a: array, b: array, /, alpha: float = 1.0, beta: float = 1.0,  *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Matrix multiplication with addition and optional scaling."
+    },
+    "all": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "An `and` reduction over the given axes."
+    },
+    "allclose": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, rtol: float = 1e-05, atol: float = 1e-08, *, equal_nan: bool = False, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Approximate comparison of two arrays."
+    },
+    "any": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "An `or` reduction over the given axes."
+    },
+    "arange": {
+      "type": "nb_func",
+      "signature": "(start : Union[int, float], stop : Union[int, float], step : Union[None, int, float], dtype: Optional[Dtype] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Overloaded function."
+    },
+    "arccos": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse cosine."
+    },
+    "arccosh": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse hyperbolic cosine."
+    },
+    "arcsin": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse sine."
+    },
+    "arcsinh": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse hyperbolic sine."
+    },
+    "arctan": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse tangent."
+    },
+    "arctan2": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse tangent of the ratio of two arrays."
+    },
+    "arctanh": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse hyperbolic tangent."
+    },
+    "argmax": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Indices of the maximum values along the axis."
+    },
+    "argmin": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Indices of the minimum values along the axis."
+    },
+    "argpartition": {
+      "type": "nb_func",
+      "signature": "(a: array, /, kth: int, axis: Union[None, int] = -1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns the indices that partition the array."
+    },
+    "argsort": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int] = -1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns the indices that sort the array."
+    },
+    "array": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "An N-dimensional array object."
+    },
+    "array_equal": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], equal_nan: bool = False, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Array equality check."
+    },
+    "as_strided": {
+      "type": "nb_func",
+      "signature": "(a: array, /, shape: Optional[Sequence[int]] = None, strides: Optional[Sequence[int]] = None, offset: int = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Create a view into the array with the given shape and strides."
+    },
+    "async_eval": {
+      "type": "nb_func",
+      "signature": "(*args)",
+      "doc_str": "Asynchronously evaluate an :class:`array` or tree of :class:`array`."
+    },
+    "atleast_1d": {
+      "type": "nb_func",
+      "signature": "(*arys: array, stream: Union[None, Stream, Device] = None) -> Union[array, list[array]]",
+      "doc_str": "Convert all arrays to have at least one dimension."
+    },
+    "atleast_2d": {
+      "type": "nb_func",
+      "signature": "(*arys: array, stream: Union[None, Stream, Device] = None) -> Union[array, list[array]]",
+      "doc_str": "Convert all arrays to have at least two dimensions."
+    },
+    "atleast_3d": {
+      "type": "nb_func",
+      "signature": "(*arys: array, stream: Union[None, Stream, Device] = None) -> Union[array, list[array]]",
+      "doc_str": "Convert all arrays to have at least three dimensions."
+    },
+    "bfloat16": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "bitwise_and": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise bitwise and."
+    },
+    "bitwise_invert": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise bitwise inverse."
+    },
+    "bitwise_or": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise bitwise or."
+    },
+    "bitwise_xor": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise bitwise xor."
+    },
+    "block_masked_mm": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, block_size: int = 64, mask_out: Optional[array] = None, mask_lhs: Optional[array] = None, mask_rhs: Optional[array] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Matrix multiplication with block masking."
+    },
+    "bool_": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "broadcast_arrays": {
+      "type": "nb_func",
+      "signature": "(*arrays: array, stream: Union[None, Stream, Device] = None) -> Tuple[array, ...]",
+      "doc_str": "Broadcast arrays against one another."
+    },
+    "broadcast_shapes": {
+      "type": "nb_func",
+      "signature": "(*shapes: Sequence[int]) -> Tuple[int]",
+      "doc_str": "Broadcast shapes."
+    },
+    "broadcast_to": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], /, shape: Sequence[int], *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Broadcast an array to the given shape."
+    },
+    "ceil": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise ceil."
+    },
+    "checkpoint": {
+      "type": "nb_func",
+      "signature": "(fun: collections.abc.Callable) -> collections.abc.Callable",
+      "doc_str": "No documentation available."
+    },
+    "clear_cache": {
+      "type": "nb_func",
+      "signature": "() -> None",
+      "doc_str": "Clear the memory cache."
+    },
+    "clip": {
+      "type": "nb_func",
+      "signature": "(a: array, /, a_min: Union[scalar, array, None], a_max: Union[scalar, array, None], *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Clip the values of the array between the given minimum and maximum."
+    },
+    "compile": {
+      "type": "nb_func",
+      "signature": "(fun: Callable, inputs: Optional[object] = None, outputs: Optional[object] = None, shapeless: bool = False) -> Callable",
+      "doc_str": "Returns a compiled function which produces the same output as ``fun``."
+    },
+    "complex64": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "complexfloating": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "concat": {
+      "type": "nb_func",
+      "signature": "(arrays: list[array], axis: Optional[int] = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "See :func:`concatenate`."
+    },
+    "concatenate": {
+      "type": "nb_func",
+      "signature": "(arrays: list[array], axis: Optional[int] = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Concatenate the arrays along the given axis."
+    },
+    "conj": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the elementwise complex conjugate of the input."
+    },
+    "conjugate": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the elementwise complex conjugate of the input."
+    },
+    "contiguous": {
+      "type": "nb_func",
+      "signature": "(a: array, /, allow_col_major: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Force an array to be row contiguous. Copy if necessary."
+    },
+    "conv1d": {
+      "type": "nb_func",
+      "signature": "(input: array, weight: array, /, stride: int = 1, padding: int = 0, dilation: int = 1, groups: int = 1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "1D convolution over an input with several channels"
+    },
+    "conv2d": {
+      "type": "nb_func",
+      "signature": "(input: array, weight: array, /, stride: Union[int, tuple[int, int]] = 1, padding: Union[int, tuple[int, int]] = 0, dilation: Union[int, tuple[int, int]] = 1, groups: int = 1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "2D convolution over an input with several channels"
+    },
+    "conv3d": {
+      "type": "nb_func",
+      "signature": "(input: array, weight: array, /, stride: Union[int, tuple[int, int, int]] = 1, padding: Union[int, tuple[int, int, int]] = 0, dilation: Union[int, tuple[int, int, int]] = 1, groups: int = 1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "3D convolution over an input with several channels"
+    },
+    "conv_general": {
+      "type": "nb_func",
+      "signature": "(input: array, weight: array, /, stride: Union[int, Sequence[int]] = 1, padding: Union[int, Sequence[int], tuple[Sequence[int], Sequence[int]]] = 0, kernel_dilation: Union[int, Sequence[int]] = 1, input_dilation: Union[int, Sequence[int]] = 1, groups: int = 1, flip: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "General convolution over an input with several channels"
+    },
+    "conv_transpose1d": {
+      "type": "nb_func",
+      "signature": "(input: array, weight: array, /, stride: int = 1, padding: int = 0, dilation: int = 1, output_padding: int = 0, groups: int = 1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "1D transposed convolution over an input with several channels"
+    },
+    "conv_transpose2d": {
+      "type": "nb_func",
+      "signature": "(input: array, weight: array, /, stride: Union[int, Tuple[int, int]] = 1, padding: Union[int, Tuple[int, int]] = 0, dilation: Union[int, Tuple[int, int]] = 1, output_padding: Union[int, Tuple[int, int]] = 0, groups: int = 1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "2D transposed convolution over an input with several channels"
+    },
+    "conv_transpose3d": {
+      "type": "nb_func",
+      "signature": "(input: array, weight: array, /, stride: Union[int, Tuple[int, int, int]] = 1, padding: Union[int, Tuple[int, int, int]] = 0, dilation: Union[int, Tuple[int, int, int]] = 1, output_padding: Union[int, Tuple[int, int, int]] = 0, groups: int = 1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "3D transposed convolution over an input with several channels"
+    },
+    "convolve": {
+      "type": "nb_func",
+      "signature": "(a: array, v: array, /, mode: str = \"full\", *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "The discrete convolution of 1D arrays."
+    },
+    "cos": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise cosine."
+    },
+    "cosh": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise hyperbolic cosine."
+    },
+    "cpu": {
+      "type": "DeviceType",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "cuda": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx.cuda"
+    },
+    "cummax": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Optional[int] = None, *, reverse: bool = False, inclusive: bool = True, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the cumulative maximum of the elements along the given axis."
+    },
+    "cummin": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Optional[int] = None, *, reverse: bool = False, inclusive: bool = True, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the cumulative minimum of the elements along the given axis."
+    },
+    "cumprod": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Optional[int] = None, *, reverse: bool = False, inclusive: bool = True, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the cumulative product of the elements along the given axis."
+    },
+    "cumsum": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Optional[int] = None, *, reverse: bool = False, inclusive: bool = True, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the cumulative sum of the elements along the given axis."
+    },
+    "custom_function": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "Set up a function for custom gradient and vmap definitions."
+    },
+    "default_device": {
+      "type": "nb_func",
+      "signature": "() -> mlx.core.Device",
+      "doc_str": "Get the default device."
+    },
+    "default_stream": {
+      "type": "nb_func",
+      "signature": "(device: mlx.core.Device) -> mlx.core.Stream",
+      "doc_str": "Get the device's default stream."
+    },
+    "degrees": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Convert angles from radians to degrees."
+    },
+    "depends": {
+      "type": "nb_func",
+      "signature": "(inputs: Union[array, Sequence[array]], dependencies: Union[array, Sequence[array]])",
+      "doc_str": "Insert dependencies between arrays in the graph. The outputs are"
+    },
+    "dequantize": {
+      "type": "nb_func",
+      "signature": "(w: array, /, scales: array, biases: Optional[array] = None, group_size: int = 64, bits: int = 4, mode: str = 'affine', *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Dequantize the matrix ``w`` using quantization parameters."
+    },
+    "diag": {
+      "type": "nb_func",
+      "signature": "(a: array, /, k: int = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Extract a diagonal or construct a diagonal matrix."
+    },
+    "diagonal": {
+      "type": "nb_func",
+      "signature": "(a: array, offset: int = 0, axis1: int = 0, axis2: int = 1, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return specified diagonals."
+    },
+    "disable_compile": {
+      "type": "nb_func",
+      "signature": "() -> None",
+      "doc_str": "Globally disable compilation. Setting the environment variable"
+    },
+    "distributed": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx.core.distributed: Communication operations"
+    },
+    "divide": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise division."
+    },
+    "divmod": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise quotient and remainder."
+    },
+    "e": {
+      "type": "float",
+      "signature": "(...)",
+      "doc_str": "Convert a string or number to a floating point number, if possible."
+    },
+    "einsum": {
+      "type": "nb_func",
+      "signature": "(subscripts: str, *operands, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Perform the Einstein summation convention on the operands."
+    },
+    "einsum_path": {
+      "type": "nb_func",
+      "signature": "(subscripts: str, *operands)",
+      "doc_str": "Compute the contraction order for the given Einstein summation."
+    },
+    "enable_compile": {
+      "type": "nb_func",
+      "signature": "() -> None",
+      "doc_str": "Globally enable compilation. This will override the environment"
+    },
+    "equal": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise equality."
+    },
+    "erf": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise error function."
+    },
+    "erfinv": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise inverse of :func:`erf`."
+    },
+    "euler_gamma": {
+      "type": "float",
+      "signature": "(...)",
+      "doc_str": "Convert a string or number to a floating point number, if possible."
+    },
+    "eval": {
+      "type": "nb_func",
+      "signature": "(*args) -> None",
+      "doc_str": "Evaluate an :class:`array` or tree of :class:`array`."
+    },
+    "exp": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise exponential."
+    },
+    "expand_dims": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[int, Sequence[int]], *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Add a size one dimension at the given axis."
+    },
+    "expm1": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise exponential minus 1."
+    },
+    "export_function": {
+      "type": "nb_func",
+      "signature": "(arg0: object, fun: collections.abc.Callable, *args, shapeless: bool = False, **kwargs) -> None",
+      "doc_str": "Export an MLX function."
+    },
+    "export_to_dot": {
+      "type": "nb_func",
+      "signature": "(file: object, *args, **kwargs) -> None",
+      "doc_str": "Export a graph to DOT format for visualization."
+    },
+    "exporter": {
+      "type": "nb_func",
+      "signature": "(file: str, fun: collections.abc.Callable, *, shapeless: bool = False) -> mlx.core.FunctionExporter",
+      "doc_str": "Make a callable object to export multiple traces of a function to a file."
+    },
+    "eye": {
+      "type": "nb_func",
+      "signature": "(n: int, m: Optional[int] = None, k: int = 0, dtype: Optional[Dtype] = float32, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Create an identity matrix or a general diagonal matrix."
+    },
+    "fast": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx.core.fast: fast operations"
+    },
+    "fft": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx.core.fft: Fast Fourier Transforms."
+    },
+    "finfo": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "Get information on floating-point types."
+    },
+    "flatten": {
+      "type": "nb_func",
+      "signature": "(a: array, /, start_axis: int = 0, end_axis: int = -1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Flatten an array."
+    },
+    "float16": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "float32": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "float64": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "floating": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "floor": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise floor."
+    },
+    "floor_divide": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise integer division."
+    },
+    "full": {
+      "type": "nb_func",
+      "signature": "(shape: Union[int, Sequence[int]], vals: Union[scalar, array], dtype: Optional[Dtype] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Construct an array with the given value."
+    },
+    "gather_mm": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, lhs_indices: array, rhs_indices: array, *, sorted_indices: bool = False, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Matrix multiplication with matrix-level gather."
+    },
+    "gather_qmm": {
+      "type": "nb_func",
+      "signature": "(x: array, w: array, /, scales: array, biases: Optional[array] = None, lhs_indices: Optional[array] = None, rhs_indices: Optional[array] = None, transpose: bool = True, group_size: int = 64, bits: int = 4, mode: str = 'affine', *, sorted_indices: bool = False, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Perform quantized matrix multiplication with matrix-level gather."
+    },
+    "generic": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "get_active_memory": {
+      "type": "nb_func",
+      "signature": "() -> int",
+      "doc_str": "Get the actively used memory in bytes."
+    },
+    "get_cache_memory": {
+      "type": "nb_func",
+      "signature": "() -> int",
+      "doc_str": "Get the cache size in bytes."
+    },
+    "get_peak_memory": {
+      "type": "nb_func",
+      "signature": "() -> int",
+      "doc_str": "Get the peak amount of used memory in bytes."
+    },
+    "gpu": {
+      "type": "DeviceType",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "grad": {
+      "type": "nb_func",
+      "signature": "(fun: Callable, argnums: Optional[Union[int, Sequence[int]]] = None, argnames: Union[str, Sequence[str]] = []) -> Callable",
+      "doc_str": "Returns a function which computes the gradient of ``fun``."
+    },
+    "greater": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise greater than."
+    },
+    "greater_equal": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise greater or equal."
+    },
+    "hadamard_transform": {
+      "type": "nb_func",
+      "signature": "(a: array, scale: Optional[float] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Perform the Walsh-Hadamard transform along the final axis."
+    },
+    "identity": {
+      "type": "nb_func",
+      "signature": "(n: int, dtype: Optional[Dtype] = float32, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Create a square identity matrix."
+    },
+    "iinfo": {
+      "type": "nb_type_0",
+      "signature": "(...)",
+      "doc_str": "Get information on integer types."
+    },
+    "imag": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns the imaginary part of a complex array."
+    },
+    "import_function": {
+      "type": "nb_func",
+      "signature": "(file: str) -> Callable",
+      "doc_str": "Import a function from a file."
+    },
+    "inexact": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "inf": {
+      "type": "float",
+      "signature": "(...)",
+      "doc_str": "Convert a string or number to a floating point number, if possible."
+    },
+    "inner": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Ordinary inner product of vectors for 1-D arrays, in higher dimensions a sum product over the last axes."
+    },
+    "int16": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "int32": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "int64": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "int8": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "integer": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "is_available": {
+      "type": "nb_func",
+      "signature": "(device: mlx.core.Device) -> bool",
+      "doc_str": "Check if a back-end is available for the given device."
+    },
+    "isclose": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, rtol: float = 1e-05, atol: float = 1e-08, *, equal_nan: bool = False, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns a boolean array where two arrays are element-wise equal within a tolerance."
+    },
+    "isfinite": {
+      "type": "nb_func",
+      "signature": "(a: array, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return a boolean array indicating which elements are finite."
+    },
+    "isinf": {
+      "type": "nb_func",
+      "signature": "(a: array, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return a boolean array indicating which elements are +/- inifnity."
+    },
+    "isnan": {
+      "type": "nb_func",
+      "signature": "(a: array, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return a boolean array indicating which elements are NaN."
+    },
+    "isneginf": {
+      "type": "nb_func",
+      "signature": "(a: array, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return a boolean array indicating which elements are negative infinity."
+    },
+    "isposinf": {
+      "type": "nb_func",
+      "signature": "(a: array, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return a boolean array indicating which elements are positive infinity."
+    },
+    "issubdtype": {
+      "type": "nb_func",
+      "signature": "(arg1: Union[Dtype, DtypeCategory], arg2: Union[Dtype, DtypeCategory]) -> bool",
+      "doc_str": "Check if a :obj:`Dtype` or :obj:`DtypeCategory` is a subtype"
+    },
+    "jvp": {
+      "type": "nb_func",
+      "signature": "(fun: Callable, primals: list[array], tangents: list[array]) -> tuple[list[array], list[array]]",
+      "doc_str": "Compute the Jacobian-vector product."
+    },
+    "kron": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the Kronecker product of two arrays ``a`` and ``b``."
+    },
+    "left_shift": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise left shift."
+    },
+    "less": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise less than."
+    },
+    "less_equal": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise less than or equal."
+    },
+    "linalg": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx.core.linalg: linear algebra routines."
+    },
+    "linspace": {
+      "type": "nb_func",
+      "signature": "(start, stop, num: Optional[int] = 50, dtype: Optional[Dtype] = float32, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate ``num`` evenly spaced numbers over interval ``[start, stop]``."
+    },
+    "load": {
+      "type": "nb_func",
+      "signature": "(file: Union[file, str, pathlib.Path], /, format: Optional[str] = None, return_metadata: bool = False, *, stream: Union[None, Stream, Device] = None) -> Union[array, dict[str, array]]",
+      "doc_str": "Load array(s) from a binary file."
+    },
+    "log": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise natural logarithm."
+    },
+    "log10": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise base-10 logarithm."
+    },
+    "log1p": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise natural log of one plus the array."
+    },
+    "log2": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise base-2 logarithm."
+    },
+    "logaddexp": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise log-add-exp."
+    },
+    "logcumsumexp": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Optional[int] = None, *, reverse: bool = False, inclusive: bool = True, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the cumulative logsumexp of the elements along the given axis."
+    },
+    "logical_and": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise logical and."
+    },
+    "logical_not": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise logical not."
+    },
+    "logical_or": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise logical or."
+    },
+    "logsumexp": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "A `log-sum-exp` reduction over the given axes."
+    },
+    "matmul": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Matrix multiplication."
+    },
+    "max": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "A `max` reduction over the given axes."
+    },
+    "maximum": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise maximum."
+    },
+    "mean": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the mean(s) over the given axes."
+    },
+    "meshgrid": {
+      "type": "nb_func",
+      "signature": "(*arrays: array, sparse: Optional[bool] = False, indexing: Optional[str] = 'xy', stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate multidimensional coordinate grids from 1-D coordinate arrays"
+    },
+    "metal": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx.metal"
+    },
+    "min": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "A `min` reduction over the given axes."
+    },
+    "minimum": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise minimum."
+    },
+    "moveaxis": {
+      "type": "nb_func",
+      "signature": "(a: array, /, source: int, destination: int, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Move an axis to a new position."
+    },
+    "multiply": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise multiplication."
+    },
+    "nan": {
+      "type": "float",
+      "signature": "(...)",
+      "doc_str": "Convert a string or number to a floating point number, if possible."
+    },
+    "nan_to_num": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], nan: float = 0, posinf: Optional[float] = None, neginf: Optional[float] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Replace NaN and Inf values with finite numbers."
+    },
+    "negative": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise negation."
+    },
+    "new_stream": {
+      "type": "nb_func",
+      "signature": "(device: mlx.core.Device) -> mlx.core.Stream",
+      "doc_str": "Make a new stream on the given device."
+    },
+    "newaxis": {
+      "type": "NoneType",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "not_equal": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise not equal."
+    },
+    "number": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "ones": {
+      "type": "nb_func",
+      "signature": "(shape: Union[int, Sequence[int]], dtype: Optional[Dtype] = float32, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Construct an array of ones."
+    },
+    "ones_like": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "An array of ones like the input."
+    },
+    "outer": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the outer product of two 1-D arrays, if the array's passed are not 1-D a flatten op will be run beforehand."
+    },
+    "pad": {
+      "type": "nb_func",
+      "signature": "(a: array, pad_width: Union[int, tuple[int], tuple[int, int], list[tuple[int, int]]], mode: Literal['constant', 'edge'] = 'constant', constant_values: Union[scalar, array] = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Pad an array with a constant value"
+    },
+    "partition": {
+      "type": "nb_func",
+      "signature": "(a: array, /, kth: int, axis: Union[None, int] = -1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns a partitioned copy of the array such that the smaller ``kth``"
+    },
+    "permute_dims": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axes: Optional[Sequence[int]] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "See :func:`transpose`."
+    },
+    "pi": {
+      "type": "float",
+      "signature": "(...)",
+      "doc_str": "Convert a string or number to a floating point number, if possible."
+    },
+    "power": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise power operation."
+    },
+    "prod": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "An product reduction over the given axes."
+    },
+    "put_along_axis": {
+      "type": "nb_func",
+      "signature": "(a: array, /, indices: array, values: array, axis: Optional[int] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Put values along an axis at the specified indices."
+    },
+    "quantize": {
+      "type": "nb_func",
+      "signature": "(w: array, /, group_size: int = 64, bits: int = 4, mode: str = 'affine', *, stream: Union[None, Stream, Device] = None) -> tuple[array, array, array]",
+      "doc_str": "Quantize the matrix ``w`` using ``bits`` bits per element."
+    },
+    "quantized_matmul": {
+      "type": "nb_func",
+      "signature": "(x: array, w: array, /, scales: array, biases: Optional[array] = None, transpose: bool = True, group_size: int = 64, bits: int = 4, mode: str = 'affine', *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Perform the matrix multiplication with the quantized matrix ``w``. The"
+    },
+    "radians": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Convert angles from degrees to radians."
+    },
+    "random": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx.core.random: functionality related to random number generation"
+    },
+    "real": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns the real part of a complex array."
+    },
+    "reciprocal": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise reciprocal."
+    },
+    "remainder": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise remainder of division."
+    },
+    "repeat": {
+      "type": "nb_func",
+      "signature": "(array: array, repeats: int, axis: Optional[int] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Repeat an array along a specified axis."
+    },
+    "reset_peak_memory": {
+      "type": "nb_func",
+      "signature": "() -> None",
+      "doc_str": "Reset the peak memory to zero."
+    },
+    "reshape": {
+      "type": "nb_func",
+      "signature": "(a: array, /, shape: Sequence[int], *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Reshape an array while preserving the size."
+    },
+    "right_shift": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise right shift."
+    },
+    "roll": {
+      "type": "nb_func",
+      "signature": "(a: array, shift: Union[int, Tuple[int]], axis: Union[None, int, Tuple[int]] = None, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Roll array elements along a given axis."
+    },
+    "round": {
+      "type": "nb_func",
+      "signature": "(a: array, /, decimals: int = 0, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Round to the given number of decimals."
+    },
+    "rsqrt": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise reciprocal and square root."
+    },
+    "save": {
+      "type": "nb_func",
+      "signature": "(file: Union[file, str, pathlib.Path], arr: array) -> None",
+      "doc_str": "Save the array to a binary file in ``.npy`` format."
+    },
+    "save_gguf": {
+      "type": "nb_func",
+      "signature": "(file: Union[file, str, pathlib.Path], arrays: dict[str, array], metadata: dict[str, Union[array, str, list[str]]])",
+      "doc_str": "Save array(s) to a binary file in ``.gguf`` format."
+    },
+    "save_safetensors": {
+      "type": "nb_func",
+      "signature": "(file: Union[file, str, pathlib.Path], arrays: dict[str, array], metadata: Optional[dict[str, str]] = None)",
+      "doc_str": "Save array(s) to a binary file in ``.safetensors`` format."
+    },
+    "savez": {
+      "type": "nb_func",
+      "signature": "(file: Union[file, str, pathlib.Path], *args, **kwargs)",
+      "doc_str": "Save several arrays to a binary file in uncompressed ``.npz``"
+    },
+    "savez_compressed": {
+      "type": "nb_func",
+      "signature": "(file: Union[file, str, pathlib.Path], *args, **kwargs)",
+      "doc_str": "Save several arrays to a binary file in compressed ``.npz`` format."
+    },
+    "segmented_mm": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, segments: array, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Perform a matrix multiplication but segment the inner dimension and"
+    },
+    "set_cache_limit": {
+      "type": "nb_func",
+      "signature": "(limit: int) -> int",
+      "doc_str": "Set the free cache limit."
+    },
+    "set_default_device": {
+      "type": "nb_func",
+      "signature": "(device: mlx.core.Device) -> None",
+      "doc_str": "Set the default device."
+    },
+    "set_default_stream": {
+      "type": "nb_func",
+      "signature": "(stream: mlx.core.Stream) -> None",
+      "doc_str": "Set the default stream."
+    },
+    "set_memory_limit": {
+      "type": "nb_func",
+      "signature": "(limit: int) -> int",
+      "doc_str": "Set the memory limit."
+    },
+    "set_wired_limit": {
+      "type": "nb_func",
+      "signature": "(limit: int) -> int",
+      "doc_str": "Set the wired size limit."
+    },
+    "sigmoid": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise logistic sigmoid."
+    },
+    "sign": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise sign."
+    },
+    "signedinteger": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "sin": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise sine."
+    },
+    "sinh": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise hyperbolic sine."
+    },
+    "slice": {
+      "type": "nb_func",
+      "signature": "(a: array, start_indices: array, axes: Sequence[int], slice_size: Sequence[int], *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Extract a sub-array from the input array."
+    },
+    "slice_update": {
+      "type": "nb_func",
+      "signature": "(a: array, update: array, start_indices: array, axes: Sequence[int], *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Update a sub-array of the input array."
+    },
+    "softmax": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Perform the softmax along the given axis."
+    },
+    "sort": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int] = -1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns a sorted copy of the array."
+    },
+    "split": {
+      "type": "nb_func",
+      "signature": "(a: array, /, indices_or_sections: Union[int, Sequence[int]], axis: int = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Split an array along a given axis."
+    },
+    "sqrt": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise square root."
+    },
+    "square": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise square."
+    },
+    "squeeze": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Remove length one axes from an array."
+    },
+    "stack": {
+      "type": "nb_func",
+      "signature": "(arrays: list[array], axis: Optional[int] = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Stacks the arrays along a new axis."
+    },
+    "std": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, ddof: int = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the standard deviation(s) over the given axes."
+    },
+    "stop_gradient": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Stop gradients from being computed."
+    },
+    "stream": {
+      "type": "nb_func",
+      "signature": "(s: typing.Union[mlx.core.Stream, mlx.core.Device]) -> mlx.core.StreamContext",
+      "doc_str": "Create a context manager to set the default device and stream."
+    },
+    "subtract": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], b: Union[scalar, array], stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise subtraction."
+    },
+    "sum": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Sum reduce the array over the given axes."
+    },
+    "swapaxes": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis1 : int, axis2: int, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Swap two axes of an array."
+    },
+    "synchronize": {
+      "type": "nb_func",
+      "signature": "(stream: typing.Optional[mlx.core.Stream] = None) -> None",
+      "doc_str": "Synchronize with the given stream."
+    },
+    "take": {
+      "type": "nb_func",
+      "signature": "(a: array, /, indices: Union[int, array], axis: Optional[int] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Take elements along an axis."
+    },
+    "take_along_axis": {
+      "type": "nb_func",
+      "signature": "(a: array, /, indices: array, axis: Optional[int] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Take values along an axis at the specified indices."
+    },
+    "tan": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise tangent."
+    },
+    "tanh": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Element-wise hyperbolic tangent."
+    },
+    "tensordot": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, /, axes: Union[int, list[Sequence[int]]] = 2, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the tensor dot product along the specified axes."
+    },
+    "tile": {
+      "type": "nb_func",
+      "signature": "(a: array, reps: Union[int, Sequence[int]], /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Construct an array by repeating ``a`` the number of times given by ``reps``."
+    },
+    "topk": {
+      "type": "nb_func",
+      "signature": "(a: array, /, k: int, axis: Union[None, int] = -1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Returns the ``k`` largest elements from the input along a given axis."
+    },
+    "trace": {
+      "type": "nb_func",
+      "signature": "(a: array, /, offset: int = 0, axis1: int = 0, axis2: int = 1, dtype: Optional[Dtype] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Return the sum along a specified diagonal in the given array."
+    },
+    "transpose": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axes: Optional[Sequence[int]] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Transpose the dimensions of the array."
+    },
+    "tri": {
+      "type": "nb_func",
+      "signature": "(n: int, m: int, k: int, dtype: Optional[Dtype] = None, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "An array with ones at and below the given diagonal and zeros elsewhere."
+    },
+    "tril": {
+      "type": "nb_func",
+      "signature": "(x: array, k: int, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Zeros the array above the given diagonal."
+    },
+    "triu": {
+      "type": "nb_func",
+      "signature": "(x: array, k: int, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Zeros the array below the given diagonal."
+    },
+    "uint16": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "uint32": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "uint64": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "uint8": {
+      "type": "Dtype",
+      "signature": "(...)",
+      "doc_str": "An object to hold the type of a :class:`array`."
+    },
+    "unflatten": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: int, shape: Sequence[int], *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Unflatten an axis of an array to a shape."
+    },
+    "unsignedinteger": {
+      "type": "DtypeCategory",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "value_and_grad": {
+      "type": "nb_func",
+      "signature": "(fun: Callable, argnums: Optional[Union[int, Sequence[int]]] = None, argnames: Union[str, Sequence[str]] = []) -> Callable",
+      "doc_str": "Returns a function which computes the value and gradient of ``fun``."
+    },
+    "var": {
+      "type": "nb_func",
+      "signature": "(a: array, /, axis: Union[None, int, Sequence[int]] = None, keepdims: bool = False, ddof: int = 0, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the variance(s) over the given axes."
+    },
+    "view": {
+      "type": "nb_func",
+      "signature": "(a: Union[scalar, array], dtype: Dtype, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "View the array as a different type."
+    },
+    "vjp": {
+      "type": "nb_func",
+      "signature": "(fun: Callable, primals: list[array], cotangents: list[array]) -> tuple[list[array], list[array]]",
+      "doc_str": "Compute the vector-Jacobian product."
+    },
+    "vmap": {
+      "type": "nb_func",
+      "signature": "(fun: Callable, in_axes: object = 0, out_axes: object = 0) -> Callable",
+      "doc_str": "Returns a vectorized version of ``fun``."
+    },
+    "where": {
+      "type": "nb_func",
+      "signature": "(condition: Union[scalar, array], x: Union[scalar, array], y: Union[scalar, array], /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Select from ``x`` or ``y`` according to ``condition``."
+    },
+    "zeros": {
+      "type": "nb_func",
+      "signature": "(shape: Union[int, Sequence[int]], dtype: Optional[Dtype] = float32, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Construct an array of zeros."
+    },
+    "zeros_like": {
+      "type": "nb_func",
+      "signature": "(a: array, /, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "An array of zeros like the input."
+    }
+  },
+  "mlx.core.fft": {
+    "fft": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, n: typing.Optional[int] = None, axis: int = -1, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "One dimensional discrete Fourier Transform."
+    },
+    "fft2": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = [-2, -1], stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "Two dimensional discrete Fourier Transform."
+    },
+    "fftn": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = None, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "n-dimensional discrete Fourier Transform."
+    },
+    "fftshift": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, axes: typing.Optional[collections.abc.Sequence[int]] = None, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "Shift the zero-frequency component to the center of the spectrum."
+    },
+    "ifft": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, n: typing.Optional[int] = None, axis: int = -1, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "One dimensional inverse discrete Fourier Transform."
+    },
+    "ifft2": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = [-2, -1], stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "Two dimensional inverse discrete Fourier Transform."
+    },
+    "ifftn": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = None, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "n-dimensional inverse discrete Fourier Transform."
+    },
+    "ifftshift": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, axes: typing.Optional[collections.abc.Sequence[int]] = None, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "The inverse of :func:`fftshift`. While identical to :func:`fftshift` for even-length axes,"
+    },
+    "irfft": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, n: typing.Optional[int] = None, axis: int = -1, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "The inverse of :func:`rfft`."
+    },
+    "irfft2": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = [-2, -1], stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "The inverse of :func:`rfft2`."
+    },
+    "irfftn": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = None, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "The inverse of :func:`rfftn`."
+    },
+    "rfft": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, n: typing.Optional[int] = None, axis: int = -1, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "One dimensional discrete Fourier Transform on a real input."
+    },
+    "rfft2": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = [-2, -1], stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "Two dimensional real discrete Fourier Transform."
+    },
+    "rfftn": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, s: typing.Optional[tuple[int, ...]] = None, axes: typing.Optional[collections.abc.Sequence[int]] = None, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "n-dimensional real discrete Fourier Transform."
+    }
+  },
+  "mlx.core.linalg": {
+    "cholesky": {
+      "type": "nb_func",
+      "signature": "(a: array, upper: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the Cholesky decomposition of a real symmetric positive semi-definite matrix."
+    },
+    "cholesky_inv": {
+      "type": "nb_func",
+      "signature": "(L: array, upper: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the inverse of a real symmetric positive semi-definite matrix using it's Cholesky decomposition."
+    },
+    "cross": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, axis: int = -1, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the cross product of two arrays along a specified axis."
+    },
+    "eig": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> Tuple[array, array]",
+      "doc_str": "Compute the eigenvalues and eigenvectors of a square matrix."
+    },
+    "eigh": {
+      "type": "nb_func",
+      "signature": "(a: array, UPLO: str = 'L', *, stream: Union[None, Stream, Device] = None) -> Tuple[array, array]",
+      "doc_str": "Compute the eigenvalues and eigenvectors of a complex Hermitian or"
+    },
+    "eigvals": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, *, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "Compute the eigenvalues of a square matrix."
+    },
+    "eigvalsh": {
+      "type": "nb_func",
+      "signature": "(a: mlx.core.array, UPLO: str = 'L', *, stream: typing.Optional[typing.Union[mlx.core.Stream, mlx.core.Device]] = None) -> mlx.core.array",
+      "doc_str": "Compute the eigenvalues of a complex Hermitian or real symmetric matrix."
+    },
+    "inv": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the inverse of a square matrix."
+    },
+    "lu": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> Tuple[array, array, array]",
+      "doc_str": "Compute the LU factorization of the given matrix ``A``."
+    },
+    "lu_factor": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> Tuple[array, array]",
+      "doc_str": "Computes a compact representation of the LU factorization."
+    },
+    "norm": {
+      "type": "nb_func",
+      "signature": "(a: array, /, ord: Union[None, int, float, str] = None, axis: Union[None, int, list[int]] = None, keepdims: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Matrix or vector norm."
+    },
+    "pinv": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the (Moore-Penrose) pseudo-inverse of a matrix."
+    },
+    "qr": {
+      "type": "nb_func",
+      "signature": "(a: array, *, stream: Union[None, Stream, Device] = None) -> Tuple[array, array]",
+      "doc_str": "The QR factorization of the input matrix."
+    },
+    "solve": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the solution to a system of linear equations ``AX = B``."
+    },
+    "solve_triangular": {
+      "type": "nb_func",
+      "signature": "(a: array, b: array, *, upper: bool = False, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Computes the solution of a triangular system of linear equations ``AX = B``."
+    },
+    "svd": {
+      "type": "nb_func",
+      "signature": "(a: array, compute_uv: bool = True, *, stream: Union[None, Stream, Device] = None) -> Tuple[array, array, array]",
+      "doc_str": "The Singular Value Decomposition (SVD) of the input matrix."
+    },
+    "tri_inv": {
+      "type": "nb_func",
+      "signature": "(a: array, upper: bool = False, *, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Compute the inverse of a triangular square matrix."
+    }
+  },
+  "mlx.core.random": {
+    "bernoulli": {
+      "type": "nb_func",
+      "signature": "(p: Union[scalar, array] = 0.5, shape: Optional[Sequence[int]] = None, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate Bernoulli random values."
+    },
+    "categorical": {
+      "type": "nb_func",
+      "signature": "(logits: array, axis: int = -1, shape: Optional[Sequence[int]] = None, num_samples: Optional[int] = None, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Sample from a categorical distribution."
+    },
+    "gumbel": {
+      "type": "nb_func",
+      "signature": "(shape: Sequence[int] = [], dtype: Optional[Dtype] = float32, key: Union[None, Stream, Device] = None, stream: Optional[array] = None) -> array",
+      "doc_str": "Sample from the standard Gumbel distribution."
+    },
+    "key": {
+      "type": "nb_func",
+      "signature": "(seed: int) -> mlx.core.array",
+      "doc_str": "Get a PRNG key from a seed."
+    },
+    "laplace": {
+      "type": "nb_func",
+      "signature": "(shape: Sequence[int] = [], dtype: Optional[Dtype] = float32, loc: float = 0.0, scale: float = 1.0, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Sample numbers from a Laplace distribution."
+    },
+    "multivariate_normal": {
+      "type": "nb_func",
+      "signature": "(mean: array, cov: array, shape: Sequence[int] = [], dtype: Optional[Dtype] = float32, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate jointly-normal random samples given a mean and covariance."
+    },
+    "normal": {
+      "type": "nb_func",
+      "signature": "(shape: Sequence[int] = [], dtype: Optional[Dtype] = float32, loc: Union[scalar, array, None] = None, scale: Union[scalar, array, None] = None, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate normally distributed random numbers."
+    },
+    "permutation": {
+      "type": "nb_func",
+      "signature": "(x: Union[int, array], axis: int = 0, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate a random permutation or permute the entries of an array."
+    },
+    "randint": {
+      "type": "nb_func",
+      "signature": "(low: Union[scalar, array], high: Union[scalar, array], shape: Sequence[int] = [], dtype: Optional[Dtype] = int32, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate random integers from the given interval."
+    },
+    "seed": {
+      "type": "nb_func",
+      "signature": "(seed: int) -> None",
+      "doc_str": "Seed the global PRNG."
+    },
+    "split": {
+      "type": "nb_func",
+      "signature": "(key: array, num: int = 2, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Split a PRNG key into sub keys."
+    },
+    "state": {
+      "type": "list",
+      "signature": "(...)",
+      "doc_str": "Built-in mutable sequence."
+    },
+    "truncated_normal": {
+      "type": "nb_func",
+      "signature": "(lower: Union[scalar, array], upper: Union[scalar, array], shape: Optional[Sequence[int]] = None, dtype: Optional[Dtype] = float32, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate values from a truncated normal distribution."
+    },
+    "uniform": {
+      "type": "nb_func",
+      "signature": "(low: Union[scalar, array] = 0, high: Union[scalar, array] = 1, shape: Sequence[int] = [], dtype: Optional[Dtype] = float32, key: Optional[array] = None, stream: Union[None, Stream, Device] = None) -> array",
+      "doc_str": "Generate uniformly distributed random numbers."
+    }
+  },
+  "mlx.nn": {
+    "ALiBi": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "No documentation available."
+    },
+    "AllToShardedLinear": {
+      "type": "type",
+      "signature": "(input_dims: int, output_dims: int, bias: bool = True, group: Optional[mlx.core.distributed.Group] = None)",
+      "doc_str": "Each member of the group applies part of the affine transformation such"
+    },
+    "AvgPool1d": {
+      "type": "type",
+      "signature": "(kernel_size: Union[int, Tuple[int]], stride: Union[int, Tuple[int], NoneType] = None, padding: Union[int, Tuple[int]] = 0)",
+      "doc_str": "Applies 1-dimensional average pooling."
+    },
+    "AvgPool2d": {
+      "type": "type",
+      "signature": "(kernel_size: Union[int, Tuple[int, int]], stride: Union[int, Tuple[int, int], NoneType] = None, padding: Union[int, Tuple[int, int], NoneType] = 0)",
+      "doc_str": "Applies 2-dimensional average pooling."
+    },
+    "AvgPool3d": {
+      "type": "type",
+      "signature": "(kernel_size: Union[int, Tuple[int, int, int]], stride: Union[int, Tuple[int, int, int], NoneType] = None, padding: Union[int, Tuple[int, int, int], NoneType] = 0)",
+      "doc_str": "Applies 3-dimensional average pooling."
+    },
+    "BatchNorm": {
+      "type": "type",
+      "signature": "(num_features: int, eps: float = 1e-05, momentum: float = 0.1, affine: bool = True, track_running_stats: bool = True)",
+      "doc_str": "Applies Batch Normalization over a 2D or 3D input."
+    },
+    "Bilinear": {
+      "type": "type",
+      "signature": "(input1_dims: int, input2_dims: int, output_dims: int, bias: bool = True) -> None",
+      "doc_str": "Applies a bilinear transformation to the inputs."
+    },
+    "CELU": {
+      "type": "type",
+      "signature": "(alpha=1.0)",
+      "doc_str": "Applies the Continuously Differentiable Exponential Linear Unit."
+    },
+    "Conv1d": {
+      "type": "type",
+      "signature": "(in_channels: int, out_channels: int, kernel_size: int, stride: int = 1, padding: int = 0, dilation: int = 1, groups: int = 1, bias: bool = True)",
+      "doc_str": "Applies a 1-dimensional convolution over the multi-channel input sequence."
+    },
+    "Conv2d": {
+      "type": "type",
+      "signature": "(in_channels: int, out_channels: int, kernel_size: Union[int, tuple], stride: Union[int, tuple] = 1, padding: Union[int, tuple] = 0, dilation: Union[int, tuple] = 1, groups: int = 1, bias: bool = True)",
+      "doc_str": "Applies a 2-dimensional convolution over the multi-channel input image."
+    },
+    "Conv3d": {
+      "type": "type",
+      "signature": "(in_channels: int, out_channels: int, kernel_size: Union[int, tuple], stride: Union[int, tuple] = 1, padding: Union[int, tuple] = 0, dilation: Union[int, tuple] = 1, bias: bool = True)",
+      "doc_str": "Applies a 3-dimensional convolution over the multi-channel input image."
+    },
+    "ConvTranspose1d": {
+      "type": "type",
+      "signature": "(in_channels: int, out_channels: int, kernel_size: int, stride: int = 1, padding: int = 0, dilation: int = 1, output_padding: int = 0, bias: bool = True)",
+      "doc_str": "Applies a 1-dimensional transposed convolution over the multi-channel input sequence."
+    },
+    "ConvTranspose2d": {
+      "type": "type",
+      "signature": "(in_channels: int, out_channels: int, kernel_size: Union[int, tuple], stride: Union[int, tuple] = 1, padding: Union[int, tuple] = 0, dilation: Union[int, tuple] = 1, output_padding: Union[int, tuple] = 0, bias: bool = True)",
+      "doc_str": "Applies a 2-dimensional transposed convolution over the multi-channel input image."
+    },
+    "ConvTranspose3d": {
+      "type": "type",
+      "signature": "(in_channels: int, out_channels: int, kernel_size: Union[int, tuple], stride: Union[int, tuple] = 1, padding: Union[int, tuple] = 0, dilation: Union[int, tuple] = 1, output_padding: Union[int, tuple] = 0, bias: bool = True)",
+      "doc_str": "Applies a 3-dimensional transposed convolution over the multi-channel input image."
+    },
+    "Dropout": {
+      "type": "type",
+      "signature": "(p: float = 0.5)",
+      "doc_str": "Randomly zero a portion of the elements during training."
+    },
+    "Dropout2d": {
+      "type": "type",
+      "signature": "(p: float = 0.5)",
+      "doc_str": "Apply 2D channel-wise dropout during training."
+    },
+    "Dropout3d": {
+      "type": "type",
+      "signature": "(p: float = 0.5)",
+      "doc_str": "Apply 3D channel-wise dropout during training."
+    },
+    "ELU": {
+      "type": "type",
+      "signature": "(alpha=1.0)",
+      "doc_str": "Applies the Exponential Linear Unit."
+    },
+    "Embedding": {
+      "type": "type",
+      "signature": "(num_embeddings: int, dims: int)",
+      "doc_str": "Implements a simple lookup table that maps each input integer to a"
+    },
+    "GELU": {
+      "type": "type",
+      "signature": "(approx='none')",
+      "doc_str": "Applies the Gaussian Error Linear Units."
+    },
+    "GLU": {
+      "type": "type",
+      "signature": "(axis: int = -1)",
+      "doc_str": "Applies the gated linear unit function."
+    },
+    "GRU": {
+      "type": "type",
+      "signature": "(input_size: int, hidden_size: int, bias: bool = True)",
+      "doc_str": "A gated recurrent unit (GRU) RNN layer."
+    },
+    "GroupNorm": {
+      "type": "type",
+      "signature": "(num_groups: int, dims: int, eps: float = 1e-05, affine: bool = True, pytorch_compatible: bool = False)",
+      "doc_str": "Applies Group Normalization [1] to the inputs."
+    },
+    "HardShrink": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the HardShrink function."
+    },
+    "HardTanh": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the HardTanh function."
+    },
+    "Hardswish": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the hardswish function, element-wise."
+    },
+    "Identity": {
+      "type": "type",
+      "signature": "(*args: Any, **kwargs: Any) -> None",
+      "doc_str": "A placeholder identity operator that is argument-insensitive."
+    },
+    "InstanceNorm": {
+      "type": "type",
+      "signature": "(dims: int, eps: float = 1e-05, affine: bool = False)",
+      "doc_str": "Applies instance normalization [1] on the inputs."
+    },
+    "LSTM": {
+      "type": "type",
+      "signature": "(input_size: int, hidden_size: int, bias: bool = True)",
+      "doc_str": "An LSTM recurrent layer."
+    },
+    "LayerNorm": {
+      "type": "type",
+      "signature": "(dims: int, eps: float = 1e-05, affine: bool = True, bias: bool = True)",
+      "doc_str": "Applies layer normalization [1] on the inputs."
+    },
+    "LeakyReLU": {
+      "type": "type",
+      "signature": "(negative_slope=0.01)",
+      "doc_str": "Applies the Leaky Rectified Linear Unit."
+    },
+    "Linear": {
+      "type": "type",
+      "signature": "(input_dims: int, output_dims: int, bias: bool = True) -> None",
+      "doc_str": "Applies an affine transformation to the input."
+    },
+    "LogSigmoid": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Log Sigmoid function."
+    },
+    "LogSoftmax": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Log Softmax function."
+    },
+    "MaxPool1d": {
+      "type": "type",
+      "signature": "(kernel_size: Union[int, Tuple[int]], stride: Union[int, Tuple[int], NoneType] = None, padding: Union[int, Tuple[int]] = 0)",
+      "doc_str": "Applies 1-dimensional max pooling."
+    },
+    "MaxPool2d": {
+      "type": "type",
+      "signature": "(kernel_size: Union[int, Tuple[int, int]], stride: Union[int, Tuple[int, int], NoneType] = None, padding: Union[int, Tuple[int, int], NoneType] = 0)",
+      "doc_str": "Applies 2-dimensional max pooling."
+    },
+    "MaxPool3d": {
+      "type": "type",
+      "signature": "(kernel_size: Union[int, Tuple[int, int, int]], stride: Union[int, Tuple[int, int, int], NoneType] = None, padding: Union[int, Tuple[int, int, int], NoneType] = 0)",
+      "doc_str": "Applies 3-dimensional max pooling."
+    },
+    "Mish": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Mish function, element-wise."
+    },
+    "Module": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Base class for building neural networks with MLX."
+    },
+    "MultiHeadAttention": {
+      "type": "type",
+      "signature": "(dims: int, num_heads: int, query_input_dims: Optional[int] = None, key_input_dims: Optional[int] = None, value_input_dims: Optional[int] = None, value_dims: Optional[int] = None, value_output_dims: Optional[int] = None, bias: bool = False)",
+      "doc_str": "Implements the scaled dot product attention with multiple heads."
+    },
+    "PReLU": {
+      "type": "type",
+      "signature": "(num_parameters=1, init=0.25)",
+      "doc_str": "Applies the element-wise parametric ReLU."
+    },
+    "QuantizedAllToShardedLinear": {
+      "type": "type",
+      "signature": "(input_dims: int, output_dims: int, bias: bool = True, group_size: int = 64, bits: int = 4, group: Optional[mlx.core.distributed.Group] = None)",
+      "doc_str": "Each member of the group applies part of the affine transformation with"
+    },
+    "QuantizedEmbedding": {
+      "type": "type",
+      "signature": "(num_embeddings: int, dims: int, group_size: int = 64, bits: int = 4, mode: str = 'affine')",
+      "doc_str": "The same as :obj:`Embedding` but with a  quantized weight matrix."
+    },
+    "QuantizedLinear": {
+      "type": "type",
+      "signature": "(input_dims: int, output_dims: int, bias: bool = True, group_size: int = 64, bits: int = 4, mode: str = 'affine')",
+      "doc_str": "Applies an affine transformation to the input using a quantized weight matrix."
+    },
+    "QuantizedShardedToAllLinear": {
+      "type": "type",
+      "signature": "(input_dims: int, output_dims: int, bias: bool = True, group_size: int = 64, bits: int = 4, group: Optional[mlx.core.distributed.Group] = None)",
+      "doc_str": "Each member of the group applies part of the affine transformation using"
+    },
+    "RMSNorm": {
+      "type": "type",
+      "signature": "(dims: int, eps: float = 1e-05)",
+      "doc_str": "Applies Root Mean Square normalization [1] to the inputs."
+    },
+    "RNN": {
+      "type": "type",
+      "signature": "(input_size: int, hidden_size: int, bias: bool = True, nonlinearity: Optional[Callable] = None)",
+      "doc_str": "An Elman recurrent layer."
+    },
+    "ReLU": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Rectified Linear Unit."
+    },
+    "ReLU2": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the ReLU\u00b2 activation function."
+    },
+    "ReLU6": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Rectified Linear Unit 6."
+    },
+    "RoPE": {
+      "type": "type",
+      "signature": "(dims: int, traditional: bool = False, base: float = 10000, scale: float = 1.0)",
+      "doc_str": "Implements the rotary positional encoding."
+    },
+    "SELU": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Scaled Exponential Linear Unit."
+    },
+    "Sequential": {
+      "type": "type",
+      "signature": "(*modules)",
+      "doc_str": "A layer that calls the passed callables in order."
+    },
+    "ShardedToAllLinear": {
+      "type": "type",
+      "signature": "(input_dims: int, output_dims: int, bias: bool = True, group: Optional[mlx.core.distributed.Group] = None)",
+      "doc_str": "Each member of the group applies part of the affine transformation and"
+    },
+    "SiLU": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Sigmoid Linear Unit. Also known as Swish."
+    },
+    "Sigmoid": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the sigmoid function, element-wise."
+    },
+    "SinusoidalPositionalEncoding": {
+      "type": "type",
+      "signature": "(dims: int, min_freq: float = 0.0001, max_freq: float = 1, scale: Optional[float] = None, cos_first: bool = False, full_turns: bool = False)",
+      "doc_str": "Implements sinusoidal positional encoding."
+    },
+    "Softmax": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Softmax function."
+    },
+    "Softmin": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Softmin function."
+    },
+    "Softplus": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Softplus function."
+    },
+    "Softshrink": {
+      "type": "type",
+      "signature": "(lambd=0.5)",
+      "doc_str": "Applies the Softshrink function."
+    },
+    "Softsign": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the Softsign function."
+    },
+    "Step": {
+      "type": "type",
+      "signature": "(threshold: float = 0.0)",
+      "doc_str": "Applies the Step Activation Function."
+    },
+    "Tanh": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Applies the hyperbolic tangent function."
+    },
+    "Transformer": {
+      "type": "type",
+      "signature": "(dims: int = 512, num_heads: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x10534a4a0>, custom_encoder: Optional[Any] = None, custom_decoder: Optional[Any] = None, norm_first: bool = True, checkpoint: bool = False)",
+      "doc_str": "Implements a standard Transformer model."
+    },
+    "TransformerDecoder": {
+      "type": "type",
+      "signature": "(num_layers: int, dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation=<mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True, checkpoint: bool = False)",
+      "doc_str": "No documentation available."
+    },
+    "TransformerDecoderLayer": {
+      "type": "type",
+      "signature": "(dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True)",
+      "doc_str": "No documentation available."
+    },
+    "TransformerEncoder": {
+      "type": "type",
+      "signature": "(num_layers: int, dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation=<mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True, checkpoint: bool = False)",
+      "doc_str": "No documentation available."
+    },
+    "TransformerEncoderLayer": {
+      "type": "type",
+      "signature": "(dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True)",
+      "doc_str": "No documentation available."
+    },
+    "Upsample": {
+      "type": "type",
+      "signature": "(scale_factor: Union[float, Tuple], mode: Literal['nearest', 'linear', 'cubic'] = 'nearest', align_corners: bool = False)",
+      "doc_str": "Upsample the input signal spatially."
+    },
+    "activations": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "average_gradients": {
+      "type": "function",
+      "signature": "(gradients: Any, group: Optional[mlx.core.distributed.Group] = None, all_reduce_size: int = 33554432, communication_type: Optional[mlx.core.Dtype] = None, communication_stream: Optional[mlx.core.Stream] = None)",
+      "doc_str": "Average the gradients across the distributed processes in the passed group."
+    },
+    "base": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "celu": {
+      "type": "gc_func",
+      "signature": "(x, alpha=1.0)",
+      "doc_str": "Applies the Continuously Differentiable Exponential Linear Unit."
+    },
+    "containers": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "convolution": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "convolution_transpose": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "distributed": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "dropout": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "elu": {
+      "type": "gc_func",
+      "signature": "(x, alpha=1.0)",
+      "doc_str": "Applies the Exponential Linear Unit."
+    },
+    "embedding": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "gelu": {
+      "type": "gc_func",
+      "signature": "(x) -> mlx.core.array",
+      "doc_str": "Applies the Gaussian Error Linear Units function."
+    },
+    "gelu_approx": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "An approximation to Gaussian Error Linear Unit."
+    },
+    "gelu_fast_approx": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "A fast approximation to Gaussian Error Linear Unit."
+    },
+    "glu": {
+      "type": "function",
+      "signature": "(x: mlx.core.array, axis: int = -1) -> mlx.core.array",
+      "doc_str": "Applies the gated linear unit function."
+    },
+    "hard_shrink": {
+      "type": "gc_func",
+      "signature": "(x, lambd=0.5)",
+      "doc_str": "Applies the HardShrink activation function."
+    },
+    "hard_tanh": {
+      "type": "gc_func",
+      "signature": "(x, min_val=-1.0, max_val=1.0)",
+      "doc_str": "Applies the HardTanh function."
+    },
+    "hardswish": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the hardswish function, element-wise."
+    },
+    "init": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "layers": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "leaky_relu": {
+      "type": "gc_func",
+      "signature": "(x, negative_slope=0.01)",
+      "doc_str": "Applies the Leaky Rectified Linear Unit."
+    },
+    "linear": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "log_sigmoid": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the Log Sigmoid function."
+    },
+    "log_softmax": {
+      "type": "gc_func",
+      "signature": "(x, axis=-1)",
+      "doc_str": "Applies the Log Softmax function."
+    },
+    "losses": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "mish": {
+      "type": "gc_func",
+      "signature": "(x: mlx.core.array) -> mlx.core.array",
+      "doc_str": "Applies the Mish function, element-wise."
+    },
+    "normalization": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "pooling": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "positional_encoding": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "prelu": {
+      "type": "gc_func",
+      "signature": "(x: mlx.core.array, alpha: mlx.core.array) -> mlx.core.array",
+      "doc_str": "Applies the element-wise parametric ReLU."
+    },
+    "quantize": {
+      "type": "function",
+      "signature": "(model: mlx.nn.layers.base.Module, group_size: int = 64, bits: int = 4, *, mode: str = 'affine', class_predicate: Optional[Callable[[str, mlx.nn.layers.base.Module], Union[bool, dict]]] = None)",
+      "doc_str": "Quantize the sub-modules of a module according to a predicate."
+    },
+    "quantized": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "recurrent": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "relu": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the Rectified Linear Unit."
+    },
+    "relu2": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the ReLU\u00b2 activation function."
+    },
+    "relu6": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the Rectified Linear Unit 6."
+    },
+    "selu": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the Scaled Exponential Linear Unit."
+    },
+    "sigmoid": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the sigmoid function."
+    },
+    "silu": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the Sigmoid Linear Unit. Also known as Swish."
+    },
+    "softmax": {
+      "type": "gc_func",
+      "signature": "(x, axis=-1)",
+      "doc_str": "Applies the Softmax function."
+    },
+    "softmin": {
+      "type": "gc_func",
+      "signature": "(x, axis=-1)",
+      "doc_str": "Applies the Softmin function."
+    },
+    "softplus": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the Softplus function."
+    },
+    "softshrink": {
+      "type": "gc_func",
+      "signature": "(x, lambd: float = 0.5)",
+      "doc_str": "Applies the Softshrink activation function."
+    },
+    "softsign": {
+      "type": "gc_func",
+      "signature": "(x)",
+      "doc_str": "Applies the Softsign function."
+    },
+    "step": {
+      "type": "gc_func",
+      "signature": "(x: mlx.core.array, threshold: float = 0.0)",
+      "doc_str": "Applies the Step Activation Function."
+    },
+    "tanh": {
+      "type": "function",
+      "signature": "(x)",
+      "doc_str": "Applies the hyperbolic tangent function."
+    },
+    "transformer": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "upsample": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "utils": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "value_and_grad": {
+      "type": "function",
+      "signature": "(model: mlx.nn.layers.base.Module, fn: Callable)",
+      "doc_str": "Transform the passed function ``fn`` to a function that computes the"
+    }
+  },
+  "mlx.optimizers": {
+    "AdaDelta": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], rho: float = 0.9, eps: float = 1e-06)",
+      "doc_str": "The AdaDelta optimizer with a learning rate [1]."
+    },
+    "Adafactor": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array], NoneType] = None, eps: Tuple[float, float] = (1e-30, 0.001), clip_threshold: float = 1.0, decay_rate: float = -0.8, beta_1: Optional[float] = None, weight_decay: float = 0.0, scale_parameter: bool = True, relative_step: bool = True, warmup_init: bool = False)",
+      "doc_str": "The Adafactor optimizer."
+    },
+    "Adagrad": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], eps: float = 1e-08)",
+      "doc_str": "The Adagrad optimizer [1]."
+    },
+    "Adam": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], betas: List[float] = [0.9, 0.999], eps: float = 1e-08, bias_correction: bool = False)",
+      "doc_str": "The Adam optimizer [1]. In detail,"
+    },
+    "AdamW": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], betas: List[float] = [0.9, 0.999], eps: float = 1e-08, weight_decay: float = 0.01, bias_correction: bool = False)",
+      "doc_str": "The AdamW optimizer [1]. We update the weights with a weight_decay"
+    },
+    "Adamax": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], betas: List[float] = [0.9, 0.999], eps: float = 1e-08)",
+      "doc_str": "The Adamax optimizer, a variant of Adam based on the infinity norm [1]."
+    },
+    "Callable": {
+      "type": "_CallableType",
+      "signature": "(*args, **kwargs)",
+      "doc_str": "Callable type; Callable[[int], str] is a function of (int) -> str."
+    },
+    "Lion": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], betas: List[float] = [0.9, 0.99], weight_decay: float = 0.0)",
+      "doc_str": "The Lion optimizer [1]."
+    },
+    "List": {
+      "type": "_SpecialGenericAlias",
+      "signature": "(*args, **kwargs)",
+      "doc_str": "A generic version of list."
+    },
+    "Module": {
+      "type": "type",
+      "signature": "()",
+      "doc_str": "Base class for building neural networks with MLX."
+    },
+    "MultiOptimizer": {
+      "type": "type",
+      "signature": "(optimizers, filters: list = [])",
+      "doc_str": "Wraps a list of optimizers with corresponding weight predicates/filters"
+    },
+    "Muon": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], momentum: float = 0.95, weight_decay: float = 0.01, nesterov: bool = True, ns_steps: int = 5)",
+      "doc_str": "The Muon optimizer."
+    },
+    "Optimizer": {
+      "type": "type",
+      "signature": "(schedulers=None)",
+      "doc_str": "The base class for all optimizers. It allows us to implement an"
+    },
+    "Optional": {
+      "type": "_SpecialForm",
+      "signature": "(*args, **kwds)",
+      "doc_str": "Optional type."
+    },
+    "RMSprop": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], alpha: float = 0.99, eps: float = 1e-08)",
+      "doc_str": "The RMSprop optimizer [1]."
+    },
+    "SGD": {
+      "type": "type",
+      "signature": "(learning_rate: Union[float, Callable[[mlx.core.array], mlx.core.array]], momentum: float = 0.0, weight_decay: float = 0.0, dampening: float = 0.0, nesterov: bool = False)",
+      "doc_str": "The stochastic gradient descent optimizer."
+    },
+    "Tuple": {
+      "type": "_TupleType",
+      "signature": "(*args, **kwargs)",
+      "doc_str": "Tuple type; Tuple[X, Y] is the cross-product type of X and Y."
+    },
+    "Union": {
+      "type": "_SpecialForm",
+      "signature": "(*args, **kwds)",
+      "doc_str": "Union type; Union[X, Y] means either X or Y."
+    },
+    "clip_grad_norm": {
+      "type": "function",
+      "signature": "(grads, max_norm)",
+      "doc_str": "Clips the global norm of the gradients."
+    },
+    "cosine_decay": {
+      "type": "function",
+      "signature": "(init: float, decay_steps: int, end: float = 0.0) -> Callable",
+      "doc_str": "Make a cosine decay scheduler."
+    },
+    "exponential_decay": {
+      "type": "function",
+      "signature": "(init: float, decay_rate: float) -> Callable",
+      "doc_str": "Make an exponential decay scheduler."
+    },
+    "join_schedules": {
+      "type": "function",
+      "signature": "(schedules: List[Callable], boundaries: List[int]) -> Callable",
+      "doc_str": "Join multiple schedules to create a new schedule."
+    },
+    "linear_schedule": {
+      "type": "function",
+      "signature": "(init: float, end: float, steps: int) -> Callable",
+      "doc_str": "Make a linear scheduler."
+    },
+    "math": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "This module provides access to the mathematical functions"
+    },
+    "mx": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "mlx: A framework for machine learning on Apple silicon."
+    },
+    "optimizers": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "schedulers": {
+      "type": "module",
+      "signature": "(...)",
+      "doc_str": "No documentation available."
+    },
+    "step_decay": {
+      "type": "function",
+      "signature": "(init: float, decay_rate: float, step_size: int) -> Callable",
+      "doc_str": "Make a step decay scheduler."
+    },
+    "tree_flatten": {
+      "type": "function",
+      "signature": "(tree: Any, prefix: str = '', is_leaf: Optional[Callable] = None, destination: Union[List[Tuple[str, Any]], Dict[str, Any], NoneType] = None) -> Union[List[Tuple[str, Any]], Dict[str, Any]]",
+      "doc_str": "Flattens a Python tree to a list of key, value tuples."
+    },
+    "tree_map": {
+      "type": "function",
+      "signature": "(fn: Callable, tree: Any, *rest: Any, is_leaf: Optional[Callable] = None) -> Any",
+      "doc_str": "Applies ``fn`` to the leaves of the Python tree ``tree`` and"
+    },
+    "tree_merge": {
+      "type": "function",
+      "signature": "(tree_a, tree_b, merge_fn=None)",
+      "doc_str": "Merge two Python trees in one containing the values of both. It can be"
+    },
+    "tree_reduce": {
+      "type": "function",
+      "signature": "(fn, tree, initializer=None, is_leaf=None)",
+      "doc_str": "Applies a reduction to the leaves of a Python tree."
+    },
+    "tree_unflatten": {
+      "type": "function",
+      "signature": "(tree: Union[List[Tuple[str, Any]], Dict[str, Any]]) -> Any",
+      "doc_str": "Recreate a Python tree from its flat representation."
+    }
+  },
+  "mlx.utils": {
+    "Any": {
+      "type": "_SpecialForm",
+      "signature": "(*args, **kwds)",
+      "doc_str": "Special type indicating an unconstrained type."
+    },
+    "Callable": {
+      "type": "_CallableType",
+      "signature": "(*args, **kwargs)",
+      "doc_str": "Callable type; Callable[[int], str] is a function of (int) -> str."
+    },
+    "Dict": {
+      "type": "_SpecialGenericAlias",
+      "signature": "(*args, **kwargs)",
+      "doc_str": "A generic version of dict."
+    },
+    "List": {
+      "type": "_SpecialGenericAlias",
+      "signature": "(*args, **kwargs)",
+      "doc_str": "A generic version of list."
+    },
+    "Optional": {
+      "type": "_SpecialForm",
+      "signature": "(*args, **kwds)",
+      "doc_str": "Optional type."
+    },
+    "Tuple": {
+      "type": "_TupleType",
+      "signature": "(*args, **kwargs)",
+      "doc_str": "Tuple type; Tuple[X, Y] is the cross-product type of X and Y."
+    },
+    "Union": {
+      "type": "_SpecialForm",
+      "signature": "(*args, **kwds)",
+      "doc_str": "Union type; Union[X, Y] means either X or Y."
+    },
+    "defaultdict": {
+      "type": "type",
+      "signature": "(default_factory=None, /, [...]) --> dict with default factory",
+      "doc_str": "The default factory is called without arguments to produce"
+    },
+    "tree_flatten": {
+      "type": "function",
+      "signature": "(tree: Any, prefix: str = '', is_leaf: Optional[Callable] = None, destination: Union[List[Tuple[str, Any]], Dict[str, Any], NoneType] = None) -> Union[List[Tuple[str, Any]], Dict[str, Any]]",
+      "doc_str": "Flattens a Python tree to a list of key, value tuples."
+    },
+    "tree_map": {
+      "type": "function",
+      "signature": "(fn: Callable, tree: Any, *rest: Any, is_leaf: Optional[Callable] = None) -> Any",
+      "doc_str": "Applies ``fn`` to the leaves of the Python tree ``tree`` and"
+    },
+    "tree_map_with_path": {
+      "type": "function",
+      "signature": "(fn: Callable, tree: Any, *rest: Any, is_leaf: Optional[Callable] = None, path: Optional[Any] = None) -> Any",
+      "doc_str": "Applies ``fn`` to the path and leaves of the Python tree ``tree`` and"
+    },
+    "tree_merge": {
+      "type": "function",
+      "signature": "(tree_a, tree_b, merge_fn=None)",
+      "doc_str": "Merge two Python trees in one containing the values of both. It can be"
+    },
+    "tree_reduce": {
+      "type": "function",
+      "signature": "(fn, tree, initializer=None, is_leaf=None)",
+      "doc_str": "Applies a reduction to the leaves of a Python tree."
+    },
+    "tree_unflatten": {
+      "type": "function",
+      "signature": "(tree: Union[List[Tuple[str, Any]], Dict[str, Any]]) -> Any",
+      "doc_str": "Recreate a Python tree from its flat representation."
+    },
+    "zip_longest": {
+      "type": "type",
+      "signature": "(iter1 [,iter2 [...]], [fillvalue=None]) --> zip_longest object",
+      "doc_str": "Return a zip_longest object whose .__next__() method returns a tuple where"
+    }
+  }
+}

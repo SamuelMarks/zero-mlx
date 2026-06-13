@@ -18,9 +18,9 @@ def fft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -134,7 +134,7 @@ def fft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
                 fn = getattr(mrand, "fft")
             except AttributeError:  # pragma: no cover  # pragma: no cover
                 raise NotImplementedError("Missing in compiler: fft")
-    res = fn(_u(a, "a"), _u(n, "n"), _u(axis, "axis"), _u(norm, "norm"))
+    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
     return _w(res)
 
 
@@ -153,9 +153,9 @@ def ifft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -269,7 +269,7 @@ def ifft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
                 fn = getattr(mrand, "ifft")
             except AttributeError:  # pragma: no cover  # pragma: no cover
                 raise NotImplementedError("Missing in compiler: ifft")
-    res = fn(_u(a, "a"), _u(n, "n"), _u(axis, "axis"), _u(norm, "norm"))
+    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
     return _w(res)
 
 
@@ -288,9 +288,9 @@ def fft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -423,9 +423,9 @@ def ifft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -558,9 +558,9 @@ def fftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -693,9 +693,9 @@ def ifftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -828,9 +828,9 @@ def rfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -944,7 +944,7 @@ def rfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
                 fn = getattr(mrand, "rfft")
             except AttributeError:  # pragma: no cover  # pragma: no cover
                 raise NotImplementedError("Missing in compiler: rfft")
-    res = fn(_u(a, "a"), _u(n, "n"), _u(axis, "axis"), _u(norm, "norm"))
+    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
     return _w(res)
 
 
@@ -963,9 +963,9 @@ def irfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1079,7 +1079,7 @@ def irfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
                 fn = getattr(mrand, "irfft")
             except AttributeError:  # pragma: no cover  # pragma: no cover
                 raise NotImplementedError("Missing in compiler: irfft")
-    res = fn(_u(a, "a"), _u(n, "n"), _u(axis, "axis"), _u(norm, "norm"))
+    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
     return _w(res)
 
 
@@ -1098,9 +1098,9 @@ def rfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1233,9 +1233,9 @@ def irfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cove
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1368,9 +1368,9 @@ def rfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1503,9 +1503,9 @@ def irfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1636,9 +1636,9 @@ def fftfreq(n, d=1.0, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1769,9 +1769,9 @@ def rfftfreq(n, d=1.0, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -1902,9 +1902,9 @@ def fftshift(x, axes=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):
@@ -2035,9 +2035,9 @@ def ifftshift(x, axes=None, stream=None):  # pragma: no cover
 
     """
     from zero_mlx.array import _to_tensor
-    import ml_switcheroo.ops as mops
-    import ml_switcheroo.nn as mnn
-    import ml_switcheroo.random as mrand
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.nn as mnn
+    import ml_switcheroo_compiler.random as mrand
     import types
 
     def _u(x, param_name=None):

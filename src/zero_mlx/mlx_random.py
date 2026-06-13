@@ -1,8 +1,8 @@
 """Random number generation functions."""
 
 import zero_mlx as mx
-import ml_switcheroo.random as mrand
-from ml_switcheroo.core.dtype import DType
+import ml_switcheroo_compiler.random as mrand
+from ml_switcheroo_compiler.core.dtype import DType
 
 
 class PRNGKey:
@@ -39,7 +39,7 @@ def key(seed_val):
 
     """
     from zero_mlx.array import array
-    import ml_switcheroo.ops as sops
+    import ml_switcheroo_compiler.ops as sops
 
     t = sops.array([seed_val], dtype=DType.UInt32)
     return array(t)
@@ -106,7 +106,7 @@ def uniform(low=0.0, high=1.0, shape=None, dtype=None, stream=None, key=None):
 
     """
     from zero_mlx.array import array
-    from ml_switcheroo.core.config import config
+    from ml_switcheroo_compiler.core.config import config
 
     key_tensor = _get_key(key)
     shape = (
@@ -146,7 +146,7 @@ def normal(shape=None, dtype=None, loc=0.0, scale=1.0, stream=None, key=None):
 
     """
     from zero_mlx.array import array
-    from ml_switcheroo.core.config import config
+    from ml_switcheroo_compiler.core.config import config
 
     key_tensor = _get_key(key)
     shape = (
@@ -283,7 +283,7 @@ def categorical(
         out_shape = tuple(out_shape)
 
     # We didn't fully match mx.categorical logic in mrand.categorical, but we mock it.
-    import ml_switcheroo.ops as sops
+    import ml_switcheroo_compiler.ops as sops
 
     # just return zeros like the original did!
     if dtype is None:
@@ -407,7 +407,7 @@ def permutation(x, axis=0, stream=None, key=None):
 
     """
     from zero_mlx.array import array
-    import ml_switcheroo.ops as sops
+    import ml_switcheroo_compiler.ops as sops
 
     key_tensor = _get_key(key)
 
@@ -439,7 +439,7 @@ def truncated_normal(lower, upper, shape=None, dtype=None, stream=None, key=None
 
     """
     from zero_mlx.array import array
-    import ml_switcheroo.ops as sops
+    import ml_switcheroo_compiler.ops as sops
 
     key_tensor = _get_key(key)
 
@@ -449,7 +449,7 @@ def truncated_normal(lower, upper, shape=None, dtype=None, stream=None, key=None
     if shape is None:
         lower_shape = lower_val.shape if hasattr(lower_val, "shape") else ()
         upper_shape = upper_val.shape if hasattr(upper_val, "shape") else ()
-        from ml_switcheroo.shape import broadcast_shapes
+        from ml_switcheroo_compiler.shape import broadcast_shapes
 
         shape = broadcast_shapes(lower_shape, upper_shape)
     elif isinstance(shape, int):

@@ -1,7 +1,8 @@
 from typing import Union, Tuple, Optional, Sequence, Any
 from zero_mlx.array import array
-import ml_switcheroo.nn as mnn
-import ml_switcheroo.ops as sops
+from zero_mlx.dtypes import to_switcheroo_dtype
+import ml_switcheroo_compiler.nn as mnn
+import ml_switcheroo_compiler.ops as sops
 
 
 def _to_tensor(x):
@@ -202,16 +203,47 @@ def conv_general(
 
 def convolve(a: array, v: array, /, mode: str = "full", *, stream: Any = None) -> array:
     """The discrete convolution of 1D arrays."""
-    # A simple numpy wrapper since this is a 1D general convolve
-    import numpy as np
-    import ml_switcheroo.core.tensor as tensor
+    import ml_switcheroo_compiler.ops as sops
 
-    res = np.convolve(np.array(a), np.array(v), mode=mode)
     dt = a.dtype
-    # promote dtype
     if v.dtype.size > dt.size:
         dt = v.dtype
-    return array(res, dtype=dt)
+
+    if mode != "full":
+        raise NotImplementedError(
+            "Only mode='full' is currently supported for convolve"
+        )
+
+    if a.size == 0 or v.size == 0:
+        return array(sops.zeros((0,), dtype=to_switcheroo_dtype(dt)))
+
+    # v needs to be reversed
+    v_rev = v[::-1]
+
+    # Pad a
+    pad_width = v.size - 1
+    # We must pad `a` on both sides. sops.pad(tensor, [(pad_left, pad_right)])
+    # Wait, does sops have pad? Yes! sops.pad(tensor, pad_width)
+    a_tensor = sops.astype(a._tensor, to_switcheroo_dtype(dt))
+    v_tensor = sops.astype(v_rev._tensor, to_switcheroo_dtype(dt))
+
+    a_reshaped = sops.reshape(a_tensor, (1, a.size, 1))
+    v_reshaped = sops.reshape(v_tensor, (1, v.size, 1))
+
+    # We use conv1d and let it pad, or pad manually.
+    # mnn.conv1d uses stride 1 and padding
+    res = mnn.conv1d(
+        a_reshaped,
+        v_reshaped,
+        stride=1,
+        padding=pad_width,
+        dilation=1,
+        groups=1,
+    )
+    res = sops.squeeze(res)
+    if res.ndim == 0:
+        res = sops.unsqueeze(res, dim=0)
+    return array(res)
 
 
 def dequantize(

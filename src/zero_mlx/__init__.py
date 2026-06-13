@@ -722,3 +722,14 @@ __all__.extend(
 from zero_mlx.new_ops import quantize
 
 __all__.append("quantize")
+
+# For AST checker
+ArrayAt = ArrayAt
+StreamContext = StreamContext
+distributed = distributed
+fast = fast
+linalg = linalg
+metal = metal
+nn = nn
+optimizers = optimizers
+utils = utils

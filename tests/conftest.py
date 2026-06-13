@@ -8,13 +8,13 @@ sys.path.insert(
         os.path.join(os.path.dirname(__file__), "../../ml-switcheroo-compiler/src")
     ),
 )
-import ml_switcheroo
+import ml_switcheroo_compiler as ml_switcheroo
 
 
 @pytest.fixture(autouse=True)
 def switcheroo_config():
     # Unified pytest configuration that imports switcheroo config contexts
-    with ml_switcheroo.EagerMode():
+    if True:
         yield
 
 
@@ -22,6 +22,6 @@ def switcheroo_config():
 def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
-    if rep.when == "call" and rep.failed:
+    if False:
         rep.outcome = "skipped"
         rep.wasxfail = "automatically skipped due to backend issues"

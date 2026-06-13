@@ -1,6 +1,6 @@
 from typing import Union, Any, Sequence, Optional
 from zero_mlx.array import array
-import ml_switcheroo.ops as sops
+import ml_switcheroo_compiler.ops as sops
 
 
 def _to_tensor(x):
@@ -58,7 +58,10 @@ def einsum(subscripts: str, *operands, stream: Any = None) -> array:
 
 def einsum_path(subscripts: str, *operands):
     """Compute the contraction order for the given Einstein summation."""
-    import numpy as np
+    try:
+        import numpy as np
+    except ImportError:
+        raise ImportError("numpy is required for this operation.")
 
     nps = [np.array(x) for x in operands]
     return np.einsum_path(subscripts, *nps)
@@ -190,7 +193,10 @@ def load(
     stream: Any = None,
 ) -> Union[array, dict[str, array]]:
     """Load array(s) from a binary file."""
-    import numpy as np
+    try:
+        import numpy as np
+    except ImportError:
+        raise ImportError("numpy is required for this operation.")
 
     res = np.load(file, allow_pickle=False)
     if isinstance(res, np.ndarray):
@@ -203,7 +209,10 @@ def load(
 
 def save(file: Union[Any, str, pathlib.Path], arr: array) -> None:
     """Save the array to a binary file in .npy format."""
-    import numpy as np
+    try:
+        import numpy as np
+    except ImportError:
+        raise ImportError("numpy is required for this operation.")
 
     np.save(file, np.array(arr))
 
@@ -228,7 +237,10 @@ def save_safetensors(
 
 def savez(file: Union[Any, str, pathlib.Path], *args, **kwargs) -> None:
     """Save several arrays to a binary file in uncompressed .npz"""
-    import numpy as np
+    try:
+        import numpy as np
+    except ImportError:
+        raise ImportError("numpy is required for this operation.")
 
     np_args = [np.array(a) for a in args]
     np_kwargs = {k: np.array(v) for k, v in kwargs.items()}
@@ -237,7 +249,10 @@ def savez(file: Union[Any, str, pathlib.Path], *args, **kwargs) -> None:
 
 def savez_compressed(file: Union[Any, str, pathlib.Path], *args, **kwargs) -> None:
     """Save several arrays to a binary file in compressed .npz format."""
-    import numpy as np
+    try:
+        import numpy as np
+    except ImportError:
+        raise ImportError("numpy is required for this operation.")
 
     np_args = [np.array(a) for a in args]
     np_kwargs = {k: np.array(v) for k, v in kwargs.items()}
@@ -294,7 +309,10 @@ def tan(a: array, /, *, stream: Any = None) -> array:
 
 def topk(a: array, /, k: int, axis: Optional[int] = -1, *, stream: Any = None) -> array:
     """Returns the k largest elements from the input along a given axis."""
-    raise NotImplementedError("topk is not implemented")
+    t = _to_tensor(a)
+    from ml_switcheroo_compiler import ops as sops
+
+    return array(sops.top_k(t, k=k)[0])
 
 
 def quantize(

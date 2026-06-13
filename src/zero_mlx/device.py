@@ -1,7 +1,7 @@
 """Device abstractions for zero_mlx."""
 
 from typing import Any
-from ml_switcheroo.core.config import config
+from ml_switcheroo_compiler.core.config import config
 
 
 from enum import Enum
@@ -81,18 +81,22 @@ class Device:
         return str(self)  # pragma: no cover
 
 
-_default_device = Device(gpu)
+from ml_switcheroo_compiler.core.device import Device as SwitcherooDevice
+from ml_switcheroo_compiler.core.device import DeviceType as SwitcherooDeviceType
 
 
 def default_device() -> Any:
     """Get the default device."""
-    return _default_device
+    cd = config.default_device
+    return Device(DeviceType(cd.device_type.name.lower()), cd.index)
 
 
 def set_default_device(device: Any) -> None:
     """Set the default device."""
-    global _default_device
-    _default_device = device if isinstance(device, Device) else Device(device)
+    dev = device if isinstance(device, Device) else Device(device)
+    config.default_device = SwitcherooDevice(
+        SwitcherooDeviceType(dev.type.name.lower()), dev.index
+    )
 
 
 class Stream:
