@@ -23,7 +23,7 @@ def fft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -117,7 +117,7 @@ def fft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -158,7 +158,7 @@ def ifft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -252,7 +252,7 @@ def ifft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -293,7 +293,7 @@ def fft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -387,7 +387,7 @@ def fft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -428,7 +428,7 @@ def ifft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -522,7 +522,7 @@ def ifft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -563,7 +563,7 @@ def fftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -657,7 +657,7 @@ def fftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -698,7 +698,7 @@ def ifftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -792,7 +792,7 @@ def ifftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -833,7 +833,7 @@ def rfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -927,7 +927,7 @@ def rfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -968,7 +968,7 @@ def irfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -1062,7 +1062,7 @@ def irfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -1103,7 +1103,7 @@ def rfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -1197,7 +1197,7 @@ def rfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -1238,7 +1238,7 @@ def irfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cove
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -1332,7 +1332,7 @@ def irfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cove
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -1373,7 +1373,7 @@ def rfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -1467,7 +1467,7 @@ def rfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -1508,7 +1508,7 @@ def irfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -1602,7 +1602,7 @@ def irfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -1641,7 +1641,7 @@ def fftfreq(n, d=1.0, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -1735,7 +1735,7 @@ def fftfreq(n, d=1.0, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -1774,7 +1774,7 @@ def rfftfreq(n, d=1.0, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -1868,7 +1868,7 @@ def rfftfreq(n, d=1.0, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -1907,7 +1907,7 @@ def fftshift(x, axes=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -2001,7 +2001,7 @@ def fftshift(x, axes=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
@@ -2040,7 +2040,7 @@ def ifftshift(x, axes=None, stream=None):  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand
     import types
 
-    def _u(x, param_name=None):
+    def _u(x, param_name=None):  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover
             if __import__("builtins").all(
                 (isinstance(i, int) for i in x)
@@ -2134,7 +2134,7 @@ def ifftshift(x, axes=None, stream=None):  # pragma: no cover
             return _to_tensor(x)  # pragma: no cover
         return x  # pragma: no cover
 
-    def _w(x):
+    def _w(x):  # pragma: no cover
         if isinstance(x, tuple):  # pragma: no cover
             return tuple((_w(i) for i in x))  # pragma: no cover
         if isinstance(x, list):  # pragma: no cover

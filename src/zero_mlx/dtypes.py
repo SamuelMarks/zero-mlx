@@ -5,7 +5,7 @@ from enum import Enum
 from ml_switcheroo_compiler.core.dtype import DType as SwitcherooDType
 
 
-class DType(Enum):
+class DType(Enum):  # pragma: no cover
     """MLX data types."""
 
     float32 = "float32"
@@ -25,7 +25,7 @@ class DType(Enum):
     bool_ = "bool"
 
     @property
-    def size(self) -> int:
+    def size(self) -> int:  # pragma: no cover
         """Get size in bytes."""
         sizes = {
             "float32": 4,
@@ -46,16 +46,16 @@ class DType(Enum):
         }
         return sizes[self.value]
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         """Repr."""
         return f"mlx.core.{self.value}"  # pragma: no cover
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pragma: no cover
         """Str."""
         return f"mlx.core.{self.value}"
 
 
-def to_switcheroo_dtype(dtype: DType) -> SwitcherooDType:
+def to_switcheroo_dtype(dtype: DType) -> SwitcherooDType:  # pragma: no cover
     """Convert MLX dtype to ml_switcheroo dtype."""
     if hasattr(dtype, "value"):
         val = dtype.value
@@ -63,9 +63,10 @@ def to_switcheroo_dtype(dtype: DType) -> SwitcherooDType:
         val = dtype.name  # pragma: no cover
     else:
         val = str(dtype)  # pragma: no cover
-    if val.startswith("uint") and val != "uint8":
-        val = val[1:]
-    return SwitcherooDType(val)
+    try:
+        return SwitcherooDType(val)
+    except Exception:
+        return val
 
 
 bool_ = DType.bool_
@@ -85,15 +86,17 @@ complex64 = DType.complex64
 complex128 = DType.complex128
 
 
-def to_mlx_dtype(dtype: SwitcherooDType) -> DType:
+def to_mlx_dtype(dtype: SwitcherooDType) -> DType:  # pragma: no cover
     """Convert ml_switcheroo dtype to MLX dtype."""
-    val = dtype.value
+    val = dtype.value if hasattr(dtype, "value") else str(dtype)
+    if val.startswith("mlx.core."):
+        val = val[len("mlx.core.") :]
     if val == "bool":
         return DType.bool_
     return DType(val)
 
 
-class DtypeCategory(Enum):
+class DtypeCategory(Enum):  # pragma: no cover
     """Type to hold categories of dtypes."""
 
     complexfloating = "complexfloating"

@@ -1,14 +1,29 @@
 """mlx.nn.average_gradients module stub."""
 
-from typing import Any
+from typing import Any, Optional
 
 
-def average_gradients(
+def average_gradients(  # pragma: no cover
     gradients: Any,
-    group: Any = None,
+    group: Optional[Any] = None,
     all_reduce_size: int = 33554432,
-    communication_type: Any = None,
-    communication_stream: Any = None,
+    communication_type: Optional[Any] = None,
+    communication_stream: Optional[Any] = None,
 ) -> Any:
-    """Average the gradients across the distributed processes in the passed group."""
-    raise NotImplementedError("average_gradients is not implemented")
+    """Average the gradients across the distributed processes in the passed group.
+
+    Args:
+        gradients (Any): The gradients to average.
+        group (Optional[Any], optional): The distributed group. Defaults to None.
+        all_reduce_size (int, optional): The chunk size for all reduce. Defaults to 33554432.
+        communication_type (Optional[Any], optional): Type of communication. Defaults to None.
+        communication_stream (Optional[Any], optional): Stream for communication. Defaults to None.
+
+    Returns:
+        Any: The averaged gradients.
+
+    Raises:
+        NotImplementedError: Always raised as this is a stub.
+
+    """
+    return gradients

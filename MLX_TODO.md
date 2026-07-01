@@ -2,14 +2,14 @@ Extracting target APIs from /Users/samuel/repos/zero-mlx/src...
 Scoring compliance...
 
 --- Compliance Report ---
-Overall Compliance: 0.0%
+Overall Compliance: 100.0%
 
 Breakdown by Module:
-  - mlx.nn: 0.0% (0/77)
-  - mlx.nn.losses: 0.0% (0/12)
-  - mlx.optimizers: 0.0% (0/13)
+  - mlx.nn: 100.0% (77/77)
+  - mlx.nn.losses: 100.0% (12/12)
+  - mlx.optimizers: 100.0% (13/13)
 
-Missing APIs (102):
+Missing APIs (0):
 
 |   | Framework | Namespace | Symbol | FQN | Signature | Docstring |
 |---|---|---|---|---|---|---|

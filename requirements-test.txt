@@ -1,0 +1,4 @@
+pytest
+pytest-cov
+numpy
+mlx; sys_platform == 'darwin' and platform_machine == 'arm64'

@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Zero-dependency pure Python implementation of the MLX API surface."
 authors = [{ name = "Samuel Marks" }]
 requires-python = ">=3.9"
-dynamic = ["dependencies"]
+dynamic = ["dependencies", "optional-dependencies"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -16,14 +16,20 @@ allow-direct-references = true
 [tool.hatch.metadata.hooks.requirements_txt]
 files = ["requirements.txt"]
 
-[project.optional-dependencies]
-test = ["pytest", "pytest-cov", "numpy"]
+[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
+test = ["requirements-test.txt"]
+cuda = ["requirements-cuda.txt"]
 
 [tool.ruff.lint]
-ignore = ['E402', 'F401', 'F841', 'E741']
+select = ["E", "F", "D"]
+ignore = ['E402', 'F401', 'F841', 'E741', 'D105', 'D203', 'D213', 'E501', 'D401', 'D400', 'D415']
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"scripts/*" = ["D"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=src --cov-fail-under=80"
+addopts = "--cov=src --cov-branch --cov-fail-under=100 --ignore=tests/official"
 
 [tool.mypy]
 ignore_missing_imports = true

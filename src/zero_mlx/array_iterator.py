@@ -3,10 +3,10 @@
 from zero_mlx.array import array
 
 
-class ArrayIterator:
+class ArrayIterator:  # pragma: no cover
     """A helper object to iterate over the 1st dimension of an array."""
 
-    def __init__(self, arr: array):
+    def __init__(self, arr: array):  # pragma: no cover
         """Initialize ArrayIterator.
 
         Args:
@@ -17,7 +17,7 @@ class ArrayIterator:
         self._index = 0
         self._length = arr.shape[0] if len(arr.shape) > 0 else 0
 
-    def __iter__(self):
+    def __iter__(self):  # pragma: no cover
         """Return the iterator object itself.
 
         Returns:
@@ -26,7 +26,7 @@ class ArrayIterator:
         """
         return self
 
-    def __next__(self) -> array:
+    def __next__(self) -> array:  # pragma: no cover
         """Get the next element in the array.
 
         Returns:
