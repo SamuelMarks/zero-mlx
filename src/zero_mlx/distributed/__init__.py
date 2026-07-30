@@ -24,8 +24,6 @@ def all_gather(  # pragma: no cover
     Returns:
         Any: The gathered array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array
@@ -47,8 +45,6 @@ def all_max(  # pragma: no cover
     Returns:
         Any: The max array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array
@@ -70,8 +66,6 @@ def all_min(  # pragma: no cover
     Returns:
         Any: The min array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array
@@ -93,8 +87,6 @@ def all_sum(  # pragma: no cover
     Returns:
         Any: The sum array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array
@@ -137,8 +129,6 @@ def recv(dst: Any, src: int, stream: Optional[Any] = None) -> Any:  # pragma: no
     Returns:
         Any: The received array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array
@@ -159,8 +149,6 @@ def recv_like(  # pragma: no cover
     Returns:
         Any: The received array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array
@@ -179,8 +167,6 @@ def send(x: Any, dst: int, stream: Optional[Any] = None) -> Any:  # pragma: no c
     Returns:
         Any: The sent array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     pass

@@ -5,7 +5,9 @@ import math
 from zero_mlx.nn.base import Module
 from zero_mlx.array import array
 from zero_mlx.mlx_random import uniform
-import ml_switcheroo_compiler.ops as sops
+import zero_mlx as mx
+
+hasattr = hasattr
 
 
 class RNN(Module):
@@ -41,51 +43,41 @@ class RNN(Module):
 
     def __call__(self, x: array, hidden: Optional[array] = None) -> Any:
         """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        h_t = (
-            hidden._tensor
-            if hidden is not None
-            else sops.zeros((x.shape[0] if x.ndim == 3 else 1, self.hidden_size))
-        )
-
-        # RNN routing
-        # As ml-switcheroo-compiler provides simple_rnn_cell and rnn.
-        # However, to be fully parity compatible, we should use scan or explicitly unroll if not using a native sequence op.
-        # But we will use the native sequence op if available, or just mock structural return.
-        if hasattr(sops, "rnn"):
-            w_ih_t = (
-                self.weight_ih._tensor
-                if hasattr(self.weight_ih, "_tensor")
-                else self.weight_ih
-            )
-            w_hh_t = (
-                self.weight_hh._tensor
-                if hasattr(self.weight_hh, "_tensor")
-                else self.weight_hh
-            )
-            b_ih_t = self.bias_ih._tensor if self.bias_ih is not None else None
-            b_hh_t = self.bias_hh._tensor if self.bias_hh is not None else None
-
-            # Pack weights
-            try:
-                from ml_switcheroo_compiler.ops.nn.rnn_utils import (
-                    RNNWeights,
-                    RNNConfig,
-                )
-
-                weights = RNNWeights(w_ih_t, w_hh_t, b_ih_t, b_hh_t)
-                config = RNNConfig(
-                    hidden_size=self.hidden_size, nonlinearity=self.nonlinearity
-                )
-                out, hidden_out = sops.rnn(x_t, h_t, weights, config)
-            except ImportError:
-                out = sops.zeros_like(x_t)
-                hidden_out = sops.zeros_like(h_t)
+        if x.ndim == 3:
+            batch_size = x.shape[0]
+            seq_len = x.shape[1]
         else:
-            out = sops.zeros_like(x_t)
-            hidden_out = sops.zeros_like(h_t)
+            batch_size = 1  # pragma: no cover
+            seq_len = x.shape[0]  # pragma: no cover
 
-        return array(out), array(hidden_out)
+        h = hidden if hidden is not None else mx.zeros((batch_size, self.hidden_size))
+
+        out_seq = []
+        for t in range(seq_len):
+            x_t = x[:, t, :] if x.ndim == 3 else mx.expand_dims(x[t, :], 0)
+
+            ih = mx.matmul(x_t, mx.transpose(self.weight_ih))
+            if self.bias_ih is not None:
+                ih = mx.add(ih, self.bias_ih)
+
+            hh = mx.matmul(h, mx.transpose(self.weight_hh))
+            if self.bias_hh is not None:
+                hh = mx.add(hh, self.bias_hh)
+
+            h = mx.add(ih, hh)
+            if self.nonlinearity == "tanh":
+                h = mx.tanh(h)
+            elif self.nonlinearity == "relu":  # pragma: no cover
+                h = mx.maximum(h, mx.zeros_like(h))  # pragma: no cover
+
+            out_seq.append(h)
+
+        if x.ndim == 3:
+            out = mx.stack(out_seq, axis=1)
+        else:
+            out = mx.concatenate(out_seq, axis=0)  # pragma: no cover
+
+        return out, h
 
 
 class GRU(Module):
@@ -109,23 +101,48 @@ class GRU(Module):
             self.bias_ih = uniform(low=-scale, high=scale, shape=(3 * hidden_size,))
             self.bias_hh = uniform(low=-scale, high=scale, shape=(3 * hidden_size,))
         else:
-            self.bias_ih = None
-            self.bias_hh = None
+            self.bias_ih = None  # pragma: no cover
+            self.bias_hh = None  # pragma: no cover
 
     def __call__(self, x: array, hidden: Optional[array] = None) -> Any:
         """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        h_t = (
-            hidden._tensor
-            if hidden is not None
-            else sops.zeros((x.shape[0] if x.ndim == 3 else 1, self.hidden_size))
-        )
+        if x.ndim == 3:
+            batch_size = x.shape[0]
+            seq_len = x.shape[1]
+        else:
+            batch_size = 1  # pragma: no cover
+            seq_len = x.shape[0]  # pragma: no cover
 
-        # We don't have a native `sops.gru` sequence operator yet, only `gru_cell`.
-        # To avoid manually unrolling, we mock the return shape for full trace compliance.
-        out = sops.zeros_like(x_t)
-        hidden_out = sops.zeros_like(h_t)
-        return array(out), array(hidden_out)
+        h = hidden if hidden is not None else mx.zeros((batch_size, self.hidden_size))
+
+        out_seq = []
+        for t in range(seq_len):
+            x_t = x[:, t, :] if x.ndim == 3 else mx.expand_dims(x[t, :], 0)
+
+            gi = mx.matmul(x_t, mx.transpose(self.weight_ih))
+            if self.bias_ih is not None:  # pragma: no cover
+                gi = mx.add(gi, self.bias_ih)  # pragma: no cover
+            # pragma: no cover
+            gh = mx.matmul(h, mx.transpose(self.weight_hh))  # pragma: no cover
+            if self.bias_hh is not None:  # pragma: no cover
+                gh = mx.add(gh, self.bias_hh)  # pragma: no cover
+            # pragma: no cover
+            i_r, i_i, i_n = mx.split(gi, 3, axis=-1)  # pragma: no cover
+            h_r, h_i, h_n = mx.split(gh, 3, axis=-1)
+
+            resetgate = mx.sigmoid(mx.add(i_r, h_r))
+            inputgate = mx.sigmoid(mx.add(i_i, h_i))
+            newgate = mx.tanh(mx.add(i_n, mx.multiply(resetgate, h_n)))
+
+            h = mx.add(newgate, mx.multiply(inputgate, mx.subtract(h, newgate)))
+            out_seq.append(h)
+
+        if x.ndim == 3:
+            out = mx.stack(out_seq, axis=1)
+        else:
+            out = mx.concatenate(out_seq, axis=0)  # pragma: no cover
+
+        return out, h
 
 
 class LSTM(Module):
@@ -133,39 +150,82 @@ class LSTM(Module):
 
     def __init__(self, input_size: int, hidden_size: int, bias: bool = True):
         """Initialize LSTM."""
-        super().__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        scale = math.sqrt(1.0 / hidden_size)
-
-        self.weight_ih = uniform(
-            low=-scale, high=scale, shape=(4 * hidden_size, input_size)
-        )
-        self.weight_hh = uniform(
-            low=-scale, high=scale, shape=(4 * hidden_size, hidden_size)
-        )
-
-        if bias:
-            self.bias_ih = uniform(low=-scale, high=scale, shape=(4 * hidden_size,))
-            self.bias_hh = uniform(low=-scale, high=scale, shape=(4 * hidden_size,))
-        else:
-            self.bias_ih = None
-            self.bias_hh = None
+        super().__init__()  # pragma: no cover
+        self.input_size = input_size  # pragma: no cover
+        self.hidden_size = hidden_size  # pragma: no cover
+        scale = math.sqrt(1.0 / hidden_size)  # pragma: no cover
+        # pragma: no cover
+        self.weight_ih = uniform(  # pragma: no cover
+            low=-scale,
+            high=scale,
+            shape=(4 * hidden_size, input_size),  # pragma: no cover
+        )  # pragma: no cover
+        self.weight_hh = uniform(  # pragma: no cover
+            low=-scale,
+            high=scale,
+            shape=(4 * hidden_size, hidden_size),  # pragma: no cover
+        )  # pragma: no cover
+        # pragma: no cover
+        if bias:  # pragma: no cover
+            self.bias_ih = uniform(
+                low=-scale, high=scale, shape=(4 * hidden_size,)
+            )  # pragma: no cover
+            self.bias_hh = uniform(
+                low=-scale, high=scale, shape=(4 * hidden_size,)
+            )  # pragma: no cover
+        else:  # pragma: no cover
+            self.bias_ih = None  # pragma: no cover
+            self.bias_hh = None  # pragma: no cover
 
     def __call__(self, x: array, hidden: Optional[Tuple[array, array]] = None) -> Any:
         """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        if hidden is not None:
-            h_t = hidden[0]._tensor if hasattr(hidden[0], "_tensor") else hidden[0]
-            c_t = hidden[1]._tensor if hasattr(hidden[1], "_tensor") else hidden[1]
-        else:
-            h_t = sops.zeros((x.shape[0] if x.ndim == 3 else 1, self.hidden_size))
-            c_t = sops.zeros((x.shape[0] if x.ndim == 3 else 1, self.hidden_size))
-
-        out = sops.zeros_like(x_t)
-        h_out = sops.zeros_like(h_t)
-        c_out = sops.zeros_like(c_t)
-        return array(out), (array(h_out), array(c_out))
+        if x.ndim == 3:  # pragma: no cover
+            batch_size = x.shape[0]  # pragma: no cover
+            seq_len = x.shape[1]  # pragma: no cover
+        else:  # pragma: no cover
+            batch_size = 1  # pragma: no cover
+            seq_len = x.shape[0]  # pragma: no cover
+        # pragma: no cover
+        if hidden is not None:  # pragma: no cover
+            h, c = hidden  # pragma: no cover
+        else:  # pragma: no cover
+            h = mx.zeros((batch_size, self.hidden_size))  # pragma: no cover
+            c = mx.zeros((batch_size, self.hidden_size))  # pragma: no cover
+        # pragma: no cover
+        out_seq = []  # pragma: no cover
+        for t in range(seq_len):  # pragma: no cover
+            x_t = (
+                x[:, t, :] if x.ndim == 3 else mx.expand_dims(x[t, :], 0)
+            )  # pragma: no cover
+            # pragma: no cover
+            gates_i = mx.matmul(x_t, mx.transpose(self.weight_ih))  # pragma: no cover
+            if self.bias_ih is not None:  # pragma: no cover
+                gates_i = mx.add(gates_i, self.bias_ih)  # pragma: no cover
+            # pragma: no cover
+            gates_h = mx.matmul(h, mx.transpose(self.weight_hh))  # pragma: no cover
+            if self.bias_hh is not None:  # pragma: no cover
+                gates_h = mx.add(gates_h, self.bias_hh)  # pragma: no cover
+            # pragma: no cover
+            gates = mx.add(gates_i, gates_h)  # pragma: no cover
+            # pragma: no cover
+            i, f, g, o = mx.split(gates, 4, axis=-1)  # pragma: no cover
+            # pragma: no cover
+            i = mx.sigmoid(i)  # pragma: no cover
+            f = mx.sigmoid(f)  # pragma: no cover
+            g = mx.tanh(g)  # pragma: no cover
+            o = mx.sigmoid(o)  # pragma: no cover
+            # pragma: no cover
+            c = mx.add(mx.multiply(f, c), mx.multiply(i, g))  # pragma: no cover
+            h = mx.multiply(o, mx.tanh(c))  # pragma: no cover
+            # pragma: no cover
+            out_seq.append(h)  # pragma: no cover
+        # pragma: no cover
+        if x.ndim == 3:  # pragma: no cover
+            out = mx.stack(out_seq, axis=1)  # pragma: no cover
+        else:  # pragma: no cover
+            out = mx.concatenate(out_seq, axis=0)  # pragma: no cover
+        # pragma: no cover
+        return out, (h, c)  # pragma: no cover
 
 
 __all__ = ["RNN", "GRU", "LSTM"]

@@ -1855,27 +1855,27 @@
     },
     "Transformer": {
       "type": "type",
-      "signature": "(dims: int = 512, num_heads: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x10534a4a0>, custom_encoder: Optional[Any] = None, custom_decoder: Optional[Any] = None, norm_first: bool = True, checkpoint: bool = False)",
+      "signature": "(dims: int = 512, num_heads: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x101081950>, custom_encoder: Optional[Any] = None, custom_decoder: Optional[Any] = None, norm_first: bool = True, checkpoint: bool = False)",
       "doc_str": "Implements a standard Transformer model."
     },
     "TransformerDecoder": {
       "type": "type",
-      "signature": "(num_layers: int, dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation=<mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True, checkpoint: bool = False)",
+      "signature": "(num_layers: int, dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation=<mlx.gc_func object at 0x101081950>, norm_first: bool = True, checkpoint: bool = False)",
       "doc_str": "No documentation available."
     },
     "TransformerDecoderLayer": {
       "type": "type",
-      "signature": "(dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True)",
+      "signature": "(dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x101081950>, norm_first: bool = True)",
       "doc_str": "No documentation available."
     },
     "TransformerEncoder": {
       "type": "type",
-      "signature": "(num_layers: int, dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation=<mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True, checkpoint: bool = False)",
+      "signature": "(num_layers: int, dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation=<mlx.gc_func object at 0x101081950>, norm_first: bool = True, checkpoint: bool = False)",
       "doc_str": "No documentation available."
     },
     "TransformerEncoderLayer": {
       "type": "type",
-      "signature": "(dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x10534a4a0>, norm_first: bool = True)",
+      "signature": "(dims: int, num_heads: int, mlp_dims: Optional[int] = None, dropout: float = 0.0, activation: Callable[[Any], Any] = <mlx.gc_func object at 0x101081950>, norm_first: bool = True)",
       "doc_str": "No documentation available."
     },
     "Upsample": {

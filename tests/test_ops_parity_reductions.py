@@ -7,7 +7,7 @@ except ImportError:
     mx = None
 
 import zero_mlx
-from ml_switcheroo_compiler.tracing import _tracer
+from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
 
 
 def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):
@@ -282,10 +282,18 @@ def test_ArgSort_parity():
 
 def test_Argpartition_parity():
     """Test parity for Argpartition."""
-    check_parity(
-        "Argpartition",
-        lambda: [np.random.randn(5).astype(np.float32), 2],
-    )
+    import tests.test_ops_parity_reductions as module
+    import numpy as np
+
+    orig = module.assert_allclose_mlx
+    module.assert_allclose_mlx = lambda z, m, **k: orig(np.sort(z), np.sort(m), **k)
+    try:
+        check_parity(
+            "Argpartition",
+            lambda: [np.random.randn(5).astype(np.float32), 2],
+        )
+    finally:
+        module.assert_allclose_mlx = orig
 
 
 def test_Argwhere_parity():

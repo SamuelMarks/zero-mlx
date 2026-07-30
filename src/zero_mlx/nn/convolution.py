@@ -51,15 +51,16 @@ class Conv1d(Module):
         """Call."""
         x_t = x._tensor if hasattr(x, "_tensor") else x
         w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
+        w_t = sops.transpose(w_t, axes=(1, 2, 0))
 
         # ml_switcheroo_compiler conv1d likely expects certain kwargs
-        out = sops.conv1d(
+        out = sops.conv1d.conv1d(
             x_t,
             w_t,
             strides=self.stride,
             padding=self.padding,
             lhs_dilation=self.dilation,
-            feature_group_count=self.groups,
+            rhs_dilation=1,
         )
         if getattr(self, "bias", None) is not None:
             b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
@@ -112,14 +113,15 @@ class Conv2d(Module):
         """Call."""
         x_t = x._tensor if hasattr(x, "_tensor") else x
         w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
+        w_t = sops.transpose(w_t, axes=(1, 2, 3, 0))
 
-        out = sops.conv2d(
+        out = sops.conv2d.conv2d(
             x_t,
             w_t,
             strides=self.stride,
             padding=self.padding,
             lhs_dilation=self.dilation,
-            feature_group_count=self.groups,
+            rhs_dilation=1,
         )
         if getattr(self, "bias", None) is not None:
             b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
@@ -174,14 +176,15 @@ class Conv3d(Module):
         """Call."""
         x_t = x._tensor if hasattr(x, "_tensor") else x
         w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
+        w_t = sops.transpose(w_t, axes=(1, 2, 3, 4, 0))
 
-        out = sops.conv3d(
+        out = sops.conv3d.conv3d(
             x_t,
             w_t,
             strides=self.stride,
             padding=self.padding,
             lhs_dilation=self.dilation,
-            feature_group_count=self.groups,
+            rhs_dilation=1,
         )
         if getattr(self, "bias", None) is not None:
             b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias

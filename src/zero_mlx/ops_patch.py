@@ -52,25 +52,57 @@ def patch_ops():  # pragma: no cover
         eager as mlx_eager,
     )  # pragma: no cover
 
-    orig_to_numpy = mlx_eager._to_numpy  # pragma: no cover
-
-    def patched_to_numpy(val):  # pragma: no cover
-        from ml_switcheroo_compiler.core.tensor import Tensor  # pragma: no cover
-
-        if isinstance(val, Tensor):  # pragma: no cover
-            val = val.data  # pragma: no cover
-        if isinstance(val, array):  # pragma: no cover
-            val = val._tensor.data  # pragma: no cover
-        return orig_to_numpy(val)  # pragma: no cover
-
-    mlx_eager._to_numpy = patched_to_numpy  # pragma: no cover
-
     def _eager_transpose(backend, *args, **kwargs):  # pragma: no cover
         if "dims" in kwargs:
             kwargs["axes"] = kwargs.pop("dims")
         return backend.transpose(*args, **kwargs)
 
     global_eager_registry.register("Transpose")(_eager_transpose)
+
+    if not getattr(patch_ops, "_argsort_patched", False):
+        patch_ops._argsort_patched = True
+        try:
+            from ml_switcheroo_compiler.backends.eager_registry import (
+                numpy_eager_registry,
+            )
+            import ml_switcheroo_compiler.backends.numpy.eager
+
+            orig_np_argsort = numpy_eager_registry.get("ArgSort")
+            if orig_np_argsort:
+
+                def _eager_numpy_argsort(backend, *args, **kwargs):  # pragma: no cover
+                    if "dimension" in kwargs:
+                        kwargs["axis"] = kwargs.pop("dimension")
+                    if "is_stable" in kwargs:
+                        is_stable = kwargs.pop("is_stable")
+                        if is_stable:
+                            kwargs["kind"] = "stable"
+                    return orig_np_argsort(backend, *args, **kwargs)
+
+                numpy_eager_registry.register("ArgSort")(_eager_numpy_argsort)
+        except Exception:
+            pass
+
+        try:
+            import ml_switcheroo_compiler.ops.shape.reshape as mreshape
+
+            orig_swap_infer = mreshape.Swapaxes.infer_shape
+
+            def patched_swap_infer(self, *args, **kwargs):  # pragma: no cover
+                x = args[0] if args else kwargs.get("a", kwargs.get("x"))
+                if not isinstance(x, tuple) and hasattr(x, "shape"):
+                    args = list(args)
+                    if args:
+                        args[0] = x.shape
+                    elif "a" in kwargs:
+                        kwargs["a"] = x.shape
+                    elif "x" in kwargs:
+                        kwargs["x"] = x.shape
+                return orig_swap_infer(self, *args, **kwargs)
+
+            mreshape.Swapaxes.infer_shape = patched_swap_infer
+        except Exception:
+            pass
 
     def _eager_arange(backend, *args, **kwargs):  # pragma: no cover
         if "dtype" in kwargs and isinstance(kwargs["dtype"], str):
@@ -106,8 +138,232 @@ def patch_ops():  # pragma: no cover
     sops_frontend.arange = patched_arange
     sops.arange = patched_arange
 
+    # Patch missing ops into sops
+    import ml_switcheroo_compiler.ops.reductions as reds
+
+    sops.max = getattr(reds, "max", sops.get_op("Max")())
+    sops.min = getattr(reds, "min", sops.get_op("Min")())
+    sops.sum = getattr(reds, "sum", sops.get_op("Sum")())
+    sops.mean = getattr(reds, "mean", sops.get_op("Mean")())
+    sops.variance = getattr(reds, "variance", sops.get_op("Variance")())
+    sops.logsumexp = getattr(reds, "logsumexp", sops.get_op("Logsumexp")())
+
+    try:
+        from ml_switcheroo_compiler.ops.shape.frontend import partition
+
+        sops.partition = partition
+    except ImportError:
+        pass
+
+    if not getattr(patch_ops, "_split_patched", False):
+        patch_ops._split_patched = True
+        try:
+            from ml_switcheroo_compiler.backends.eager_registry import (
+                numpy_eager_registry,
+            )
+            import ml_switcheroo_compiler.backends.numpy.eager
+
+            orig_np_split = numpy_eager_registry.get("Split")
+            if orig_np_split:
+
+                def _eager_numpy_split(backend, *args, **kwargs):  # pragma: no cover
+                    if "split_size_or_sections" in kwargs:
+                        kwargs["num_or_size_splits"] = kwargs.pop(
+                            "split_size_or_sections"
+                        )
+                    if "axis" in kwargs:
+                        kwargs["dim"] = kwargs.pop("axis")
+                    return orig_np_split(backend, *args, **kwargs)
+
+                numpy_eager_registry.register("Split")(_eager_numpy_split)
+        except Exception:
+            pass
+
+    try:
+        from ml_switcheroo_compiler.ops.shape.misc import meshgrid as orig_meshgrid
+
+        def patched_meshgrid(*tensors, indexing="ij"):
+            import ml_switcheroo_compiler.core.config as config
+            from ml_switcheroo_compiler.backends.registry import get_active_backend
+            from ml_switcheroo_compiler.core.tensor import Tensor, TensorConfig
+            from ml_switcheroo_compiler.ops.shape.utils import _emit_shape_node
+            from ml_switcheroo_compiler.core.dtype import DType
+
+            if config.eager_mode:
+                backend = get_active_backend()
+                datas = backend.execute_op(
+                    "Meshgrid",
+                    *[(t.data if type(t).__name__ == "Tensor" else t) for t in tensors],
+                    indexing=indexing,
+                )
+                return tuple(
+                    Tensor(
+                        d,
+                        TensorConfig(
+                            getattr(d, "shape", ()),
+                            getattr(tensors[0], "dtype", DType.Float32),
+                            getattr(tensors[0], "device", None),
+                        ),
+                    )
+                    for d in datas
+                )
+            inputs = list(tensors)
+            from ml_switcheroo_compiler.ops.shape.misc import _compute_meshgrid_shape
+
+            out_shape = _compute_meshgrid_shape(inputs, indexing)
+            dtype = inputs[0].dtype if inputs else DType.Float32
+
+            return tuple(
+                _emit_shape_node(
+                    "Meshgrid",
+                    inputs,
+                    {"indexing": indexing, "output_index": i},
+                    out_shape,
+                    dtype,
+                )
+                for i in range(len(inputs))
+            )
+
+        sops.meshgrid = patched_meshgrid
+    except ImportError:
+        pass
+
+    if not getattr(patch_ops, "_split_patched", False):
+        patch_ops._split_patched = True
+        try:
+            from ml_switcheroo_compiler.backends.eager_registry import (
+                numpy_eager_registry,
+            )
+            import ml_switcheroo_compiler.backends.numpy.eager
+
+            orig_np_split = numpy_eager_registry.get("Split")
+            if orig_np_split:
+
+                def _eager_numpy_split(backend, *args, **kwargs):  # pragma: no cover
+                    if "split_size_or_sections" in kwargs:
+                        kwargs["num_or_size_splits"] = kwargs.pop(
+                            "split_size_or_sections"
+                        )
+                    if "axis" in kwargs:
+                        kwargs["dim"] = kwargs.pop("axis")
+                    return orig_np_split(backend, *args, **kwargs)
+
+                numpy_eager_registry.register("Split")(_eager_numpy_split)
+        except Exception:
+            pass
+
+    # Patch numpy backend TopK to just return values to match MLX behavior
+    # when not explicitly requested otherwise, since MLX topk only returns values.
+    try:
+        from ml_switcheroo_compiler.backends.registry import get_active_backend
+        from ml_switcheroo_compiler.backends.numpy.eager import numpy_eager_registry
+
+        orig_topk = numpy_eager_registry.get("TopK")
+        if orig_topk:
+
+            def _patched_topk(backend_module, *args, **kwargs):
+                ret_indices = kwargs.pop("return_indices", False)
+                res = orig_topk(backend_module, *args, **kwargs)
+                if isinstance(res, tuple):
+                    return res[1] if ret_indices else res[0]
+                return res
+
+            numpy_eager_registry.register("TopK")(_patched_topk)
+
+        def _patched_concatenate(backend_module, *args, **kwargs):
+            return backend_module.concatenate(args, **kwargs)
+
+        numpy_eager_registry.register("Concatenate")(_patched_concatenate)
+
+        def _patched_stack(backend_module, *args, **kwargs):
+            if len(args) == 1 and isinstance(args[0], (list, tuple)):
+                arrays = args[0]
+            else:
+                arrays = args
+            axis = kwargs.get("axis", 0)
+            if "dim" in kwargs:
+                axis = kwargs["dim"]
+            return backend_module.stack(arrays, axis=axis)
+
+        numpy_eager_registry.register("Stack")(_patched_stack)
+
+        def _patched_logcumsumexp(backend_module, *args, **kwargs):
+            x = args[0]
+            axis = kwargs.get("axis", None)
+            if axis is None:
+                axis = kwargs.get("dim", None)
+            if axis is None:
+                if len(args) > 1:
+                    axis = args[1]
+                else:
+                    x = backend_module.ravel(x)
+                    axis = 0
+            return backend_module.logaddexp.accumulate(x, axis=axis)
+
+        numpy_eager_registry.register("Logcumsumexp")(_patched_logcumsumexp)
+
+        def _patched_logcumsumexp(backend_module, *args, **kwargs):
+            x = args[0]
+            axis = kwargs.get("axis", None)
+            if axis is None:
+                axis = kwargs.get("dim", None)
+            if axis is None:
+                if len(args) > 1:
+                    axis = args[1]
+                else:
+                    x = backend_module.ravel(x)
+                    axis = 0
+            return backend_module.logaddexp.accumulate(x, axis=axis)
+
+        numpy_eager_registry.register("Logcumsumexp")(_patched_logcumsumexp)
+
+        def _patched_cummax(backend_module, *args, **kwargs):
+            x = args[0]
+            axis = kwargs.get("axis", None)
+            if axis is None:
+                x = backend_module.ravel(x)
+                axis = 0
+            dtype = kwargs.get("dtype", None)
+            if dtype is not None and str(dtype) != "None":
+                dtype = getattr(dtype, "value", dtype)
+                return backend_module.maximum.accumulate(x, axis=axis, dtype=dtype)
+            return backend_module.maximum.accumulate(x, axis=axis)
+
+        numpy_eager_registry.register("Cummax")(_patched_cummax)
+
+        def _patched_cummin(backend_module, *args, **kwargs):
+            x = args[0]
+            axis = kwargs.get("axis", None)
+            if axis is None:
+                x = backend_module.ravel(x)
+                axis = 0
+            dtype = kwargs.get("dtype", None)
+            if dtype is not None and str(dtype) != "None":
+                dtype = getattr(dtype, "value", dtype)
+                return backend_module.minimum.accumulate(x, axis=axis, dtype=dtype)
+            return backend_module.minimum.accumulate(x, axis=axis)
+
+        numpy_eager_registry.register("Cummin")(_patched_cummin)
+
+    except Exception:
+        pass
+
+    orig_cast = getattr(sops, "cast", None)
+    if orig_cast is not None:
+
+        def patched_cast(*args, **kwargs):
+            if len(args) > 1:
+                kwargs["dtype"] = args[1]
+                args = (args[0],)
+            return orig_cast(*args, **kwargs)
+
+        sops.cast = patched_cast
+
+    if not hasattr(sops, "transpose"):
+        sops.transpose = sops.get_op("Transpose")()
+
     orig_add = ops.add
-    orig_reshape = sops.reshape
+    orig_reshape = sops.get_op("Reshape")()
 
     def patched_reshape(x, shape, *args, **kwargs):  # pragma: no cover
         import ml_switcheroo_compiler.core.config as config
@@ -281,22 +537,20 @@ def patch_ops():  # pragma: no cover
                         or "array" in str(type(v[0]))
                     ):
                         return type(v)(_convert(i) for i in v)
-                    return getattr(__import__("mlx.core").core, "array")(v)
+                    return sops.array(v)
                 if isinstance(v, memoryview):
-                    return getattr(__import__("mlx.core").core, "array")(v)
+                    return sops.array(v)
                 if isinstance(v, np.ndarray):
                     dt = None
                     if str(v.dtype) == "bfloat16":
-                        dt = getattr(__import__("mlx.core").core, "bfloat16")
+                        dt = sops.bfloat16
                     elif str(v.dtype) == "float16":
-                        dt = getattr(__import__("mlx.core").core, "float16")
+                        dt = sops.float16
                     if dt is not None:
                         # For bf16 or fp16, we cast to standard Python float list to init mx.array, then cast it back to the proper dtype.
-                        arr = getattr(__import__("mlx.core").core, "array")(
-                            v.astype(float).tolist()
-                        )
+                        arr = sops.array(v.astype(float).tolist())
                         return arr.astype(dt)
-                    return getattr(__import__("mlx.core").core, "array")(v.tolist())
+                    return sops.array(v.tolist())
                 return v
 
             def _should_convert(name, value):  # pragma: no cover
@@ -352,7 +606,7 @@ def patch_ops():  # pragma: no cover
                         shift,
                         (
                             np.ndarray,
-                            getattr(__import__("mlx.core").core, "array", type(None)),
+                            sops.Tensor,
                         ),
                     ):
                         if shift.size == 1:
@@ -503,7 +757,7 @@ def patch_ops():  # pragma: no cover
 
             if isinstance(
                 shifts,
-                (np.ndarray, getattr(__import__("mlx.core").core, "array", type(None))),
+                (np.ndarray, sops.Tensor),
             ):
                 shifts = tuple(int(x) for x in shifts.flatten())
             elif (
@@ -523,14 +777,14 @@ def patch_ops():  # pragma: no cover
                 dims = tuple(int(x) for x in dims._data.flatten())
 
             from ml_switcheroo_compiler.core.tensor import Tensor
-            from ml_switcheroo_compiler.ops.shape.manipulation import _emit_shape_node
+            from ml_switcheroo_compiler.ops.shape.utils import _emit_shape_node
             from ml_switcheroo_compiler.core.dtype import DType
 
             inputs = [input]
             out_shape = inputs[0].shape
-            kwargs = {"shifts": shifts}
+            kwargs = {"shift": shifts}
             if dims is not None:
-                kwargs["dims"] = dims
+                kwargs["axis"] = dims
 
             return _emit_shape_node(
                 "Roll",
@@ -654,12 +908,10 @@ def patch_ops():  # pragma: no cover
                     dt_val = dt_val[len("mlx.core.") :]
                 if dt_val == "bool":
                     dt_val = "bool_"
-                dt = getattr(__import__("mlx.core").core, dt_val)
+                dt = getattr(mx, dt_val)
             else:
-                dt = getattr(__import__("mlx.core").core, "float32")
-            return array(
-                sops.array(__import__("mlx.core").core.eye(n, m=m, k=k, dtype=dt))
-            )
+                dt = mx.float32
+            return array(sops.array(sops.eye(n, m=m, k=k, dtype=dt)))
         else:
             res = sops.eye(n, m=m, k=k)
             if dtype is not None:
@@ -695,7 +947,10 @@ def patch_ops():  # pragma: no cover
 
     def patched_expand_dims(a, axis, stream=None):  # pragma: no cover
         a_tensor = getattr(a, "_tensor", a)  # pragma: no cover
-        return array(sops.unsqueeze(a_tensor, dim=axis))  # pragma: no cover
+        shape = list(a_tensor.shape)
+        axis_resolved = axis if axis >= 0 else len(shape) + 1 + axis
+        shape.insert(axis_resolved, 1)
+        return array(orig_reshape(a_tensor, tuple(shape)))  # pragma: no cover
 
     ops.expand_dims = patched_expand_dims  # pragma: no cover
     mx.expand_dims = patched_expand_dims  # pragma: no cover
@@ -719,7 +974,7 @@ def patch_ops():  # pragma: no cover
             a = a._tensor  # pragma: no cover
         if axes is None:  # pragma: no cover
             axes = tuple(reversed(range(len(a.shape))))  # pragma: no cover
-        return array(sops.permute(a, dims=axes))  # pragma: no cover
+        return array(sops.transpose(a, axes=axes))  # pragma: no cover
 
     ops.transpose = transpose  # pragma: no cover
     mx.transpose = transpose  # pragma: no cover
@@ -797,38 +1052,6 @@ def patch_ops():  # pragma: no cover
             else:  # pragma: no cover
                 res.append(x)  # pragma: no cover
         return res  # pragma: no cover
-
-    try:
-        import ml_switcheroo_compiler.backends.numpy.eager.linalg as np_linalg
-        from ml_switcheroo_compiler.backends.numpy.eager import np
-
-        orig_solve = np_linalg._np_triangular_solve
-
-        def patched_np_solve(*args, **kwargs):  # pragma: no cover
-            a = args[1]
-            if len(a.shape) > 2:
-                import scipy.linalg
-
-                # Batched solve_triangular for numpy fallback
-                a_flat = a.reshape(-1, a.shape[-2], a.shape[-1])
-                b = args[2]
-                b_shape = b.shape
-                b_flat = b.reshape(
-                    -1,
-                    b.shape[-2],
-                    b.shape[-1] if len(b.shape) > len(a.shape) - 1 else 1,
-                )
-                res = []
-                for i in range(a_flat.shape[0]):
-                    res.append(
-                        scipy.linalg.solve_triangular(a_flat[i], b_flat[i], **kwargs)
-                    )
-                return np.stack(res).reshape(b_shape)
-            return orig_solve(*args, **kwargs)
-
-        np_linalg._np_triangular_solve = patched_np_solve
-    except Exception:
-        pass
 
     try:
         from ml_switcheroo_compiler.backends.mlx.eager import mlx_eager_registry
@@ -1182,10 +1405,11 @@ def eval(*args):  # pragma: no cover
     from zero_mlx.array import array  # pragma: no cover
 
     if (
-        not tracing._tracer.is_tracing or not tracing._tracer.active_graph
+        not tracing.global_tracing_state.is_tracing
+        or not tracing.global_tracing_state.active_graph
     ):  # pragma: no cover
         return  # pragma: no cover
-    graph = tracing._tracer.active_graph  # pragma: no cover
+    graph = tracing.global_tracing_state.active_graph  # pragma: no cover
     outputs = [  # pragma: no cover
         arg._tensor.data.id  # pragma: no cover
         for arg in args  # pragma: no cover
@@ -1195,7 +1419,9 @@ def eval(*args):  # pragma: no cover
     if not outputs:  # pragma: no cover
         return  # pragma: no cover
     graph.outputs = list(set(outputs))  # pragma: no cover
-    results = compiler.evaluate_graph(graph, {})  # pragma: no cover
+    from ml_switcheroo_compiler.interpreter.evaluator import evaluate_graph
+
+    results = evaluate_graph(graph, {})  # pragma: no cover
     for arg in args:  # pragma: no cover
         if isinstance(arg, array) and hasattr(
             arg._tensor.data, "id"

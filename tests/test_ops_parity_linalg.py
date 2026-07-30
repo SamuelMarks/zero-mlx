@@ -7,7 +7,7 @@ except ImportError:
     mx = None
 
 import zero_mlx
-from ml_switcheroo_compiler.tracing import _tracer
+from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
 
 
 def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):

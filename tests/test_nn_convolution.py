@@ -14,23 +14,8 @@ def _test_module_shape(m, x_shape, expected_shape):
     # Mock sops functions so they just return a tensor of the correct shape
     # This allows us to fully trace and cover the frontend logic without
     # worrying about Tier 2 backend completeness.
-    with (
-        patch.object(sops, "conv1d", return_value=array(np.zeros(expected_shape))),
-        patch.object(sops, "conv2d", return_value=array(np.zeros(expected_shape))),
-        patch.object(sops, "conv3d", return_value=array(np.zeros(expected_shape))),
-        patch.object(
-            sops, "conv1d_transpose", return_value=array(np.zeros(expected_shape))
-        ),
-        patch.object(
-            sops, "conv2d_transpose", return_value=array(np.zeros(expected_shape))
-        ),
-        patch.object(
-            sops, "conv3d_transpose", return_value=array(np.zeros(expected_shape))
-        ),
-        patch.object(sops, "add", return_value=array(np.zeros(expected_shape))),
-    ):
-        out = m(x)
-        assert out.shape == expected_shape
+    out = m(x)
+    assert out.shape == expected_shape
 
 
 def test_conv1d():

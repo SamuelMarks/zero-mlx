@@ -22,8 +22,6 @@ def average_gradients(  # pragma: no cover
     Returns:
         Any: The averaged gradients.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     return gradients

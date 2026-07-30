@@ -26,7 +26,6 @@ def _get_global_key():  # pragma: no cover
     if _global_key is None:
         _global_key = key(0)
     _global_key, current_key = split(_global_key)
-    print("current_key:", current_key.data)
     return current_key
 
 

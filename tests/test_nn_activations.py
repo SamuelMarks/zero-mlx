@@ -13,30 +13,8 @@ def _test_func_shape(func, x_shape, expected_shape, **kwargs):
     x = array(np.random.randn(*x_shape).astype(np.float32))
 
     mock_ret = Tensor(None, TensorConfig(expected_shape, "float32", "cpu"))
-    with (
-        patch.object(sops, "celu", return_value=mock_ret),
-        patch.object(sops, "elu", return_value=mock_ret),
-        patch.object(sops, "gelu", return_value=mock_ret),
-        patch.object(sops, "glu", return_value=mock_ret),
-        patch.object(sops, "leaky_relu", return_value=mock_ret),
-        patch.object(sops, "log_sigmoid", return_value=mock_ret),
-        patch.object(sops, "log_softmax", return_value=mock_ret),
-        patch.object(sops, "relu", return_value=mock_ret),
-        patch.object(sops, "relu6", return_value=mock_ret),
-        patch.object(sops, "selu", return_value=mock_ret),
-        patch.object(sops, "silu", return_value=mock_ret),
-        patch.object(sops, "sigmoid", return_value=mock_ret),
-        patch.object(sops, "softmax", return_value=mock_ret),
-        patch.object(sops, "softplus", return_value=mock_ret),
-        patch.object(sops, "softsign", return_value=mock_ret),
-        patch.object(sops, "heaviside", return_value=mock_ret),
-        patch.object(sops, "tanh", return_value=mock_ret),
-        patch.object(sops, "hard_shrink", return_value=mock_ret),
-        patch.object(sops, "hard_tanh", return_value=mock_ret),
-        patch.object(sops, "hardswish", return_value=mock_ret),
-    ):
-        out = func(x, **kwargs)
-        assert out.shape == expected_shape
+    out = func(x, **kwargs)
+    assert out.shape == expected_shape
 
 
 def test_celu():
@@ -55,8 +33,8 @@ def test_gelu():
 
 
 def test_glu():
-    _test_func_shape(z_nn.glu, (2, 3), (2, 3))
-    _test_func_shape(z_nn.GLU(), (2, 3), (2, 3))
+    _test_func_shape(z_nn.glu, (2, 4), (2, 2))
+    _test_func_shape(z_nn.GLU(), (2, 4), (2, 2))
 
 
 def test_leaky_relu():
@@ -76,28 +54,16 @@ def test_log_softmax():
 
 def test_mish():
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch.object(sops, "softplus", return_value=m_ret),
-        patch.object(sops, "tanh", return_value=m_ret),
-        patch.object(sops, "multiply", return_value=m_ret, create=True),
-    ):
-        _test_func_shape(z_nn.mish, (2, 3), (2, 3))
-        _test_func_shape(z_nn.Mish(), (2, 3), (2, 3))
+    _test_func_shape(z_nn.mish, (2, 3), (2, 3))
+    _test_func_shape(z_nn.Mish(), (2, 3), (2, 3))
 
 
 def test_prelu():
     m = z_nn.PReLU(3)
     x = array(np.random.randn(2, 3).astype(np.float32))
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch.object(sops, "relu", return_value=m_ret),
-        patch.object(sops, "multiply", return_value=m_ret, create=True),
-        patch.object(sops, "minimum", return_value=m_ret, create=True),
-        patch.object(sops, "zeros_like", return_value=m_ret, create=True),
-        patch.object(sops, "add", return_value=m_ret, create=True),
-    ):
-        out = m(x)
-        assert out.shape == (2, 3)
+    out = m(x)
+    assert out.shape == (2, 3)
 
 
 def test_relu():
@@ -109,16 +75,10 @@ def test_relu2():
     m = z_nn.ReLU2()
     x = array(np.random.randn(2, 3).astype(np.float32))
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch.object(sops, "maximum", return_value=m_ret, create=True),
-        patch.object(sops, "minimum", return_value=m_ret, create=True),
-        patch.object(sops, "zeros_like", return_value=m_ret, create=True),
-        patch.object(sops, "full_like", return_value=m_ret, create=True),
-    ):
-        out = m(x)
-        assert out.shape == (2, 3)
-        out2 = z_nn.relu2(x)
-        assert out2.shape == (2, 3)
+    out = m(x)
+    assert out.shape == (2, 3)
+    out2 = z_nn.relu2(x)
+    assert out2.shape == (2, 3)
 
 
 def test_relu6():
@@ -150,14 +110,10 @@ def test_softmin():
     m = z_nn.Softmin()
     x = array(np.random.randn(2, 3).astype(np.float32))
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch.object(sops, "negative", return_value=m_ret),
-        patch.object(sops, "softmax", return_value=m_ret),
-    ):
-        out = m(x)
-        assert out.shape == (2, 3)
-        out2 = z_nn.softmin(x)
-        assert out2.shape == (2, 3)
+    out = m(x)
+    assert out.shape == (2, 3)
+    out2 = z_nn.softmin(x)
+    assert out2.shape == (2, 3)
 
 
 def test_softplus():
@@ -169,18 +125,10 @@ def test_softshrink():
     m = z_nn.Softshrink()
     x = array(np.random.randn(2, 3).astype(np.float32))
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch.object(sops, "full_like", return_value=m_ret, create=True),
-        patch.object(sops, "greater", return_value=m_ret, create=True),
-        patch.object(sops, "less", return_value=m_ret, create=True),
-        patch.object(sops, "subtract", return_value=m_ret),
-        patch.object(sops, "add", return_value=m_ret, create=True),
-        patch.object(sops, "multiply", return_value=m_ret, create=True),
-    ):
-        out = m(x)
-        assert out.shape == (2, 3)
-        out2 = z_nn.softshrink(x)
-        assert out2.shape == (2, 3)
+    out = m(x)
+    assert out.shape == (2, 3)
+    out2 = z_nn.softshrink(x)
+    assert out2.shape == (2, 3)
 
 
 def test_softsign():
@@ -190,12 +138,8 @@ def test_softsign():
 
 def test_step():
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch.object(sops, "full_like", return_value=m_ret, create=True),
-        patch.object(sops, "heaviside", return_value=m_ret),
-    ):
-        _test_func_shape(z_nn.step, (2, 3), (2, 3))
-        _test_func_shape(z_nn.Step(), (2, 3), (2, 3))
+    _test_func_shape(z_nn.step, (2, 3), (2, 3))
+    _test_func_shape(z_nn.Step(), (2, 3), (2, 3))
 
 
 def test_tanh():
@@ -212,17 +156,8 @@ def test_hard_shrink():
     m = z_nn.HardShrink()
     x = array(np.random.randn(2, 3).astype(np.float32))
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch("builtins.hasattr", return_value=False),
-        patch.object(sops, "full_like", return_value=m_ret, create=True),
-        patch.object(sops, "greater", return_value=m_ret, create=True),
-        patch.object(sops, "less", return_value=m_ret, create=True),
-        patch.object(sops, "logical_or", return_value=m_ret, create=True),
-        patch.object(sops, "zeros_like", return_value=m_ret, create=True),
-        patch.object(sops, "where", return_value=m_ret, create=True),
-    ):
-        out = z_nn.hard_shrink(x)
-        assert out.shape == (2, 3)
+    out = z_nn.hard_shrink(x)
+    assert out.shape == (2, 3)
 
 
 def test_hard_tanh():
@@ -232,14 +167,8 @@ def test_hard_tanh():
     m = z_nn.HardTanh()
     x = array(np.random.randn(2, 3).astype(np.float32))
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch("builtins.hasattr", return_value=False),
-        patch.object(sops, "full_like", return_value=m_ret, create=True),
-        patch.object(sops, "maximum", return_value=m_ret, create=True),
-        patch.object(sops, "minimum", return_value=m_ret, create=True),
-    ):
-        out = z_nn.hard_tanh(x)
-        assert out.shape == (2, 3)
+    out = z_nn.hard_tanh(x)
+    assert out.shape == (2, 3)
 
 
 def test_hardswish():
@@ -249,13 +178,5 @@ def test_hardswish():
     m = z_nn.Hardswish()
     x = array(np.random.randn(2, 3).astype(np.float32))
     m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    with (
-        patch("builtins.hasattr", return_value=False),
-        patch.object(sops, "full_like", return_value=m_ret, create=True),
-        patch.object(sops, "add", return_value=m_ret, create=True),
-        patch.object(sops, "relu6", return_value=m_ret, create=True),
-        patch.object(sops, "multiply", return_value=m_ret, create=True),
-        patch.object(sops, "divide", return_value=m_ret, create=True),
-    ):
-        out = z_nn.hardswish(x)
-        assert out.shape == (2, 3)
+    out = z_nn.hardswish(x)
+    assert out.shape == (2, 3)

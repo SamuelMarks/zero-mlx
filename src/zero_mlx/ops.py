@@ -6,6 +6,95 @@ import ml_switcheroo_compiler as ml_switcheroo
 import zero_mlx as mx
 
 
+def _get_compiler_op(op_name):  # pragma: no cover
+    import ml_switcheroo_compiler.ops as mops
+    import ml_switcheroo_compiler.ops.nn as mnn
+    import ml_switcheroo_compiler.ops.shape as mshape
+
+    try:
+        import ml_switcheroo_compiler.ops.shape.indexing as mindexing
+    except ImportError:
+        mindexing = mshape
+    try:
+        import ml_switcheroo_compiler.ops.shape.frontend as mfrontend
+    except ImportError:
+        mfrontend = mshape
+    import ml_switcheroo_compiler.ops.linalg as mlinalg
+    import ml_switcheroo_compiler.ops.reductions as mreductions
+    import ml_switcheroo_compiler.ops.binary as mbinary
+    import ml_switcheroo_compiler.ops.unary as munary
+    import ml_switcheroo_compiler.random as mrand
+
+    try:
+        import ml_switcheroo_compiler.ops.shape.misc as mmisc
+    except ImportError:
+        mmisc = mshape
+    try:
+        import ml_switcheroo_compiler.ops.shape.reshape as mreshape
+    except ImportError:
+        mreshape = mshape
+
+    # explicit map
+    explicit_map = {
+        "where": mindexing,
+        "repeat": mmisc,
+        "broadcast_to": lambda *args, **kwargs: mops.get_op("BroadcastTo")()(
+            *args, **kwargs
+        ),
+        "take": mindexing,
+        "sigmoid": lambda *args, **kwargs: mnn.activations.sigmoid(*args, **kwargs),
+        "tile": mmisc,
+        "sort": mmisc,
+        "argsort": mmisc,
+        "argpartition": mfrontend,
+        "argwhere": mfrontend,
+        "tril": mmisc,
+        "triu": mmisc,
+        "top_k": mmisc,
+        "max": mreductions,
+        "min": mreductions,
+        "sum": mreductions,
+        "mean": mreductions,
+        "var": mreductions,
+        "std": mreductions,
+        "prod": mreductions,
+        "argmin": mreductions,
+        "argmax": mreductions,
+        "all": mreductions,
+        "any": mreductions,
+    }
+
+    if op_name in explicit_map:
+        val = explicit_map[op_name]
+        if callable(val) and val.__name__ == "<lambda>":
+            return val
+        return getattr(val, op_name)
+
+    modules = [
+        mops,
+        mnn,
+        mrand,
+        mshape,
+        mindexing,
+        mfrontend,
+        mlinalg,
+        mreductions,
+        mbinary,
+        munary,
+    ]
+    for mod in modules:
+        if hasattr(mod, op_name):
+            return getattr(mod, op_name)
+
+    if hasattr(mops, "get_op"):
+        try:
+            return mops.get_op(op_name)
+        except Exception:
+            pass
+
+    raise NotImplementedError(f"Missing in compiler: {op_name}")
+
+
 def _wrap(x: Any, dtype: Optional[DType] = None) -> Any:  # pragma: no cover
     """Compute _wrap.
 
@@ -41,7 +130,7 @@ def all(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -59,8 +148,13 @@ def all(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -94,8 +188,13 @@ def all(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "all" not in (  # pragma: no cover
@@ -135,18 +234,7 @@ def all(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "all")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "all")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "all")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: all"
-                )  # pragma: no cover
+    fn = _get_compiler_op("all")  # pragma: no cover
     res = fn(
         _u(a, "a"), axis=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -178,7 +266,7 @@ def any(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -196,8 +284,13 @@ def any(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -231,8 +324,13 @@ def any(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "any" not in (  # pragma: no cover
@@ -272,18 +370,7 @@ def any(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "any")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "any")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "any")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: any"
-                )  # pragma: no cover
+    fn = _get_compiler_op("any")  # pragma: no cover
     res = fn(
         _u(a, "a"), axis=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -322,7 +409,7 @@ def allclose(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -340,8 +427,13 @@ def allclose(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -375,8 +467,13 @@ def allclose(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "allclose" not in (  # pragma: no cover
@@ -416,18 +513,7 @@ def allclose(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "allclose")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "allclose")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "allclose")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: allclose"
-                )  # pragma: no cover
+    fn = _get_compiler_op("allclose")  # pragma: no cover
     res = fn(
         _u(a, "a"), _u(b, "b"), rtol=rtol, atol=atol, equal_nan=equal_nan
     )  # pragma: no cover
@@ -455,7 +541,7 @@ def synchronize(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -473,8 +559,13 @@ def synchronize(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -508,8 +599,13 @@ def synchronize(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "synchronize" not in (  # pragma: no cover
@@ -549,18 +645,7 @@ def synchronize(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "synchronize")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "synchronize")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "synchronize")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: synchronize"
-                )  # pragma: no cover
+    fn = _get_compiler_op("synchronize")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -593,7 +678,7 @@ def eval(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -611,8 +696,13 @@ def eval(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -646,8 +736,13 @@ def eval(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "eval" not in (  # pragma: no cover
@@ -687,18 +782,7 @@ def eval(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "eval")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "eval")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "eval")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: eval"
-                )  # pragma: no cover
+    fn = _get_compiler_op("eval")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -731,7 +815,7 @@ def old_split(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -749,8 +833,13 @@ def old_split(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -784,8 +873,13 @@ def old_split(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "old_split" not in (  # pragma: no cover
@@ -825,18 +919,7 @@ def old_split(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "old_split")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "old_split")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "old_split")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: old_split"
-                )  # pragma: no cover
+    fn = _get_compiler_op("old_split")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -876,7 +959,7 @@ def asarray(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -894,8 +977,13 @@ def asarray(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -929,8 +1017,13 @@ def asarray(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "asarray" not in (  # pragma: no cover
@@ -970,18 +1063,7 @@ def asarray(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "asarray")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "asarray")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "asarray")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: asarray"
-                )  # pragma: no cover
+    fn = _get_compiler_op("asarray")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),
         dtype=_u(dtype, "dtype"),
@@ -1014,7 +1096,7 @@ def stack(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1032,8 +1114,13 @@ def stack(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -1067,8 +1154,13 @@ def stack(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "stack" not in (  # pragma: no cover
@@ -1108,19 +1200,8 @@ def stack(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "stack")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "stack")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "stack")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: stack"
-                )  # pragma: no cover
-    res = fn(_u(arrays, "arrays"), axis=_u(axis, "axis"))  # pragma: no cover
+    fn = _get_compiler_op("stack")  # pragma: no cover
+    res = fn(_u(arrays, "arrays"), dim=_u(axis, "axis"))  # pragma: no cover
 
     def __w(x):
         if isinstance(x, tuple):
@@ -1145,7 +1226,7 @@ def sin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1163,8 +1244,13 @@ def sin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -1198,8 +1284,13 @@ def sin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "sin" not in (  # pragma: no cover
@@ -1239,18 +1330,7 @@ def sin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "sin")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "sin")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "sin")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: sin"
-                )  # pragma: no cover
+    fn = _get_compiler_op("sin")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -1276,7 +1356,7 @@ def square(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1294,8 +1374,13 @@ def square(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -1329,8 +1414,13 @@ def square(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "square" not in (  # pragma: no cover
@@ -1370,18 +1460,7 @@ def square(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "square")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "square")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "square")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: square"
-                )  # pragma: no cover
+    fn = _get_compiler_op("square")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -1411,7 +1490,7 @@ def sum(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1429,8 +1508,13 @@ def sum(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -1464,8 +1548,13 @@ def sum(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "sum" not in (  # pragma: no cover
@@ -1505,18 +1594,7 @@ def sum(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "sum")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "sum")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "sum")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: sum"
-                )  # pragma: no cover
+    fn = _get_compiler_op("sum")  # pragma: no cover
     res = fn(
         _u(a, "a"), dim=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -1548,7 +1626,7 @@ def mean(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1566,8 +1644,13 @@ def mean(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -1601,8 +1684,13 @@ def mean(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "mean" not in (  # pragma: no cover
@@ -1642,18 +1730,7 @@ def mean(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "mean")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "mean")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "mean")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: mean"
-                )  # pragma: no cover
+    fn = _get_compiler_op("mean")  # pragma: no cover
     res = fn(
         _u(a, "a"), dim=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -1690,7 +1767,7 @@ def arange(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1708,8 +1785,13 @@ def arange(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -1743,8 +1825,13 @@ def arange(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "arange" not in (  # pragma: no cover
@@ -1784,18 +1871,7 @@ def arange(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "arange")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "arange")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "arange")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: arange"
-                )  # pragma: no cover
+    fn = _get_compiler_op("arange")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(start, "start"),
         _u(stop, "stop"),
@@ -1833,7 +1909,7 @@ def full(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1851,8 +1927,13 @@ def full(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -1886,8 +1967,13 @@ def full(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "full" not in (  # pragma: no cover
@@ -1927,20 +2013,15 @@ def full(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "full")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "full")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "full")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: full"
-                )  # pragma: no cover
+    fn = _get_compiler_op("full")  # pragma: no cover
     res = fn(
-        _u(shape, "shape"), _u(fill_value, "fill_value"), dtype=_u(dtype, "dtype")
+        tuple(int(i) for i in shape.flatten())
+        if hasattr(shape, "flatten")
+        else tuple(int(i) for i in shape)
+        if hasattr(shape, "__iter__")
+        else (int(shape),),
+        _u(fill_value, "fill_value"),
+        dtype=_u(dtype, "dtype"),
     )  # pragma: no cover
 
     def __w(x):
@@ -1969,7 +2050,7 @@ def zeros(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -1987,8 +2068,13 @@ def zeros(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2022,8 +2108,13 @@ def zeros(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "zeros" not in (  # pragma: no cover
@@ -2063,18 +2154,7 @@ def zeros(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "zeros")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "zeros")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "zeros")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: zeros"
-                )  # pragma: no cover
+    fn = _get_compiler_op("zeros")  # pragma: no cover
     res = fn(_u(shape, "shape"), dtype=_u(dtype, "dtype"))  # pragma: no cover
 
     def __w(x):
@@ -2103,7 +2183,7 @@ def ones(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -2121,8 +2201,13 @@ def ones(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2156,8 +2241,13 @@ def ones(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "ones" not in (  # pragma: no cover
@@ -2197,18 +2287,7 @@ def ones(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "ones")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "ones")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "ones")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: ones"
-                )  # pragma: no cover
+    fn = _get_compiler_op("ones")  # pragma: no cover
     res = fn(_u(shape, "shape"), dtype=_u(dtype, "dtype"))  # pragma: no cover
 
     def __w(x):
@@ -2237,7 +2316,7 @@ def zeros_like(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -2255,8 +2334,13 @@ def zeros_like(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2290,8 +2374,13 @@ def zeros_like(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "zeros_like" not in (  # pragma: no cover
@@ -2331,18 +2420,7 @@ def zeros_like(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "zeros_like")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "zeros_like")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "zeros_like")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: zeros_like"
-                )  # pragma: no cover
+    fn = _get_compiler_op("zeros_like")  # pragma: no cover
     res = fn(_u(a, "a"), dtype=_u(dtype, "dtype"))  # pragma: no cover
 
     def __w(x):
@@ -2371,7 +2449,7 @@ def ones_like(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -2389,8 +2467,13 @@ def ones_like(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2424,8 +2507,13 @@ def ones_like(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "ones_like" not in (  # pragma: no cover
@@ -2465,18 +2553,7 @@ def ones_like(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "ones_like")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "ones_like")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "ones_like")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: ones_like"
-                )  # pragma: no cover
+    fn = _get_compiler_op("ones_like")  # pragma: no cover
     res = fn(_u(a, "a"), dtype=_u(dtype, "dtype"))  # pragma: no cover
 
     def __w(x):
@@ -2506,7 +2583,7 @@ def array_equal(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -2524,8 +2601,13 @@ def array_equal(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2559,8 +2641,13 @@ def array_equal(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "array_equal" not in (  # pragma: no cover
@@ -2600,18 +2687,7 @@ def array_equal(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "array_equal")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "array_equal")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "array_equal")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: array_equal"
-                )  # pragma: no cover
+    fn = _get_compiler_op("array_equal")  # pragma: no cover
     res = fn(
         _u(a, "a"), _u(b, "b"), equal_nan=_u(equal_nan, "equal_nan")
     )  # pragma: no cover
@@ -2642,7 +2718,7 @@ def broadcast_to(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -2660,8 +2736,13 @@ def broadcast_to(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2695,8 +2776,13 @@ def broadcast_to(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "broadcast_to" not in (  # pragma: no cover
@@ -2736,19 +2822,8 @@ def broadcast_to(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "broadcast_to")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "broadcast_to")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "broadcast_to")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: broadcast_to"
-                )  # pragma: no cover
-    res = fn(_u(a, "a"), _u(shape, "shape"))  # pragma: no cover
+    fn = _get_compiler_op("broadcast_to")  # pragma: no cover
+    res = fn(_u(a, "a"), shape=_u(shape, "shape"))  # pragma: no cover
 
     def __w(x):
         if isinstance(x, tuple):
@@ -2782,7 +2857,7 @@ def as_strided(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -2800,8 +2875,13 @@ def as_strided(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2835,8 +2915,13 @@ def as_strided(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "as_strided" not in (  # pragma: no cover
@@ -2917,7 +3002,7 @@ def reshape(a: Any, shape: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -2935,8 +3020,13 @@ def reshape(a: Any, shape: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -2970,8 +3060,13 @@ def reshape(a: Any, shape: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "reshape" not in (  # pragma: no cover
@@ -3011,18 +3106,7 @@ def reshape(a: Any, shape: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "reshape")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "reshape")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "reshape")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: reshape"
-                )  # pragma: no cover
+    fn = _get_compiler_op("reshape")  # pragma: no cover
     res = fn(_u(a, "a"), _u(shape, "shape"))  # pragma: no cover
 
     def __w(x):
@@ -3049,7 +3133,7 @@ def divmod(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3067,8 +3151,13 @@ def divmod(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -3102,8 +3191,13 @@ def divmod(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "divmod" not in (  # pragma: no cover
@@ -3143,18 +3237,7 @@ def divmod(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "divmod")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "divmod")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "divmod")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: divmod"
-                )  # pragma: no cover
+    fn = _get_compiler_op("divmod")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -3180,7 +3263,7 @@ def logical_not(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3198,8 +3281,13 @@ def logical_not(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -3233,8 +3321,13 @@ def logical_not(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "logical_not" not in (  # pragma: no cover
@@ -3274,18 +3367,7 @@ def logical_not(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "logical_not")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "logical_not")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "logical_not")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: logical_not"
-                )  # pragma: no cover
+    fn = _get_compiler_op("logical_not")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -3312,7 +3394,7 @@ def logical_and(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3330,8 +3412,13 @@ def logical_and(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -3365,8 +3452,13 @@ def logical_and(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "logical_and" not in (  # pragma: no cover
@@ -3406,18 +3498,7 @@ def logical_and(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "logical_and")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "logical_and")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "logical_and")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: logical_and"
-                )  # pragma: no cover
+    fn = _get_compiler_op("logical_and")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -3444,7 +3525,7 @@ def logical_or(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3462,8 +3543,13 @@ def logical_or(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -3497,8 +3583,13 @@ def logical_or(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "logical_or" not in (  # pragma: no cover
@@ -3538,18 +3629,7 @@ def logical_or(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "logical_or")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "logical_or")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "logical_or")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: logical_or"
-                )  # pragma: no cover
+    fn = _get_compiler_op("logical_or")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -3575,7 +3655,7 @@ def sqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3593,8 +3673,13 @@ def sqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -3628,8 +3713,13 @@ def sqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "sqrt" not in (  # pragma: no cover
@@ -3669,18 +3759,7 @@ def sqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "sqrt")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "sqrt")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "sqrt")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: sqrt"
-                )  # pragma: no cover
+    fn = _get_compiler_op("sqrt")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -3706,7 +3785,7 @@ def abs(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3724,8 +3803,13 @@ def abs(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -3759,8 +3843,13 @@ def abs(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "abs" not in (  # pragma: no cover
@@ -3800,18 +3889,7 @@ def abs(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "abs")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "abs")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "abs")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: abs"
-                )  # pragma: no cover
+    fn = _get_compiler_op("abs")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -3837,7 +3915,7 @@ def negative(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3855,8 +3933,13 @@ def negative(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -3890,8 +3973,13 @@ def negative(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "negative" not in (  # pragma: no cover
@@ -3931,18 +4019,7 @@ def negative(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "negative")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "negative")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "negative")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: negative"
-                )  # pragma: no cover
+    fn = _get_compiler_op("negative")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -3968,7 +4045,7 @@ def exp(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -3986,8 +4063,13 @@ def exp(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4021,8 +4103,13 @@ def exp(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "exp" not in (  # pragma: no cover
@@ -4062,18 +4149,7 @@ def exp(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "exp")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "exp")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "exp")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: exp"
-                )  # pragma: no cover
+    fn = _get_compiler_op("exp")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -4099,7 +4175,7 @@ def rsqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -4117,8 +4193,13 @@ def rsqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4152,8 +4233,13 @@ def rsqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "rsqrt" not in (  # pragma: no cover
@@ -4193,18 +4279,7 @@ def rsqrt(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "rsqrt")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "rsqrt")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "rsqrt")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: rsqrt"
-                )  # pragma: no cover
+    fn = _get_compiler_op("rsqrt")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -4231,7 +4306,7 @@ def add(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -4249,8 +4324,13 @@ def add(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4284,8 +4364,13 @@ def add(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "add" not in (  # pragma: no cover
@@ -4325,18 +4410,7 @@ def add(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "add")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "add")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "add")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: add"
-                )  # pragma: no cover
+    fn = _get_compiler_op("add")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -4363,7 +4437,7 @@ def subtract(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -4381,8 +4455,13 @@ def subtract(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4416,8 +4495,13 @@ def subtract(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "subtract" not in (  # pragma: no cover
@@ -4457,18 +4541,7 @@ def subtract(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "subtract")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "subtract")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "subtract")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: subtract"
-                )  # pragma: no cover
+    fn = _get_compiler_op("subtract")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -4495,7 +4568,7 @@ def multiply(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -4513,8 +4586,13 @@ def multiply(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4548,8 +4626,13 @@ def multiply(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "multiply" not in (  # pragma: no cover
@@ -4589,18 +4672,7 @@ def multiply(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "multiply")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "multiply")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "multiply")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: multiply"
-                )  # pragma: no cover
+    fn = _get_compiler_op("multiply")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -4627,7 +4699,7 @@ def divide(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -4645,8 +4717,13 @@ def divide(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4680,8 +4757,13 @@ def divide(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "divide" not in (  # pragma: no cover
@@ -4721,18 +4803,7 @@ def divide(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "divide")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "divide")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "divide")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: divide"
-                )  # pragma: no cover
+    fn = _get_compiler_op("divide")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -4759,7 +4830,7 @@ def matmul(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -4777,8 +4848,13 @@ def matmul(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4812,8 +4888,13 @@ def matmul(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "matmul" not in (  # pragma: no cover
@@ -4853,18 +4934,7 @@ def matmul(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "matmul")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "matmul")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "matmul")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: matmul"
-                )  # pragma: no cover
+    fn = _get_compiler_op("matmul")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -4890,7 +4960,7 @@ def reciprocal(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -4908,8 +4978,13 @@ def reciprocal(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -4943,8 +5018,13 @@ def reciprocal(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "reciprocal" not in (  # pragma: no cover
@@ -4984,18 +5064,7 @@ def reciprocal(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "reciprocal")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "reciprocal")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "reciprocal")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: reciprocal"
-                )  # pragma: no cover
+    fn = _get_compiler_op("reciprocal")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -5021,7 +5090,7 @@ def log(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -5039,8 +5108,13 @@ def log(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -5074,8 +5148,13 @@ def log(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "log" not in (  # pragma: no cover
@@ -5115,18 +5194,7 @@ def log(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "log")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "log")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "log")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: log"
-                )  # pragma: no cover
+    fn = _get_compiler_op("log")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -5153,7 +5221,7 @@ def maximum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -5171,8 +5239,13 @@ def maximum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -5206,8 +5279,13 @@ def maximum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "maximum" not in (  # pragma: no cover
@@ -5247,18 +5325,7 @@ def maximum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "maximum")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "maximum")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "maximum")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: maximum"
-                )  # pragma: no cover
+    fn = _get_compiler_op("maximum")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -5285,7 +5352,7 @@ def minimum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -5303,8 +5370,13 @@ def minimum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -5338,8 +5410,13 @@ def minimum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "minimum" not in (  # pragma: no cover
@@ -5379,18 +5456,7 @@ def minimum(a: Any, b: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "minimum")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "minimum")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "minimum")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: minimum"
-                )  # pragma: no cover
+    fn = _get_compiler_op("minimum")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"))  # pragma: no cover
 
     def __w(x):
@@ -5416,7 +5482,7 @@ def cos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -5434,8 +5500,13 @@ def cos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -5469,8 +5540,13 @@ def cos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "cos" not in (  # pragma: no cover
@@ -5510,18 +5586,7 @@ def cos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "cos")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "cos")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "cos")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: cos"
-                )  # pragma: no cover
+    fn = _get_compiler_op("cos")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -5547,7 +5612,7 @@ def log1p(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -5565,8 +5630,13 @@ def log1p(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -5600,8 +5670,13 @@ def log1p(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "log1p" not in (  # pragma: no cover
@@ -5641,18 +5716,7 @@ def log1p(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "log1p")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "log1p")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "log1p")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: log1p"
-                )  # pragma: no cover
+    fn = _get_compiler_op("log1p")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -5678,7 +5742,7 @@ def stop_gradient(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -5696,8 +5760,13 @@ def stop_gradient(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -5731,8 +5800,13 @@ def stop_gradient(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "stop_gradient" not in (  # pragma: no cover
@@ -5772,18 +5846,7 @@ def stop_gradient(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "stop_gradient")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "stop_gradient")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "stop_gradient")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: stop_gradient"
-                )  # pragma: no cover
+    fn = _get_compiler_op("stop_gradient")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -5852,7 +5915,7 @@ def split(a, indices_or_sections, axis=0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -5870,8 +5933,13 @@ def split(a, indices_or_sections, axis=0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -5905,8 +5973,13 @@ def split(a, indices_or_sections, axis=0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "split" not in (  # pragma: no cover
@@ -5946,22 +6019,13 @@ def split(a, indices_or_sections, axis=0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "split")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "split")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "split")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: split"
-                )  # pragma: no cover
+    fn = _get_compiler_op("split")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
-        _u(indices_or_sections, "indices_or_sections"),  # pragma: no cover
-        axis=_u(axis, "axis"),  # pragma: no cover
+        split_size_or_sections=_u(
+            indices_or_sections, "indices_or_sections"
+        ),  # pragma: no cover
+        dim=_u(axis, "axis"),  # pragma: no cover
     )  # pragma: no cover
 
     def __w(x):
@@ -5988,7 +6052,7 @@ def diagonal(a, *args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6006,8 +6070,13 @@ def diagonal(a, *args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -6041,8 +6110,13 @@ def diagonal(a, *args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "diagonal" not in (  # pragma: no cover
@@ -6082,18 +6156,7 @@ def diagonal(a, *args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "diagonal")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "diagonal")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "diagonal")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: diagonal"
-                )  # pragma: no cover
+    fn = _get_compiler_op("diagonal")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
@@ -6128,7 +6191,7 @@ def logcumsumexp(a, *args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6146,8 +6209,13 @@ def logcumsumexp(a, *args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -6181,8 +6249,13 @@ def logcumsumexp(a, *args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "logcumsumexp" not in (  # pragma: no cover
@@ -6222,18 +6295,7 @@ def logcumsumexp(a, *args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "logcumsumexp")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "logcumsumexp")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "logcumsumexp")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: logcumsumexp"
-                )  # pragma: no cover
+    fn = _get_compiler_op("logcumsumexp")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
@@ -6268,7 +6330,7 @@ def logsumexp(a, *args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6286,8 +6348,13 @@ def logsumexp(a, *args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -6321,8 +6388,13 @@ def logsumexp(a, *args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "logsumexp" not in (  # pragma: no cover
@@ -6362,18 +6434,7 @@ def logsumexp(a, *args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "logsumexp")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "logsumexp")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "logsumexp")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: logsumexp"
-                )  # pragma: no cover
+    fn = _get_compiler_op("logsumexp")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
@@ -6408,7 +6469,7 @@ def cummax(a, *args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6426,8 +6487,13 @@ def cummax(a, *args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -6461,8 +6527,13 @@ def cummax(a, *args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "cummax" not in (  # pragma: no cover
@@ -6502,18 +6573,7 @@ def cummax(a, *args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "cummax")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "cummax")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "cummax")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: cummax"
-                )  # pragma: no cover
+    fn = _get_compiler_op("cummax")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
@@ -6548,7 +6608,7 @@ def cummin(a, *args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6566,8 +6626,13 @@ def cummin(a, *args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -6601,8 +6666,13 @@ def cummin(a, *args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "cummin" not in (  # pragma: no cover
@@ -6642,18 +6712,7 @@ def cummin(a, *args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "cummin")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "cummin")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "cummin")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: cummin"
-                )  # pragma: no cover
+    fn = _get_compiler_op("cummin")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
@@ -6688,7 +6747,7 @@ def cumprod(a, *args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6706,8 +6765,13 @@ def cumprod(a, *args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -6741,8 +6805,13 @@ def cumprod(a, *args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "cumprod" not in (  # pragma: no cover
@@ -6782,18 +6851,7 @@ def cumprod(a, *args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "cumprod")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "cumprod")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "cumprod")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: cumprod"
-                )  # pragma: no cover
+    fn = _get_compiler_op("cumprod")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
@@ -6828,7 +6886,7 @@ def cumsum(a, *args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6846,8 +6904,13 @@ def cumsum(a, *args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -6881,8 +6944,13 @@ def cumsum(a, *args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "cumsum" not in (  # pragma: no cover
@@ -6922,18 +6990,7 @@ def cumsum(a, *args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "cumsum")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "cumsum")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "cumsum")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: cumsum"
-                )  # pragma: no cover
+    fn = _get_compiler_op("cumsum")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
@@ -6968,7 +7025,7 @@ def transpose(a, *args, axes=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -6986,8 +7043,13 @@ def transpose(a, *args, axes=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7021,8 +7083,13 @@ def transpose(a, *args, axes=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "transpose" not in (  # pragma: no cover
@@ -7062,18 +7129,7 @@ def transpose(a, *args, axes=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "permute")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "permute")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "permute")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: permute"
-                )  # pragma: no cover
+    fn = _get_compiler_op("permute")  # pragma: no cover
     if axes is None:  # pragma: no cover
         shape = getattr(a, "shape", None)  # pragma: no cover
         if shape is not None:  # pragma: no cover
@@ -7107,7 +7163,7 @@ def concatenate(arrays, axis=0):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -7125,8 +7181,13 @@ def concatenate(arrays, axis=0):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7160,8 +7221,13 @@ def concatenate(arrays, axis=0):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "concatenate" not in (  # pragma: no cover
@@ -7201,18 +7267,7 @@ def concatenate(arrays, axis=0):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "concatenate")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "concatenate")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "concatenate")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: concatenate"
-                )  # pragma: no cover
+    fn = _get_compiler_op("concatenate")  # pragma: no cover
     res = fn(_u(arrays, "arrays"), dim=_u(axis, "axis"))  # pragma: no cover
 
     def __w(x):
@@ -7238,7 +7293,7 @@ def get_peak_memory(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -7256,8 +7311,13 @@ def get_peak_memory(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7291,8 +7351,13 @@ def get_peak_memory(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "get_peak_memory" not in (  # pragma: no cover
@@ -7332,18 +7397,7 @@ def get_peak_memory(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "get_peak_memory")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "get_peak_memory")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "get_peak_memory")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: get_peak_memory"
-                )  # pragma: no cover
+    fn = _get_compiler_op("get_peak_memory")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -7378,7 +7432,7 @@ def argmin(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -7396,8 +7450,13 @@ def argmin(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7431,8 +7490,13 @@ def argmin(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "argmin" not in (  # pragma: no cover
@@ -7472,18 +7536,7 @@ def argmin(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "argmin")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "argmin")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "argmin")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: argmin"
-                )  # pragma: no cover
+    fn = _get_compiler_op("argmin")  # pragma: no cover
     res = fn(
         _u(a, "a"), axis=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -7513,7 +7566,7 @@ def argmax(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -7531,8 +7584,13 @@ def argmax(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7566,8 +7624,13 @@ def argmax(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "argmax" not in (  # pragma: no cover
@@ -7607,18 +7670,7 @@ def argmax(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "argmax")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "argmax")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "argmax")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: argmax"
-                )  # pragma: no cover
+    fn = _get_compiler_op("argmax")  # pragma: no cover
     res = fn(
         _u(a, "a"), axis=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -7648,7 +7700,7 @@ def min(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -7666,8 +7718,13 @@ def min(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7701,8 +7758,13 @@ def min(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "min" not in (  # pragma: no cover
@@ -7742,18 +7804,7 @@ def min(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "min")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "min")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "min")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: min"
-                )  # pragma: no cover
+    fn = _get_compiler_op("min")  # pragma: no cover
     res = fn(
         _u(a, "a"), dim=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -7783,7 +7834,7 @@ def max(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -7801,8 +7852,13 @@ def max(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7836,8 +7892,13 @@ def max(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "max" not in (  # pragma: no cover
@@ -7877,18 +7938,7 @@ def max(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "max")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "max")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "max")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: max"
-                )  # pragma: no cover
+    fn = _get_compiler_op("max")  # pragma: no cover
     res = fn(
         _u(a, "a"), dim=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -7918,7 +7968,7 @@ def prod(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -7936,8 +7986,13 @@ def prod(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -7971,8 +8026,13 @@ def prod(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "prod" not in (  # pragma: no cover
@@ -8012,18 +8072,7 @@ def prod(a, axis=None, keepdims=False, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "prod")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "prod")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "prod")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: prod"
-                )  # pragma: no cover
+    fn = _get_compiler_op("prod")  # pragma: no cover
     res = fn(
         _u(a, "a"), dim=_u(axis, "axis"), keepdims=_u(keepdims, "keepdims")
     )  # pragma: no cover
@@ -8054,7 +8103,7 @@ def eye(n, m=None, k=0, dtype=None, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -8072,8 +8121,13 @@ def eye(n, m=None, k=0, dtype=None, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -8107,8 +8161,13 @@ def eye(n, m=None, k=0, dtype=None, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "eye" not in (  # pragma: no cover
@@ -8148,18 +8207,7 @@ def eye(n, m=None, k=0, dtype=None, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "eye")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "eye")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "eye")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: eye"
-                )  # pragma: no cover
+    fn = _get_compiler_op("eye")  # pragma: no cover
     res = fn(
         _u(n, "n"), _u(m, "m"), k=_u(k, "k"), dtype=_u(dtype, "dtype")
     )  # pragma: no cover
@@ -8188,7 +8236,7 @@ def diag(v, k=0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -8206,8 +8254,13 @@ def diag(v, k=0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -8241,10 +8294,18 @@ def diag(v, k=0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
+                "nan",
+                "posinf",
+                "neginf",
             } and "diag" not in (  # pragma: no cover
                 "transpose",  # pragma: no cover
                 "moveaxis",  # pragma: no cover
@@ -8282,19 +8343,13 @@ def diag(v, k=0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "diag")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "diag")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "diag")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: diag"
-                )  # pragma: no cover
-    res = fn(_u(v, "v"), k=_u(k, "k"))  # pragma: no cover
+    v_u = _u(v, "v")  # pragma: no cover
+    if hasattr(v_u, "shape") and len(v_u.shape) == 1:  # pragma: no cover
+        fn = _get_compiler_op("diagflat")  # pragma: no cover
+        res = fn(v_u, k=_u(k, "k"))  # pragma: no cover
+    else:  # pragma: no cover
+        fn = _get_compiler_op("diag")  # pragma: no cover
+        res = fn(v_u, diagonal=_u(k, "k"))  # pragma: no cover
 
     def __w(x):
         if isinstance(x, tuple):
@@ -8320,7 +8375,7 @@ def tril(m, k=0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -8338,8 +8393,13 @@ def tril(m, k=0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -8373,8 +8433,13 @@ def tril(m, k=0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "tril" not in (  # pragma: no cover
@@ -8414,18 +8479,7 @@ def tril(m, k=0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "tril")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "tril")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "tril")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: tril"
-                )  # pragma: no cover
+    fn = _get_compiler_op("tril")  # pragma: no cover
     res = fn(_u(m, "m"), k=_u(k, "k"))  # pragma: no cover
 
     def __w(x):
@@ -8452,7 +8506,7 @@ def triu(m, k=0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -8470,8 +8524,13 @@ def triu(m, k=0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -8505,8 +8564,13 @@ def triu(m, k=0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "triu" not in (  # pragma: no cover
@@ -8546,18 +8610,7 @@ def triu(m, k=0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "triu")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "triu")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "triu")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: triu"
-                )  # pragma: no cover
+    fn = _get_compiler_op("triu")  # pragma: no cover
     res = fn(_u(m, "m"), k=_u(k, "k"))  # pragma: no cover
 
     def __w(x):
@@ -8584,7 +8637,7 @@ def expand_dims(a, axis, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -8602,8 +8655,13 @@ def expand_dims(a, axis, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -8637,8 +8695,13 @@ def expand_dims(a, axis, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "expand_dims" not in (  # pragma: no cover
@@ -8678,18 +8741,7 @@ def expand_dims(a, axis, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "unsqueeze")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "unsqueeze")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "unsqueeze")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: unsqueeze"
-                )  # pragma: no cover
+    fn = _get_compiler_op("unsqueeze")  # pragma: no cover
     res = fn(_u(a, "a"), axis=_u(axis, "axis"))  # pragma: no cover
 
     def __w(x):
@@ -8717,7 +8769,7 @@ def take_along_axis(a, indices, axis=None, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -8735,8 +8787,13 @@ def take_along_axis(a, indices, axis=None, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -8770,8 +8827,13 @@ def take_along_axis(a, indices, axis=None, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "take_along_axis" not in (  # pragma: no cover
@@ -8811,18 +8873,7 @@ def take_along_axis(a, indices, axis=None, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "take_along_axis")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "take_along_axis")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "take_along_axis")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: take_along_axis"
-                )  # pragma: no cover
+    fn = _get_compiler_op("take_along_axis")  # pragma: no cover
     res = fn(
         _u(a, "a"), _u(indices, "indices"), axis=_u(axis, "axis")
     )  # pragma: no cover
@@ -8851,7 +8902,7 @@ def tile(A, reps, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -8869,8 +8920,13 @@ def tile(A, reps, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -8904,8 +8960,13 @@ def tile(A, reps, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "tile" not in (  # pragma: no cover
@@ -8945,18 +9006,7 @@ def tile(A, reps, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "tile")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "tile")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "tile")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: tile"
-                )  # pragma: no cover
+    fn = _get_compiler_op("tile")  # pragma: no cover
     res = fn(_u(A, "A"), _u(reps, "reps"))  # pragma: no cover
 
     def __w(x):
@@ -8983,7 +9033,7 @@ def squeeze(a, axis=None, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9001,8 +9051,13 @@ def squeeze(a, axis=None, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9036,8 +9091,13 @@ def squeeze(a, axis=None, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "squeeze" not in (  # pragma: no cover
@@ -9077,18 +9137,7 @@ def squeeze(a, axis=None, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "squeeze")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "squeeze")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "squeeze")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: squeeze"
-                )  # pragma: no cover
+    fn = _get_compiler_op("squeeze")  # pragma: no cover
     res = fn(_u(a, "a"), axis=_u(axis, "axis"))  # pragma: no cover
 
     def __w(x):
@@ -9117,7 +9166,7 @@ def var(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9135,8 +9184,13 @@ def var(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9170,8 +9224,13 @@ def var(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "var" not in (  # pragma: no cover
@@ -9211,23 +9270,12 @@ def var(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "variance")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "variance")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "variance")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: variance"
-                )  # pragma: no cover
+    fn = _get_compiler_op("variance")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
-        dim=_u(axis, "axis"),  # pragma: no cover
+        axis=_u(axis, "axis"),  # pragma: no cover
         keepdims=_u(keepdims, "keepdims"),  # pragma: no cover
-        correction=_u(ddof, "ddof"),  # pragma: no cover
+        ddof=_u(ddof, "ddof"),  # pragma: no cover
     )  # pragma: no cover
 
     def __w(x):
@@ -9256,7 +9304,7 @@ def std(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9274,8 +9322,13 @@ def std(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9309,8 +9362,13 @@ def std(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "std" not in (  # pragma: no cover
@@ -9350,23 +9408,12 @@ def std(a, axis=None, keepdims=False, ddof=0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "std")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "std")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "std")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: std"
-                )  # pragma: no cover
+    fn = _get_compiler_op("std")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
-        dim=_u(axis, "axis"),  # pragma: no cover
+        axis=_u(axis, "axis"),  # pragma: no cover
         keepdims=_u(keepdims, "keepdims"),  # pragma: no cover
-        correction=_u(ddof, "ddof"),  # pragma: no cover
+        ddof=_u(ddof, "ddof"),  # pragma: no cover
     )  # pragma: no cover
 
     def __w(x):
@@ -9393,7 +9440,7 @@ def round(a, decimals=0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9411,8 +9458,13 @@ def round(a, decimals=0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9446,8 +9498,13 @@ def round(a, decimals=0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "round" not in (  # pragma: no cover
@@ -9487,18 +9544,7 @@ def round(a, decimals=0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "round")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "round")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "round")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: round"
-                )  # pragma: no cover
+    fn = _get_compiler_op("round")  # pragma: no cover
     res = fn(_u(a, "a"), decimals=_u(decimals, "decimals"))  # pragma: no cover
 
     def __w(x):
@@ -9525,7 +9571,7 @@ def sort(a, axis=-1, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9543,8 +9589,13 @@ def sort(a, axis=-1, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9578,8 +9629,13 @@ def sort(a, axis=-1, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "sort" not in (  # pragma: no cover
@@ -9619,19 +9675,8 @@ def sort(a, axis=-1, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "sort")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "sort")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "sort")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: sort"
-                )  # pragma: no cover
-    res = fn(_u(a, "a"), dim=_u(axis, "axis"))  # pragma: no cover
+    fn = _get_compiler_op("sort")  # pragma: no cover
+    res = fn(_u(a, "a"), axis=_u(axis, "axis"))  # pragma: no cover
 
     def __w(x):
         if isinstance(x, tuple):
@@ -9657,7 +9702,7 @@ def argsort(a, axis=-1, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9675,8 +9720,13 @@ def argsort(a, axis=-1, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9710,8 +9760,13 @@ def argsort(a, axis=-1, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "argsort" not in (  # pragma: no cover
@@ -9751,19 +9806,8 @@ def argsort(a, axis=-1, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "argsort")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "argsort")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "argsort")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: argsort"
-                )  # pragma: no cover
-    res = fn(_u(a, "a"), dim=_u(axis, "axis"))  # pragma: no cover
+    fn = _get_compiler_op("argsort")  # pragma: no cover
+    res = fn(_u(a, "a"), axis=_u(axis, "axis"))  # pragma: no cover
 
     def __w(x):
         if isinstance(x, tuple):
@@ -9790,7 +9834,7 @@ def swapaxes(a, axis1, axis2, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9808,8 +9852,13 @@ def swapaxes(a, axis1, axis2, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9843,8 +9892,13 @@ def swapaxes(a, axis1, axis2, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "swapaxes" not in (  # pragma: no cover
@@ -9884,18 +9938,7 @@ def swapaxes(a, axis1, axis2, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "swapaxes")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "swapaxes")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "swapaxes")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: swapaxes"
-                )  # pragma: no cover
+    fn = _get_compiler_op("swapaxes")  # pragma: no cover
     res = fn(
         _u(a, "a"), axis1=_u(axis1, "axis1"), axis2=_u(axis2, "axis2")
     )  # pragma: no cover
@@ -9925,7 +9968,7 @@ def moveaxis(a, source, destination, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -9943,8 +9986,13 @@ def moveaxis(a, source, destination, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -9978,8 +10026,13 @@ def moveaxis(a, source, destination, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "moveaxis" not in (  # pragma: no cover
@@ -10019,18 +10072,7 @@ def moveaxis(a, source, destination, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "moveaxis")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "moveaxis")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "moveaxis")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: moveaxis"
-                )  # pragma: no cover
+    fn = _get_compiler_op("moveaxis")  # pragma: no cover
     res = fn(
         _u(a, "a"), _u(source, "source"), _u(destination, "destination")
     )  # pragma: no cover
@@ -10060,7 +10102,7 @@ def take(a, indices, axis=None, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -10078,8 +10120,13 @@ def take(a, indices, axis=None, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -10113,8 +10160,13 @@ def take(a, indices, axis=None, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "take" not in (  # pragma: no cover
@@ -10154,18 +10206,7 @@ def take(a, indices, axis=None, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "take")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "take")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "take")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: take"
-                )  # pragma: no cover
+    fn = _get_compiler_op("take")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),
         _u(indices, "indices"),
@@ -10199,7 +10240,7 @@ def addmm(c, a, b, alpha=1.0, beta=1.0, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -10217,8 +10258,13 @@ def addmm(c, a, b, alpha=1.0, beta=1.0, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -10252,8 +10298,13 @@ def addmm(c, a, b, alpha=1.0, beta=1.0, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "addmm" not in (  # pragma: no cover
@@ -10293,18 +10344,7 @@ def addmm(c, a, b, alpha=1.0, beta=1.0, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "addmm")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "addmm")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "addmm")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: addmm"
-                )  # pragma: no cover
+    fn = _get_compiler_op("addmm")  # pragma: no cover
     res = fn(
         _u(c, "c"), _u(a, "a"), _u(b, "b"), _u(alpha, "alpha"), _u(beta, "beta")
     )  # pragma: no cover
@@ -10338,7 +10378,7 @@ def gather_mm(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -10356,8 +10396,13 @@ def gather_mm(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -10391,8 +10436,13 @@ def gather_mm(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "gather_mm" not in (  # pragma: no cover
@@ -10432,18 +10482,7 @@ def gather_mm(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "gather_mm")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "gather_mm")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "gather_mm")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: gather_mm"
-                )  # pragma: no cover
+    fn = _get_compiler_op("gather_mm")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         _u(b, "b"),  # pragma: no cover
@@ -10492,7 +10531,7 @@ def block_masked_mm(  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -10510,8 +10549,13 @@ def block_masked_mm(  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -10545,8 +10589,13 @@ def block_masked_mm(  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "block_masked_mm" not in (  # pragma: no cover
@@ -10586,18 +10635,7 @@ def block_masked_mm(  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "block_masked_mm")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "block_masked_mm")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "block_masked_mm")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: block_masked_mm"
-                )  # pragma: no cover
+    fn = _get_compiler_op("block_masked_mm")  # pragma: no cover
     res = fn(  # pragma: no cover
         _u(a, "a"),  # pragma: no cover
         _u(b, "b"),  # pragma: no cover
@@ -10632,7 +10670,7 @@ def segmented_mm(a, b, segments, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -10650,8 +10688,13 @@ def segmented_mm(a, b, segments, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -10685,8 +10728,13 @@ def segmented_mm(a, b, segments, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "segmented_mm" not in (  # pragma: no cover
@@ -10726,18 +10774,7 @@ def segmented_mm(a, b, segments, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "segmented_mm")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "segmented_mm")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "segmented_mm")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: segmented_mm"
-                )  # pragma: no cover
+    fn = _get_compiler_op("segmented_mm")  # pragma: no cover
     res = fn(_u(a, "a"), _u(b, "b"), _u(segments, "segments"))  # pragma: no cover
 
     def __w(x):
@@ -10763,7 +10800,7 @@ def argpartition(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -10781,8 +10818,13 @@ def argpartition(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -10816,8 +10858,13 @@ def argpartition(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "argpartition" not in (  # pragma: no cover
@@ -10857,18 +10904,7 @@ def argpartition(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "argpartition")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "argpartition")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "argpartition")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: argpartition"
-                )  # pragma: no cover
+    fn = _get_compiler_op("argpartition")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -10901,7 +10937,7 @@ def atleast_1d(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -10919,8 +10955,13 @@ def atleast_1d(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -10954,8 +10995,13 @@ def atleast_1d(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "atleast_1d" not in (  # pragma: no cover
@@ -10995,18 +11041,7 @@ def atleast_1d(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "atleast_1d")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "atleast_1d")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "atleast_1d")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: atleast_1d"
-                )  # pragma: no cover
+    fn = _get_compiler_op("atleast_1d")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -11039,7 +11074,7 @@ def atleast_2d(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -11057,8 +11092,13 @@ def atleast_2d(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -11092,8 +11132,13 @@ def atleast_2d(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "atleast_2d" not in (  # pragma: no cover
@@ -11133,18 +11178,7 @@ def atleast_2d(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "atleast_2d")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "atleast_2d")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "atleast_2d")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: atleast_2d"
-                )  # pragma: no cover
+    fn = _get_compiler_op("atleast_2d")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -11177,7 +11211,7 @@ def atleast_3d(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -11195,8 +11229,13 @@ def atleast_3d(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -11230,8 +11269,13 @@ def atleast_3d(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "atleast_3d" not in (  # pragma: no cover
@@ -11271,18 +11315,7 @@ def atleast_3d(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "atleast_3d")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "atleast_3d")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "atleast_3d")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: atleast_3d"
-                )  # pragma: no cover
+    fn = _get_compiler_op("atleast_3d")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -11315,7 +11348,7 @@ def broadcast_arrays(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -11333,8 +11366,13 @@ def broadcast_arrays(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -11368,8 +11406,13 @@ def broadcast_arrays(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "broadcast_arrays" not in (  # pragma: no cover
@@ -11409,18 +11452,7 @@ def broadcast_arrays(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "broadcast_arrays")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "broadcast_arrays")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "broadcast_arrays")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: broadcast_arrays"
-                )  # pragma: no cover
+    fn = _get_compiler_op("broadcast_arrays")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -11453,7 +11485,7 @@ def broadcast_shapes(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -11471,8 +11503,13 @@ def broadcast_shapes(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -11506,8 +11543,13 @@ def broadcast_shapes(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "broadcast_shapes" not in (  # pragma: no cover
@@ -11547,18 +11589,7 @@ def broadcast_shapes(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "broadcast_shapes")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "broadcast_shapes")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "broadcast_shapes")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: broadcast_shapes"
-                )  # pragma: no cover
+    fn = _get_compiler_op("broadcast_shapes")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -11591,7 +11622,7 @@ def ceil(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -11609,8 +11640,13 @@ def ceil(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -11644,8 +11680,13 @@ def ceil(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "ceil" not in (  # pragma: no cover
@@ -11685,18 +11726,7 @@ def ceil(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "ceil")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "ceil")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "ceil")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: ceil"
-                )  # pragma: no cover
+    fn = _get_compiler_op("ceil")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -11729,7 +11759,7 @@ def clip(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -11747,8 +11777,13 @@ def clip(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -11782,8 +11817,13 @@ def clip(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "clip" not in (  # pragma: no cover
@@ -11823,18 +11863,7 @@ def clip(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "clip")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "clip")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "clip")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: clip"
-                )  # pragma: no cover
+    fn = _get_compiler_op("clip")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -11867,7 +11896,7 @@ def conjugate(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -11885,8 +11914,13 @@ def conjugate(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -11920,8 +11954,13 @@ def conjugate(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "conjugate" not in (  # pragma: no cover
@@ -11961,18 +12000,7 @@ def conjugate(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "conj")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "conj")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "conj")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: conj"
-                )  # pragma: no cover
+    fn = _get_compiler_op("conj")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12005,7 +12033,7 @@ def degrees(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12023,8 +12051,13 @@ def degrees(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -12058,8 +12091,13 @@ def degrees(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "degrees" not in (  # pragma: no cover
@@ -12099,18 +12137,7 @@ def degrees(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "degrees")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "degrees")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "degrees")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: degrees"
-                )  # pragma: no cover
+    fn = _get_compiler_op("degrees")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12143,7 +12170,7 @@ def erf(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12161,8 +12188,13 @@ def erf(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -12196,8 +12228,13 @@ def erf(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "erf" not in (  # pragma: no cover
@@ -12237,18 +12274,7 @@ def erf(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "erf")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "erf")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "erf")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: erf"
-                )  # pragma: no cover
+    fn = _get_compiler_op("erf")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12281,7 +12307,7 @@ def erfinv(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12299,8 +12325,13 @@ def erfinv(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -12334,8 +12365,13 @@ def erfinv(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "erfinv" not in (  # pragma: no cover
@@ -12375,18 +12411,7 @@ def erfinv(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "erfinv")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "erfinv")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "erfinv")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: erfinv"
-                )  # pragma: no cover
+    fn = _get_compiler_op("erfinv")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12419,7 +12444,7 @@ def expm1(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12437,8 +12462,13 @@ def expm1(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -12472,8 +12502,13 @@ def expm1(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "expm1" not in (  # pragma: no cover
@@ -12513,18 +12548,7 @@ def expm1(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "expm1")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "expm1")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "expm1")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: expm1"
-                )  # pragma: no cover
+    fn = _get_compiler_op("expm1")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12557,7 +12581,7 @@ def floor(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12575,8 +12599,13 @@ def floor(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -12610,8 +12639,13 @@ def floor(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "floor" not in (  # pragma: no cover
@@ -12651,18 +12685,7 @@ def floor(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "floor")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "floor")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "floor")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: floor"
-                )  # pragma: no cover
+    fn = _get_compiler_op("floor")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12695,7 +12718,7 @@ def inner(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12713,8 +12736,13 @@ def inner(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -12748,8 +12776,13 @@ def inner(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "inner" not in (  # pragma: no cover
@@ -12789,18 +12822,7 @@ def inner(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "inner")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "inner")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "inner")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: inner"
-                )  # pragma: no cover
+    fn = _get_compiler_op("inner")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12833,7 +12855,7 @@ def isclose(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12851,8 +12873,13 @@ def isclose(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -12886,8 +12913,13 @@ def isclose(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "isclose" not in (  # pragma: no cover
@@ -12927,18 +12959,7 @@ def isclose(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "isclose")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "isclose")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "isclose")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: isclose"
-                )  # pragma: no cover
+    fn = _get_compiler_op("isclose")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -12971,7 +12992,7 @@ def isfinite(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -12989,8 +13010,13 @@ def isfinite(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13024,8 +13050,13 @@ def isfinite(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "isfinite" not in (  # pragma: no cover
@@ -13065,18 +13096,7 @@ def isfinite(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "isfinite")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "isfinite")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "isfinite")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: isfinite"
-                )  # pragma: no cover
+    fn = _get_compiler_op("isfinite")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -13109,7 +13129,7 @@ def isinf(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -13127,8 +13147,13 @@ def isinf(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13162,8 +13187,13 @@ def isinf(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "isinf" not in (  # pragma: no cover
@@ -13203,18 +13233,7 @@ def isinf(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "isinf")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "isinf")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "isinf")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: isinf"
-                )  # pragma: no cover
+    fn = _get_compiler_op("isinf")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -13247,7 +13266,7 @@ def isnan(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -13265,8 +13284,13 @@ def isnan(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13300,8 +13324,13 @@ def isnan(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "isnan" not in (  # pragma: no cover
@@ -13341,18 +13370,7 @@ def isnan(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "isnan")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "isnan")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "isnan")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: isnan"
-                )  # pragma: no cover
+    fn = _get_compiler_op("isnan")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -13385,7 +13403,7 @@ def isneginf(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -13403,8 +13421,13 @@ def isneginf(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13438,8 +13461,13 @@ def isneginf(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "isneginf" not in (  # pragma: no cover
@@ -13479,18 +13507,7 @@ def isneginf(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "isneginf")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "isneginf")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "isneginf")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: isneginf"
-                )  # pragma: no cover
+    fn = _get_compiler_op("isneginf")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -13523,7 +13540,7 @@ def isposinf(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -13541,8 +13558,13 @@ def isposinf(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13576,8 +13598,13 @@ def isposinf(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "isposinf" not in (  # pragma: no cover
@@ -13617,18 +13644,7 @@ def isposinf(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "isposinf")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "isposinf")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "isposinf")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: isposinf"
-                )  # pragma: no cover
+    fn = _get_compiler_op("isposinf")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -13661,7 +13677,7 @@ def issubdtype(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -13679,8 +13695,13 @@ def issubdtype(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13714,8 +13735,13 @@ def issubdtype(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "issubdtype" not in (  # pragma: no cover
@@ -13755,18 +13781,7 @@ def issubdtype(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "issubdtype")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "issubdtype")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "issubdtype")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: issubdtype"
-                )  # pragma: no cover
+    fn = _get_compiler_op("issubdtype")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -13799,7 +13814,7 @@ def kron(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -13817,8 +13832,13 @@ def kron(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13852,8 +13872,13 @@ def kron(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "kron" not in (  # pragma: no cover
@@ -13893,18 +13918,7 @@ def kron(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "kron")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "kron")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "kron")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: kron"
-                )  # pragma: no cover
+    fn = _get_compiler_op("kron")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -13937,7 +13951,7 @@ def linspace(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -13955,8 +13969,13 @@ def linspace(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -13990,8 +14009,13 @@ def linspace(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "linspace" not in (  # pragma: no cover
@@ -14031,18 +14055,7 @@ def linspace(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "linspace")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "linspace")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "linspace")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: linspace"
-                )  # pragma: no cover
+    fn = _get_compiler_op("linspace")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -14075,7 +14088,7 @@ def logaddexp(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -14093,8 +14106,13 @@ def logaddexp(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -14128,8 +14146,13 @@ def logaddexp(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "logaddexp" not in (  # pragma: no cover
@@ -14169,18 +14192,7 @@ def logaddexp(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "logaddexp")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "logaddexp")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "logaddexp")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: logaddexp"
-                )  # pragma: no cover
+    fn = _get_compiler_op("logaddexp")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -14213,7 +14225,7 @@ def median(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -14231,8 +14243,13 @@ def median(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -14266,8 +14283,13 @@ def median(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "median" not in (  # pragma: no cover
@@ -14307,18 +14329,7 @@ def median(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "median")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "median")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "median")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: median"
-                )  # pragma: no cover
+    fn = _get_compiler_op("median")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -14390,7 +14401,7 @@ def nan_to_num(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -14408,8 +14419,13 @@ def nan_to_num(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -14443,8 +14459,13 @@ def nan_to_num(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "nan_to_num" not in (  # pragma: no cover
@@ -14484,18 +14505,7 @@ def nan_to_num(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "nan_to_num")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "nan_to_num")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "nan_to_num")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: nan_to_num"
-                )  # pragma: no cover
+    fn = _get_compiler_op("nan_to_num")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -14528,7 +14538,7 @@ def outer(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -14546,8 +14556,13 @@ def outer(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -14581,8 +14596,13 @@ def outer(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "outer" not in (  # pragma: no cover
@@ -14622,18 +14642,7 @@ def outer(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "outer")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "outer")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "outer")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: outer"
-                )  # pragma: no cover
+    fn = _get_compiler_op("outer")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -14666,7 +14675,7 @@ def pad(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -14684,8 +14693,13 @@ def pad(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -14719,8 +14733,13 @@ def pad(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "pad" not in (  # pragma: no cover
@@ -14760,18 +14779,7 @@ def pad(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "pad")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "pad")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "pad")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: pad"
-                )  # pragma: no cover
+    fn = _get_compiler_op("pad")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -14804,7 +14812,7 @@ def partition(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -14822,8 +14830,13 @@ def partition(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -14857,8 +14870,13 @@ def partition(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "partition" not in (  # pragma: no cover
@@ -14898,18 +14916,7 @@ def partition(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "partition")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "partition")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "partition")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: partition"
-                )  # pragma: no cover
+    fn = _get_compiler_op("partition")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -14942,7 +14949,7 @@ def put_along_axis(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -14960,8 +14967,13 @@ def put_along_axis(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -14995,8 +15007,13 @@ def put_along_axis(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "put_along_axis" not in (  # pragma: no cover
@@ -15036,18 +15053,7 @@ def put_along_axis(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "put_along_axis")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "put_along_axis")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "put_along_axis")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: put_along_axis"
-                )  # pragma: no cover
+    fn = _get_compiler_op("put_along_axis")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -15080,7 +15086,7 @@ def radians(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -15098,8 +15104,13 @@ def radians(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -15133,8 +15144,13 @@ def radians(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "radians" not in (  # pragma: no cover
@@ -15174,18 +15190,7 @@ def radians(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "radians")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "radians")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "radians")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: radians"
-                )  # pragma: no cover
+    fn = _get_compiler_op("radians")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -15218,7 +15223,7 @@ def real(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -15236,8 +15241,13 @@ def real(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -15271,8 +15281,13 @@ def real(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "real" not in (  # pragma: no cover
@@ -15312,18 +15327,7 @@ def real(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "real")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "real")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "real")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: real"
-                )  # pragma: no cover
+    fn = _get_compiler_op("real")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -15356,7 +15360,7 @@ def remainder(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -15374,8 +15378,13 @@ def remainder(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -15409,8 +15418,13 @@ def remainder(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "remainder" not in (  # pragma: no cover
@@ -15450,18 +15464,7 @@ def remainder(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "remainder")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "remainder")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "remainder")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: remainder"
-                )  # pragma: no cover
+    fn = _get_compiler_op("remainder")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -15494,7 +15497,7 @@ def repeat(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -15512,8 +15515,13 @@ def repeat(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -15547,8 +15555,13 @@ def repeat(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "repeat" not in (  # pragma: no cover
@@ -15588,25 +15601,23 @@ def repeat(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "repeat")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "repeat")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "repeat")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: repeat"
-                )  # pragma: no cover
+    fn = _get_compiler_op("repeat")  # pragma: no cover
+    _kwargs = {k: _u(v, k) for (k, v) in kwargs.items() if k != "stream"}
+    if "axis" in _kwargs:
+        _kwargs["dim"] = _kwargs.pop("axis")
+
+    # Process args to avoid wrapping repeats as a Tensor
+    _args = []
+    if len(args) > 0:
+        _args.append(_u(args[0], "a"))
+    if len(args) > 1:
+        _args.append(args[1])  # repeats is an int or sequence of ints, not a tensor
+    if len(args) > 2:
+        _args.extend([_u(x) for x in args[2:]])
+
     res = fn(  # pragma: no cover
-        *[_u(x) for x in args],  # pragma: no cover
-        **{
-            ("dim" if k == "axis" else k): _u(v, k)
-            for (k, v) in kwargs.items()
-            if k != "stream"
-        },  # pragma: no cover
+        *_args,  # pragma: no cover
+        **_kwargs,  # pragma: no cover
     )  # pragma: no cover
 
     def __w(x):
@@ -15632,7 +15643,7 @@ def roll(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -15650,8 +15661,13 @@ def roll(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -15685,8 +15701,13 @@ def roll(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "roll" not in (  # pragma: no cover
@@ -15726,18 +15747,7 @@ def roll(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "roll")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "roll")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "roll")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: roll"
-                )  # pragma: no cover
+    fn = _get_compiler_op("roll")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -15770,7 +15780,7 @@ def sign(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -15788,8 +15798,13 @@ def sign(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -15823,8 +15838,13 @@ def sign(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "sign" not in (  # pragma: no cover
@@ -15864,18 +15884,7 @@ def sign(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "sign")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "sign")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "sign")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: sign"
-                )  # pragma: no cover
+    fn = _get_compiler_op("sign")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -15908,7 +15917,7 @@ def tensordot(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -15926,8 +15935,13 @@ def tensordot(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -15961,8 +15975,13 @@ def tensordot(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "tensordot" not in (  # pragma: no cover
@@ -16002,18 +16021,7 @@ def tensordot(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "tensordot")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "tensordot")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "tensordot")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: tensordot"
-                )  # pragma: no cover
+    fn = _get_compiler_op("tensordot")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -16046,7 +16054,7 @@ def trace(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16064,8 +16072,13 @@ def trace(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -16099,8 +16112,13 @@ def trace(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "trace" not in (  # pragma: no cover
@@ -16140,18 +16158,7 @@ def trace(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "trace")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "trace")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "trace")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: trace"
-                )  # pragma: no cover
+    fn = _get_compiler_op("trace")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -16184,7 +16191,7 @@ def tri(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16202,8 +16209,13 @@ def tri(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -16237,8 +16249,13 @@ def tri(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "tri" not in (  # pragma: no cover
@@ -16278,18 +16295,7 @@ def tri(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "tri")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "tri")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "tri")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: tri"
-                )  # pragma: no cover
+    fn = _get_compiler_op("tri")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -16322,7 +16328,7 @@ def where(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16340,8 +16346,13 @@ def where(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -16375,8 +16386,13 @@ def where(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "where" not in (  # pragma: no cover
@@ -16416,18 +16432,7 @@ def where(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "where")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "where")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "where")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: where"
-                )  # pragma: no cover
+    fn = _get_compiler_op("where")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -16460,7 +16465,7 @@ def sigmoid(a, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16478,8 +16483,13 @@ def sigmoid(a, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -16513,8 +16523,13 @@ def sigmoid(a, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "sigmoid" not in (  # pragma: no cover
@@ -16554,18 +16569,7 @@ def sigmoid(a, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "sigmoid")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "sigmoid")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "sigmoid")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: sigmoid"
-                )  # pragma: no cover
+    fn = _get_compiler_op("sigmoid")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -16592,7 +16596,7 @@ def softmax(a, axis=-1, stream=None):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16610,8 +16614,13 @@ def softmax(a, axis=-1, stream=None):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -16645,8 +16654,13 @@ def softmax(a, axis=-1, stream=None):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "softmax" not in (  # pragma: no cover
@@ -16686,18 +16700,7 @@ def softmax(a, axis=-1, stream=None):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "softmax")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "softmax")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "softmax")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: softmax"
-                )  # pragma: no cover
+    fn = _get_compiler_op("softmax")  # pragma: no cover
     res = fn(_u(a, "a"), axis=_u(axis, "axis"))  # pragma: no cover
 
     def __w(x):
@@ -16723,7 +16726,7 @@ def depends(a, b):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16741,8 +16744,13 @@ def depends(a, b):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -16776,8 +16784,13 @@ def depends(a, b):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "depends" not in (  # pragma: no cover
@@ -16851,7 +16864,7 @@ def to_fp8(a):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16869,8 +16882,13 @@ def to_fp8(a):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -16904,8 +16922,13 @@ def to_fp8(a):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "to_fp8" not in (  # pragma: no cover
@@ -16979,7 +17002,7 @@ def from_fp8(a):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -16997,8 +17020,13 @@ def from_fp8(a):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17032,8 +17060,13 @@ def from_fp8(a):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "from_fp8" not in (  # pragma: no cover
@@ -17108,7 +17141,7 @@ def arcsin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -17126,8 +17159,13 @@ def arcsin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17161,8 +17199,13 @@ def arcsin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "arcsin" not in (  # pragma: no cover
@@ -17202,18 +17245,7 @@ def arcsin(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "asin")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "asin")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "asin")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: asin"
-                )  # pragma: no cover
+    fn = _get_compiler_op("asin")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -17239,7 +17271,7 @@ def arccos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -17257,8 +17289,13 @@ def arccos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17292,8 +17329,13 @@ def arccos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "arccos" not in (  # pragma: no cover
@@ -17333,18 +17375,7 @@ def arccos(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "acos")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "acos")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "acos")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: acos"
-                )  # pragma: no cover
+    fn = _get_compiler_op("acos")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -17370,7 +17401,7 @@ def arctan(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -17388,8 +17419,13 @@ def arctan(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17423,8 +17459,13 @@ def arctan(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "arctan" not in (  # pragma: no cover
@@ -17464,18 +17505,7 @@ def arctan(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "atan")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "atan")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "atan")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: atan"
-                )  # pragma: no cover
+    fn = _get_compiler_op("atan")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -17501,7 +17531,7 @@ def arcsinh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -17519,8 +17549,13 @@ def arcsinh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17554,8 +17589,13 @@ def arcsinh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "arcsinh" not in (  # pragma: no cover
@@ -17595,18 +17635,7 @@ def arcsinh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "asinh")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "asinh")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "asinh")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: asinh"
-                )  # pragma: no cover
+    fn = _get_compiler_op("asinh")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -17632,7 +17661,7 @@ def arctanh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -17650,8 +17679,13 @@ def arctanh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17685,8 +17719,13 @@ def arctanh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "arctanh" not in (  # pragma: no cover
@@ -17726,18 +17765,7 @@ def arctanh(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "atanh")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "atanh")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "atanh")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: atanh"
-                )  # pragma: no cover
+    fn = _get_compiler_op("atanh")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -17763,7 +17791,7 @@ def log2(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -17781,8 +17809,13 @@ def log2(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17816,8 +17849,13 @@ def log2(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "log2" not in (  # pragma: no cover
@@ -17857,18 +17895,7 @@ def log2(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "log2")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "log2")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "log2")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: log2"
-                )  # pragma: no cover
+    fn = _get_compiler_op("log2")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -17894,7 +17921,7 @@ def log10(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -17912,8 +17939,13 @@ def log10(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -17947,8 +17979,13 @@ def log10(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "log10" not in (  # pragma: no cover
@@ -17988,18 +18025,7 @@ def log10(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "log10")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "log10")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "log10")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: log10"
-                )  # pragma: no cover
+    fn = _get_compiler_op("log10")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -18025,7 +18051,7 @@ def imag(a: Any, stream: Any = None) -> Any:  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -18043,8 +18069,13 @@ def imag(a: Any, stream: Any = None) -> Any:  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -18078,8 +18109,13 @@ def imag(a: Any, stream: Any = None) -> Any:  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "imag" not in (  # pragma: no cover
@@ -18119,18 +18155,7 @@ def imag(a: Any, stream: Any = None) -> Any:  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "imag")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "imag")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "imag")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: imag"
-                )  # pragma: no cover
+    fn = _get_compiler_op("imag")  # pragma: no cover
     res = fn(_u(a, "a"))  # pragma: no cover
 
     def __w(x):
@@ -18156,7 +18181,7 @@ def bitwise_and(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -18174,8 +18199,13 @@ def bitwise_and(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -18209,8 +18239,13 @@ def bitwise_and(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "bitwise_and" not in (  # pragma: no cover
@@ -18250,18 +18285,7 @@ def bitwise_and(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "bitwise_and")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "bitwise_and")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "bitwise_and")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: bitwise_and"
-                )  # pragma: no cover
+    fn = _get_compiler_op("bitwise_and")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -18294,7 +18318,7 @@ def bitwise_or(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -18312,8 +18336,13 @@ def bitwise_or(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -18347,8 +18376,13 @@ def bitwise_or(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "bitwise_or" not in (  # pragma: no cover
@@ -18388,18 +18422,7 @@ def bitwise_or(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "bitwise_or")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "bitwise_or")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "bitwise_or")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: bitwise_or"
-                )  # pragma: no cover
+    fn = _get_compiler_op("bitwise_or")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -18432,7 +18455,7 @@ def bitwise_xor(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -18450,8 +18473,13 @@ def bitwise_xor(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -18485,8 +18513,13 @@ def bitwise_xor(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "bitwise_xor" not in (  # pragma: no cover
@@ -18526,18 +18559,7 @@ def bitwise_xor(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "bitwise_xor")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "bitwise_xor")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "bitwise_xor")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: bitwise_xor"
-                )  # pragma: no cover
+    fn = _get_compiler_op("bitwise_xor")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -18570,7 +18592,7 @@ def left_shift(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -18588,8 +18610,13 @@ def left_shift(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -18623,8 +18650,13 @@ def left_shift(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "left_shift" not in (  # pragma: no cover
@@ -18664,18 +18696,7 @@ def left_shift(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "left_shift")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "left_shift")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "left_shift")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: left_shift"
-                )  # pragma: no cover
+    fn = _get_compiler_op("left_shift")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -18708,7 +18729,7 @@ def right_shift(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -18726,8 +18747,13 @@ def right_shift(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -18761,8 +18787,13 @@ def right_shift(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "right_shift" not in (  # pragma: no cover
@@ -18802,18 +18833,7 @@ def right_shift(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "right_shift")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "right_shift")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "right_shift")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: right_shift"
-                )  # pragma: no cover
+    fn = _get_compiler_op("right_shift")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -18846,7 +18866,7 @@ def less(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -18864,8 +18884,13 @@ def less(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -18899,8 +18924,13 @@ def less(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "less" not in (  # pragma: no cover
@@ -18940,18 +18970,7 @@ def less(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "less")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "less")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "less")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: less"
-                )  # pragma: no cover
+    fn = _get_compiler_op("less")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -18984,7 +19003,7 @@ def less_equal(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19002,8 +19021,13 @@ def less_equal(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -19037,8 +19061,13 @@ def less_equal(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "less_equal" not in (  # pragma: no cover
@@ -19078,18 +19107,7 @@ def less_equal(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "less_equal")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "less_equal")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "less_equal")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: less_equal"
-                )  # pragma: no cover
+    fn = _get_compiler_op("less_equal")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -19122,7 +19140,7 @@ def greater(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19140,8 +19158,13 @@ def greater(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -19175,8 +19198,13 @@ def greater(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "greater" not in (  # pragma: no cover
@@ -19216,18 +19244,7 @@ def greater(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "greater")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "greater")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "greater")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: greater"
-                )  # pragma: no cover
+    fn = _get_compiler_op("greater")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -19260,7 +19277,7 @@ def greater_equal(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19278,8 +19295,13 @@ def greater_equal(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -19313,8 +19335,13 @@ def greater_equal(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "greater_equal" not in (  # pragma: no cover
@@ -19354,18 +19381,7 @@ def greater_equal(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "greater_equal")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "greater_equal")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "greater_equal")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: greater_equal"
-                )  # pragma: no cover
+    fn = _get_compiler_op("greater_equal")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -19398,7 +19414,7 @@ def equal(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19416,8 +19432,13 @@ def equal(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -19451,8 +19472,13 @@ def equal(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "equal" not in (  # pragma: no cover
@@ -19492,18 +19518,7 @@ def equal(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "equal")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "equal")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "equal")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: equal"
-                )  # pragma: no cover
+    fn = _get_compiler_op("equal")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -19536,7 +19551,7 @@ def not_equal(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19554,8 +19569,13 @@ def not_equal(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -19589,8 +19609,13 @@ def not_equal(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "not_equal" not in (  # pragma: no cover
@@ -19630,18 +19655,7 @@ def not_equal(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "not_equal")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "not_equal")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "not_equal")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: not_equal"
-                )  # pragma: no cover
+    fn = _get_compiler_op("not_equal")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -19674,7 +19688,7 @@ def power(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19692,8 +19706,13 @@ def power(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -19727,8 +19746,13 @@ def power(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "power" not in (  # pragma: no cover
@@ -19768,18 +19792,7 @@ def power(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "power")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "power")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "power")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: power"
-                )  # pragma: no cover
+    fn = _get_compiler_op("power")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -19812,7 +19825,7 @@ def sinh(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19830,8 +19843,13 @@ def sinh(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -19865,8 +19883,13 @@ def sinh(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "sinh" not in (  # pragma: no cover
@@ -19906,18 +19929,7 @@ def sinh(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "sinh")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "sinh")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "sinh")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: sinh"
-                )  # pragma: no cover
+    fn = _get_compiler_op("sinh")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -19950,7 +19962,7 @@ def cosh(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -19968,8 +19980,13 @@ def cosh(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -20003,8 +20020,13 @@ def cosh(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "cosh" not in (  # pragma: no cover
@@ -20044,18 +20066,7 @@ def cosh(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "cosh")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "cosh")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "cosh")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: cosh"
-                )  # pragma: no cover
+    fn = _get_compiler_op("cosh")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -20088,7 +20099,7 @@ def tanh(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -20106,8 +20117,13 @@ def tanh(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -20141,8 +20157,13 @@ def tanh(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "tanh" not in (  # pragma: no cover
@@ -20182,18 +20203,7 @@ def tanh(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "tanh")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "tanh")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "tanh")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: tanh"
-                )  # pragma: no cover
+    fn = _get_compiler_op("tanh")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{
@@ -20226,7 +20236,7 @@ def floor_divide(*args, **kwargs):  # pragma: no cover
     """
     from zero_mlx.array import array, _to_tensor  # pragma: no cover
     import ml_switcheroo_compiler.ops as mops  # pragma: no cover
-    import ml_switcheroo_compiler.nn as mnn  # pragma: no cover
+    import ml_switcheroo_compiler.ops.nn as mnn  # pragma: no cover
     import ml_switcheroo_compiler.random as mrand  # pragma: no cover
     import types  # pragma: no cover
 
@@ -20244,8 +20254,13 @@ def floor_divide(*args, **kwargs):  # pragma: no cover
         if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
             if param_name not in {  # pragma: no cover
                 "axis",  # pragma: no cover
-                "keepdims",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
                 "axis1",  # pragma: no cover
                 "rtol",  # pragma: no cover
                 "n",  # pragma: no cover
@@ -20279,8 +20294,13 @@ def floor_divide(*args, **kwargs):  # pragma: no cover
                 "alpha",  # pragma: no cover
                 "beta",  # pragma: no cover
                 "start",  # pragma: no cover
-                "equal_nan",  # pragma: no cover
-                "keepdims",  # pragma: no cover
+                "equal_nan",
+                "nan",
+                "posinf",
+                "neginf",  # pragma: no cover
+                "keepdims",
+                "shape",
+                "size",  # pragma: no cover
                 "min",  # pragma: no cover
                 "p",  # pragma: no cover
             } and "floor_divide" not in (  # pragma: no cover
@@ -20320,18 +20340,7 @@ def floor_divide(*args, **kwargs):  # pragma: no cover
             return [_w(i) for i in x]  # pragma: no cover
         return array(x) if hasattr(x, "shape") else x  # pragma: no cover
 
-    try:  # pragma: no cover
-        fn = getattr(mops, "floor_divide")  # pragma: no cover
-    except AttributeError:  # pragma: no cover
-        try:  # pragma: no cover
-            fn = getattr(mnn, "floor_divide")  # pragma: no cover
-        except AttributeError:  # pragma: no cover
-            try:  # pragma: no cover
-                fn = getattr(mrand, "floor_divide")  # pragma: no cover
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError(
-                    "Missing in compiler: floor_divide"
-                )  # pragma: no cover
+    fn = _get_compiler_op("floor_divide")  # pragma: no cover
     res = fn(  # pragma: no cover
         *[_u(x) for x in args],  # pragma: no cover
         **{

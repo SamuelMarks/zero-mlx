@@ -7,7 +7,7 @@ except ImportError:
     mx = None
 
 import zero_mlx
-from ml_switcheroo_compiler.tracing import _tracer
+from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
 
 
 def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):
@@ -72,7 +72,10 @@ def check_parity(op_name, args_generator, kwargs_generator=None, rtol=1e-5, atol
     try:
         z_res = z_func(*z_args, **kwargs)
         if hasattr(zero_mlx, "eval"):
-            zero_mlx.eval(z_res)
+            if isinstance(z_res, (list, tuple)):
+                zero_mlx.eval(*z_res)
+            else:
+                zero_mlx.eval(z_res)
         _tracer.stop_tracing()
         m_res = m_func(*m_args, **kwargs)
         assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)

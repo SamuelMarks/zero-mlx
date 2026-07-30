@@ -145,16 +145,6 @@ def lu(a, stream=None):  # pragma: no cover
     if getattr(a, "dtype", None) is not None and "int" in str(a.dtype):
         raise ValueError("LU requires float types")
 
-    import ml_switcheroo_compiler.core.config as config
-
-    if config.eager_mode:
-        import scipy.linalg
-        from ml_switcheroo_compiler.backends.numpy.eager import np
-        import zero_mlx as mx
-
-        P_mat, L, U = scipy.linalg.lu(np.array(a))
-        P = np.argmax(P_mat, axis=-1)
-        return (mx.array(P), mx.array(L), mx.array(U))
     res = sops.linalg.lu(a._tensor if hasattr(a, "_tensor") else a)
     if isinstance(res, tuple):
         from zero_mlx import int32
@@ -180,16 +170,6 @@ def lu_factor(a, stream=None):  # pragma: no cover
 
 def lu_solve(lu_and_piv, b, stream=None):  # pragma: no cover
     """Docstring."""
-    import ml_switcheroo_compiler.core.config as config
-
-    if config.eager_mode:
-        import scipy.linalg
-        from ml_switcheroo_compiler.backends.numpy.eager import np
-        import zero_mlx as mx
-
-        P_mat, L, U = scipy.linalg.lu(np.array(lu_and_piv[0]))
-        P = np.argmax(P_mat, axis=-1)
-        return (mx.array(P), mx.array(L), mx.array(U))
     res = sops.linalg.lu_solve(
         lu_and_piv._tensor if hasattr(lu_and_piv, "_tensor") else lu_and_piv,
         b._tensor if hasattr(b, "_tensor") else b,
@@ -212,25 +192,6 @@ def solve(a, b, stream=None):  # pragma: no cover
 
 def solve_triangular(a, b, upper=False, stream=None):  # pragma: no cover
     """Docstring."""
-    import ml_switcheroo_compiler.core.config as config
-
-    if config.eager_mode and getattr(a, "ndim", 0) > 2:
-        from ml_switcheroo_compiler.backends.numpy.eager import np
-        import scipy.linalg
-        import zero_mlx as mx
-
-        a_flat = np.array(b).reshape(-1, a.shape[-2], a.shape[-1])
-        b_flat = np.array(b).reshape(
-            -1, b.shape[-2], b.shape[-1] if len(b.shape) > len(a.shape) - 1 else 1
-        )
-        res_list = []
-        for i in range(a_flat.shape[0]):
-            res_list.append(
-                scipy.linalg.solve_triangular(a_flat[i], b_flat[i], lower=not upper)
-            )
-        res_np = np.stack(res_list).reshape(b.shape)
-        return mx.array(res_np)
-
     res = sops.linalg.solve_triangular(
         a._tensor if hasattr(a, "_tensor") else a,
         b._tensor if hasattr(b, "_tensor") else b,

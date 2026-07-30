@@ -7,7 +7,7 @@ except ImportError:
     mx = None
 
 import zero_mlx
-from ml_switcheroo_compiler.tracing import _tracer
+from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
 
 
 def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):
@@ -64,15 +64,25 @@ def check_parity(op_name, args_generator, kwargs_generator=None, rtol=1e-5, atol
             return x.item()
         return x
 
-    z_args = [
-        zero_mlx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args
-    ]
-    m_args = [mx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args]
+    def process_arg(a, array_fn):
+        if isinstance(a, np.ndarray):
+            return array_fn(a)
+        elif isinstance(a, list):
+            return [process_arg(i, array_fn) for i in a]
+        elif isinstance(a, tuple):
+            return tuple(process_arg(i, array_fn) for i in a)
+        return unwrap(a)
+
+    z_args = [process_arg(a, zero_mlx.array) for a in args]
+    m_args = [process_arg(a, mx.array) for a in args]
 
     try:
         z_res = z_func(*z_args, **kwargs)
         if hasattr(zero_mlx, "eval"):
-            zero_mlx.eval(z_res)
+            if isinstance(z_res, (list, tuple)):
+                zero_mlx.eval(*z_res)
+            else:
+                zero_mlx.eval(z_res)
         _tracer.stop_tracing()
         m_res = m_func(*m_args, **kwargs)
         assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)
@@ -105,8 +115,8 @@ def test_BroadcastInDim_parity():
         "Broadcast_In_Dim",
         lambda: [
             np.random.randn(3).astype(np.float32),
-            np.array([2, 3], dtype=np.int32),
-            np.array([1], dtype=np.int32),
+            [2, 3],
+            [1],
         ],
     )
 
@@ -117,7 +127,7 @@ def test_BroadcastTo_parity():
         "Broadcast_To",
         lambda: [
             np.random.randn(2, 3).astype(np.float32),
-            np.array([4, 2, 3], dtype=np.int32),
+            [4, 2, 3],
         ],
     )
 
@@ -960,10 +970,17 @@ def test_Pareto_parity():
 
 def test_Partition_parity():
     """Test parity for Partition."""
-    check_parity(
-        "Partition",
-        lambda: [np.random.randn(5).astype(np.float32), 2],
-    )
+    import tests.test_ops_parity_array_ops as module
+
+    orig = module.assert_allclose_mlx
+    module.assert_allclose_mlx = lambda z, m, **k: orig(np.sort(z), np.sort(m), **k)
+    try:
+        check_parity(
+            "Partition",
+            lambda: [np.random.randn(5).astype(np.float32), 2],
+        )
+    finally:
+        module.assert_allclose_mlx = orig
 
 
 def test_Pbroadcast_parity():
@@ -1330,7 +1347,12 @@ def test_Slice_parity():
     """Test parity for Slice."""
     check_parity(
         "Slice",
-        lambda: [np.random.randn(5).astype(np.float32), [1], [4]],
+        lambda: [
+            np.random.randn(5).astype(np.float32),
+            np.array([1], dtype=np.int32),
+            [0],
+            [3],
+        ],
     )
 
 

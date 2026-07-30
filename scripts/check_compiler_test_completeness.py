@@ -8,7 +8,7 @@ def main():
 
     try:
         import ml_switcheroo_compiler.ops
-        from ml_switcheroo_compiler.ops.base import _OP_REGISTRY
+        from ml_switcheroo_compiler.ops.registry import _OP_REGISTRY
     except ImportError:
         print(
             "Error: Could not import ml_switcheroo_compiler. Make sure it is in ../ml-switcheroo-compiler"

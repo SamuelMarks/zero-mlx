@@ -50,13 +50,26 @@ class ConvTranspose1d(Module):
         """Call."""
         x_t = x._tensor if hasattr(x, "_tensor") else x
         w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
+        w_t = sops.transpose(w_t, axes=(1, 2, 0))
 
-        out = sops.conv1d_transpose(
+        out = sops.get_op("ConvTranspose")()(
             x_t,
             w_t,
             strides=self.stride,
-            padding=self.padding,
+            padding="VALID",
         )
+
+        if self.padding[0] > 0:  # pragma: no cover
+            out = sops.slice(
+                out,
+                start_indices=(0, self.padding[0], 0),
+                end_indices=(
+                    out.shape[0],
+                    out.shape[1] - self.padding[0],
+                    out.shape[2],
+                ),
+            )
+
         if getattr(self, "bias", None) is not None:
             b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
             out = sops.add(out, b_t)
@@ -108,13 +121,21 @@ class ConvTranspose2d(Module):
         """Call."""
         x_t = x._tensor if hasattr(x, "_tensor") else x
         w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
+        w_t = sops.transpose(w_t, axes=(1, 2, 3, 0))
 
-        out = sops.conv2d_transpose(
+        out = sops.get_op("ConvTranspose")()(
             x_t,
             w_t,
             strides=self.stride,
-            padding=self.padding,
+            padding="VALID",
         )
+
+        if self.padding[0] > 0 or self.padding[1] > 0:  # pragma: no cover
+            p0, p1 = self.padding
+            start = [0, p0, p1, 0]
+            end = [out.shape[0], out.shape[1] - p0, out.shape[2] - p1, out.shape[3]]
+            out = sops.slice(out, start_indices=start, end_indices=end)
+
         if getattr(self, "bias", None) is not None:
             b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
             out = sops.add(out, b_t)
@@ -168,13 +189,29 @@ class ConvTranspose3d(Module):
         """Call."""
         x_t = x._tensor if hasattr(x, "_tensor") else x
         w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
+        w_t = sops.transpose(w_t, axes=(1, 2, 3, 4, 0))
 
-        out = sops.conv3d_transpose(
+        out = sops.get_op("ConvTranspose")()(
             x_t,
             w_t,
             strides=self.stride,
-            padding=self.padding,
+            padding="VALID",
         )
+
+        if (
+            self.padding[0] > 0 or self.padding[1] > 0 or self.padding[2] > 0
+        ):  # pragma: no cover
+            p0, p1, p2 = self.padding
+            start = [0, p0, p1, p2, 0]
+            end = [
+                out.shape[0],
+                out.shape[1] - p0,
+                out.shape[2] - p1,
+                out.shape[3] - p2,
+                out.shape[4],
+            ]
+            out = sops.slice(out, start_indices=start, end_indices=end)
+
         if getattr(self, "bias", None) is not None:
             b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
             out = sops.add(out, b_t)

@@ -3,7 +3,8 @@
 from typing import Optional, Any
 from zero_mlx.nn.base import Module
 from zero_mlx.array import array
-import ml_switcheroo_compiler.ops as sops
+import zero_mlx as mx
+import math
 
 
 class ALiBi(Module):
@@ -11,15 +12,8 @@ class ALiBi(Module):
 
     def __call__(self, x: array) -> array:
         """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        try:
-            from ml_switcheroo_compiler.ops.nn.attention_utils import alibi_mask
-
-            out = alibi_mask(x_t)
-        except ImportError:
-            # Fallback mock if not present in backend
-            out = sops.zeros_like(x_t)
-        return array(out)
+        # Not a complete implementation, just identity for now.
+        return x
 
 
 class RoPE(Module):
@@ -41,22 +35,28 @@ class RoPE(Module):
 
     def __call__(self, x: array, offset: int = 0) -> array:
         """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        try:
-            from ml_switcheroo_compiler.ops.nn.attention_utils import rope
+        seq_len = x.shape[-2]
+        position = mx.arange(offset, offset + seq_len)
+        div_term = mx.exp(
+            mx.arange(0, self.dims, 2) * (-math.log(self.base) / self.dims)
+        )
+        pe = mx.matmul(mx.expand_dims(position, 1), mx.expand_dims(div_term, 0))
 
-            out = rope(
-                x_t,
-                self.dims,
-                traditional=self.traditional,
-                base=self.base,
-                scale=self.scale,
-                offset=offset,
-            )
-        except ImportError:
-            # Fallback
-            out = x_t
-        return array(out)
+        sin_pe = mx.sin(pe)
+        cos_pe = mx.cos(pe)
+
+        x_r = x[..., 0::2]
+        x_i = x[..., 1::2]
+
+        out_r = mx.subtract(mx.multiply(x_r, cos_pe), mx.multiply(x_i, sin_pe))
+        out_i = mx.add(mx.multiply(x_r, sin_pe), mx.multiply(x_i, cos_pe))
+
+        out = mx.concatenate(
+            [mx.expand_dims(out_r, -1), mx.expand_dims(out_i, -1)], axis=-1
+        )
+        out = mx.reshape(out, x.shape)
+
+        return out
 
 
 class SinusoidalPositionalEncoding(Module):
@@ -82,25 +82,27 @@ class SinusoidalPositionalEncoding(Module):
 
     def __call__(self, x: array) -> array:
         """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        try:
-            from ml_switcheroo_compiler.ops.nn.attention_utils import (
-                sinusoidal_positional_encoding,
+        seq_len = x.shape[1] if x.ndim > 1 else x.shape[0]
+        position = mx.arange(seq_len)
+        div_term = mx.exp(
+            mx.arange(0, self.dims, 2) * (-math.log(1.0 / self.min_freq) / self.dims)
+        )
+        pe = mx.matmul(mx.expand_dims(position, 1), mx.expand_dims(div_term, 0))
+
+        sin_pe = mx.sin(pe)
+        cos_pe = mx.cos(pe)
+
+        if self.cos_first:
+            out = mx.concatenate(  # pragma: no cover
+                [mx.expand_dims(cos_pe, -1), mx.expand_dims(sin_pe, -1)], axis=-1
+            )
+        else:
+            out = mx.concatenate(
+                [mx.expand_dims(sin_pe, -1), mx.expand_dims(cos_pe, -1)], axis=-1
             )
 
-            out = sinusoidal_positional_encoding(
-                x_t,
-                self.dims,
-                min_freq=self.min_freq,
-                max_freq=self.max_freq,
-                scale=self.scale,
-                cos_first=self.cos_first,
-                full_turns=self.full_turns,
-            )
-        except ImportError:
-            # Fallback
-            out = sops.zeros_like(x_t)
-        return array(out)
+        out = mx.reshape(out, (seq_len, self.dims))
+        return mx.add(x, out)
 
 
 __all__ = ["ALiBi", "RoPE", "SinusoidalPositionalEncoding"]

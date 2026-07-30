@@ -12,8 +12,6 @@ def gelu_fast_approx(x: Any) -> Any:  # pragma: no cover
     Returns:
         Any: The output array.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array

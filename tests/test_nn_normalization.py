@@ -11,21 +11,8 @@ import ml_switcheroo_compiler.ops as sops
 def _test_module_shape(m, x_shape, expected_shape):
     x = array(np.random.randn(*x_shape).astype(np.float32))
 
-    with (
-        patch.object(
-            sops, "batch_normalization", return_value=array(np.zeros(expected_shape))
-        ),
-        patch.object(sops, "group_norm", return_value=array(np.zeros(expected_shape))),
-        patch.object(
-            sops, "instance_norm", return_value=array(np.zeros(expected_shape))
-        ),
-        patch.object(sops, "layer_norm", return_value=array(np.zeros(expected_shape))),
-        patch.object(
-            sops, "rms_normalization", return_value=array(np.zeros(expected_shape))
-        ),
-    ):
-        out = m(x)
-        assert out.shape == expected_shape
+    out = m(x)
+    assert out.shape == expected_shape
 
 
 def test_batchnorm():

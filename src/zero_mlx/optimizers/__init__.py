@@ -61,7 +61,7 @@ class AdaDelta(Optimizer):
             new_p, new_state = adadelta_update(
                 p_t, g_t, self.learning_rate, rho=self.rho, eps=self.eps, state=state_t
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -105,7 +105,7 @@ class Adafactor(Optimizer):
                 beta_1=self.beta_1,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -134,7 +134,7 @@ class Adagrad(Optimizer):
             new_p, new_state = adagrad_update(
                 p_t, g_t, lr=self.learning_rate, eps=self.eps, state=state_t
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -175,7 +175,7 @@ class Adam(Optimizer):
                 bias_correction=self.bias_correction,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -219,7 +219,7 @@ class AdamW(Optimizer):
                 bias_correction=self.bias_correction,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -257,7 +257,7 @@ class Adamax(Optimizer):
                 eps=self.eps,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -295,7 +295,7 @@ class Lion(Optimizer):
                 weight_decay=self.weight_decay,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -349,7 +349,7 @@ class Muon(Optimizer):
                 ns_steps=self.ns_steps,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -387,7 +387,7 @@ class RMSprop(Optimizer):
                 eps=self.eps,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -431,7 +431,7 @@ class SGD(Optimizer):
                 weight_decay=self.weight_decay,
                 state=state_t,
             )
-        except ImportError:
+        except ImportError:  # pragma: no cover
             new_p, new_state = p_t, state_t
         return array(new_p), {k: array(v) for k, v in new_state.items()}
 
@@ -454,7 +454,7 @@ def clip_grad_norm(grads: Any, max_norm: float) -> Any:
         # Unflatten back to original structure
         # (This is simplified for parity shell)
         return grads, array(global_norm)
-    except ImportError:
+    except ImportError:  # pragma: no cover
         return grads, array(1.0)
 
 
@@ -520,15 +520,15 @@ def tree_flatten(
 ) -> Union[List[Tuple[str, Any]], Dict[str, Any]]:
     """Flatten a tree."""
     try:
-        from ml_switcheroo_compiler.core.tree import tree_flatten as _tree_flatten
+        from ml_switcheroo_compiler.tree_util import tree_flatten as _tree_flatten
 
-        leaves, treedef = _tree_flatten(tree, is_leaf=is_leaf)
+        leaves, treedef = _tree_flatten(tree)
         if destination is not None:
             # mock populate destination
             pass
         return leaves
-    except ImportError:
-        return []
+    except ImportError:  # pragma: no cover
+        return []  # pragma: no cover
 
 
 def tree_map(
@@ -539,7 +539,7 @@ def tree_map(
         from ml_switcheroo_compiler.core.tree import tree_map as _tree_map
 
         return _tree_map(fn, tree, *rest, is_leaf=is_leaf)
-    except ImportError:
+    except ImportError:  # pragma: no cover
         return tree  # pragma: no cover
 
 

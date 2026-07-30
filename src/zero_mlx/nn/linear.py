@@ -5,7 +5,7 @@ import math
 from zero_mlx.nn.base import Module
 from zero_mlx.array import array
 from zero_mlx.mlx_random import uniform
-import ml_switcheroo_compiler.ops as sops
+import zero_mlx as mx
 
 
 class Linear(Module):
@@ -38,13 +38,13 @@ class Linear(Module):
             Output array.
 
         """
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        out = sops.linear(x_t, w_t)
+        # x is (..., in_dims)
+        # weight is (out_dims, in_dims)
+        # out = x @ weight.T
+        out = mx.matmul(x, self.weight.T)
         if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out + self.bias
+        return out
 
 
 class Bilinear(Module):
@@ -83,14 +83,13 @@ class Bilinear(Module):
             Output array.
 
         """
-        x1_t = x1._tensor if hasattr(x1, "_tensor") else x1
-        x2_t = x2._tensor if hasattr(x2, "_tensor") else x2
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        out = sops.bilinear(x1_t, x2_t, w_t)
+        # weight is (out, in1, in2)
+        # x1 is (..., in1), x2 is (..., in2)
+        # result = sum(x1_i * x2_j * W_kij) -> einsum
+        out = mx.einsum("...i, ...j, oij -> ...o", x1, x2, self.weight)
         if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out + self.bias
+        return out
 
 
 class AllToShardedLinear(Module):
@@ -130,13 +129,10 @@ class AllToShardedLinear(Module):
             Output array.
 
         """
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        out = sops.linear(x_t, w_t)
+        out = mx.matmul(x, self.weight.T)
         if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out + self.bias
+        return out
 
 
 class ShardedToAllLinear(Module):
@@ -176,13 +172,10 @@ class ShardedToAllLinear(Module):
             Output array.
 
         """
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        out = sops.linear(x_t, w_t)
+        out = mx.matmul(x, self.weight.T)
         if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out + self.bias
+        return out
 
 
 class QuantizedLinear(Module):
@@ -212,7 +205,7 @@ class QuantizedLinear(Module):
         scale = math.sqrt(1.0 / input_dims)
         self.weight = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
         self.scales = uniform(
-            low=0.0, high=1.0, shape=(output_dims, input_dims // group_size)
+            low=0.0, high=1.0, shape=(output_dims, max(1, input_dims // group_size))
         )
         if bias:
             self.bias = uniform(low=-scale, high=scale, shape=(output_dims,))
@@ -232,16 +225,18 @@ class QuantizedLinear(Module):
             Output array.
 
         """
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        s_t = self.scales._tensor if hasattr(self.scales, "_tensor") else self.scales
-        out = sops.quantized_linear(
-            x_t, w_t, scales=s_t, group_size=self.group_size, bits=self.bits
-        )
+        # Dequantize weights
+        # weight: (out_dims, in_dims)
+        # scales: (out_dims, in_dims // group_size)
+        # We need scales to broadcast over the group_size
+        s = mx.repeat(self.scales, self.group_size, axis=-1)[
+            ..., : self.weight.shape[-1]
+        ]
+        w_deq = self.weight * s
+        out = mx.matmul(x, w_deq.T)
         if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out + self.bias
+        return out
 
 
 class QuantizedAllToShardedLinear(Module):
@@ -271,7 +266,7 @@ class QuantizedAllToShardedLinear(Module):
         scale = math.sqrt(1.0 / input_dims)
         self.weight = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
         self.scales = uniform(
-            low=0.0, high=1.0, shape=(output_dims, input_dims // group_size)
+            low=0.0, high=1.0, shape=(output_dims, max(1, input_dims // group_size))
         )
         if bias:
             self.bias = uniform(low=-scale, high=scale, shape=(output_dims,))
@@ -290,16 +285,14 @@ class QuantizedAllToShardedLinear(Module):
             Output array.
 
         """
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        s_t = self.scales._tensor if hasattr(self.scales, "_tensor") else self.scales
-        out = sops.quantized_linear(
-            x_t, w_t, scales=s_t, group_size=self.group_size, bits=self.bits
-        )
+        s = mx.repeat(self.scales, self.group_size, axis=-1)[
+            ..., : self.weight.shape[-1]
+        ]
+        w_deq = self.weight * s
+        out = mx.matmul(x, w_deq.T)
         if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out + self.bias
+        return out
 
 
 class QuantizedShardedToAllLinear(Module):
@@ -329,7 +322,7 @@ class QuantizedShardedToAllLinear(Module):
         scale = math.sqrt(1.0 / input_dims)
         self.weight = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
         self.scales = uniform(
-            low=0.0, high=1.0, shape=(output_dims, input_dims // group_size)
+            low=0.0, high=1.0, shape=(output_dims, max(1, input_dims // group_size))
         )
         if bias:
             self.bias = uniform(low=-scale, high=scale, shape=(output_dims,))
@@ -348,16 +341,14 @@ class QuantizedShardedToAllLinear(Module):
             Output array.
 
         """
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        s_t = self.scales._tensor if hasattr(self.scales, "_tensor") else self.scales
-        out = sops.quantized_linear(
-            x_t, w_t, scales=s_t, group_size=self.group_size, bits=self.bits
-        )
+        s = mx.repeat(self.scales, self.group_size, axis=-1)[
+            ..., : self.weight.shape[-1]
+        ]
+        w_deq = self.weight * s
+        out = mx.matmul(x, w_deq.T)
         if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out + self.bias
+        return out
 
 
 __all__ = [

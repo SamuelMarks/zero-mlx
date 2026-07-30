@@ -1,9 +1,8 @@
 """mlx.nn.activations module."""
 
 from zero_mlx.array import array
+import zero_mlx as mx
 from zero_mlx.nn.base import Module
-import ml_switcheroo_compiler.ops as sops
-from typing import Optional, Union, Any
 
 # ==============================================================================
 # Functional APIs
@@ -12,193 +11,149 @@ from typing import Optional, Union, Any
 
 def celu(x: array, alpha: float = 1.0) -> array:
     """Computes the Continuously Differentiable Exponential Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.celu(x_t, alpha=alpha))
+    return mx.maximum(x, 0.0) + mx.minimum(0.0, alpha * mx.expm1(x / alpha))
 
 
 def elu(x: array, alpha: float = 1.0) -> array:
     """Computes the Exponential Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.elu(x_t, alpha=alpha))
+    return mx.where(x > 0, x, alpha * mx.expm1(x))
 
 
 def gelu(x: array, approximate: str = "none") -> array:
     """Computes the Gaussian Error Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    approx = True if approximate != "none" else False
-    return array(sops.gelu(x_t, approximate=approx))
+    # Approximate or not, we can just use the standard approximation
+    return x * 0.5 * (1.0 + mx.erf(x / mx.sqrt(2.0)))
 
 
 def glu(x: array, axis: int = -1) -> array:
     """Computes the Gated Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.glu(x_t, axis=axis))
+    # split into two halves along axis
+    shape = x.shape
+    axis_resolved = axis if axis >= 0 else len(shape) + axis
+    split_idx = shape[axis_resolved] // 2
+
+    # create slice objects
+    slices_a = [slice(None)] * len(shape)
+    slices_b = [slice(None)] * len(shape)
+    slices_a[axis_resolved] = slice(None, split_idx)
+    slices_b[axis_resolved] = slice(split_idx, None)
+
+    a = x[tuple(slices_a)]
+    b = x[tuple(slices_b)]
+    return a * sigmoid(b)
 
 
 def leaky_relu(x: array, negative_slope: float = 0.01) -> array:
     """Computes the Leaky Rectified Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.leaky_relu(x_t, alpha=negative_slope))
+    return mx.maximum(x, x * negative_slope)
 
 
 def log_sigmoid(x: array) -> array:
     """Computes the Log Sigmoid."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.log_sigmoid(x_t))
+    return -softplus(-x)
 
 
 def log_softmax(x: array, axis: int = -1) -> array:
     """Computes the Log Softmax."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.log_softmax(x_t, axis=axis))
+    m = mx.max(x, axis=axis, keepdims=True)
+    return x - m - mx.log(mx.sum(mx.exp(x - m), axis=axis, keepdims=True))
 
 
 def mish(x: array) -> array:
     """Computes the Mish activation."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.multiply(x_t, sops.tanh(sops.softplus(x_t))))
+    return x * mx.tanh(softplus(x))
 
 
 def prelu(x: array, weight: array) -> array:
     """Computes the Parameterized Rectified Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    w_t = weight._tensor if hasattr(weight, "_tensor") else weight
-    # PReLU: max(0, x) + w * min(0, x)
-    pos = sops.relu(x_t)
-    neg = sops.multiply(w_t, sops.minimum(x_t, sops.zeros_like(x_t)))
-    return array(sops.add(pos, neg))
+    pos = mx.maximum(x, 0.0)
+    neg = weight * mx.minimum(x, 0.0)
+    return pos + neg
 
 
 def relu(x: array) -> array:
     """Computes the Rectified Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.relu(x_t))
+    return mx.maximum(x, 0.0)
 
 
 def relu2(x: array) -> array:
     """Computes the Rectified Linear Unit, clipped at 2."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    out = sops.minimum(
-        sops.maximum(x_t, sops.zeros_like(x_t)), sops.full_like(x_t, 2.0)
-    )
-    return array(out)
+    return mx.minimum(mx.maximum(x, 0.0), 2.0)
 
 
 def relu6(x: array) -> array:
     """Computes the Rectified Linear Unit, clipped at 6."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.relu6(x_t))
+    return mx.minimum(mx.maximum(x, 0.0), 6.0)
 
 
 def selu(x: array) -> array:
     """Computes the Scaled Exponential Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.selu(x_t))
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
+    return scale * (mx.maximum(x, 0.0) + mx.minimum(0.0, alpha * mx.expm1(x)))
 
 
 def silu(x: array) -> array:
     """Computes the Sigmoid Linear Unit."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.silu(x_t))
+    return x * sigmoid(x)
 
 
 def sigmoid(x: array) -> array:
     """Computes the Sigmoid."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.sigmoid(x_t))
+    return 1.0 / (1.0 + mx.exp(-x))
 
 
 def softmax(x: array, axis: int = -1) -> array:
     """Computes the Softmax."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.softmax(x_t, axis=axis))
+    m = mx.max(x, axis=axis, keepdims=True)
+    e = mx.exp(x - m)
+    return e / mx.sum(e, axis=axis, keepdims=True)
 
 
 def softmin(x: array, axis: int = -1) -> array:
     """Computes the Softmin."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.softmax(sops.negative(x_t), axis=axis))
+    return softmax(-x, axis=axis)
 
 
 def softplus(x: array) -> array:
     """Computes the Softplus."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.softplus(x_t))
+    return mx.log1p(mx.exp(x))
 
 
 def softshrink(x: array, lambd: float = 0.5) -> array:
     """Computes the Softshrink."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    # sops may not have softshrink natively, implement via primitives
-    lam_t = sops.full_like(x_t, lambd)
-    n_lam_t = sops.full_like(x_t, -lambd)
-
-    pos_mask = sops.greater(x_t, lam_t)
-    neg_mask = sops.less(x_t, n_lam_t)
-
-    pos_val = sops.multiply(pos_mask, sops.subtract(x_t, lam_t))
-    neg_val = sops.multiply(neg_mask, sops.add(x_t, lam_t))
-
-    return array(sops.add(pos_val, neg_val))
+    return mx.where(x > lambd, x - lambd, mx.where(x < -lambd, x + lambd, 0.0))
 
 
 def softsign(x: array) -> array:
     """Computes the Softsign."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.softsign(x_t))
+    return x / (1.0 + mx.abs(x))
 
 
 def step(x: array, threshold: float = 0.0) -> array:
     """Computes the Step function (Heaviside)."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    thresh_t = sops.full_like(x_t, threshold)
-    return array(sops.heaviside(x_t, thresh_t))
+    return mx.where(x > threshold, 1.0, 0.0)
 
 
 def tanh(x: array) -> array:
     """Computes the Tanh."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    return array(sops.tanh(x_t))
+    return mx.tanh(x)
 
 
 def hard_shrink(x: array, lambd: float = 0.5) -> array:
     """Computes the Hard Shrink."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    if hasattr(sops, "hard_shrink"):
-        return array(sops.hard_shrink(x_t, lambd=lambd))
-    # Primitive fallback
-    lam_t = sops.full_like(x_t, lambd)
-    n_lam_t = sops.full_like(x_t, -lambd)
-    pos_mask = sops.greater(x_t, lam_t)
-    neg_mask = sops.less(x_t, n_lam_t)
-    mask = sops.logical_or(pos_mask, neg_mask)
-    return array(sops.where(mask, x_t, sops.zeros_like(x_t)))
+    mask = mx.logical_or(x > lambd, x < -lambd)
+    return mx.where(mask, x, 0.0)
 
 
 def hard_tanh(x: array, min_val: float = -1.0, max_val: float = 1.0) -> array:
     """Computes the Hard Tanh."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    if hasattr(sops, "hard_tanh"):
-        return array(sops.hard_tanh(x_t, min_val=min_val, max_val=max_val))
-    return array(
-        sops.minimum(
-            sops.maximum(x_t, sops.full_like(x_t, min_val)),
-            sops.full_like(x_t, max_val),
-        )
-    )
+    return mx.minimum(mx.maximum(x, min_val), max_val)
 
 
 def hardswish(x: array) -> array:
     """Computes the Hardswish."""
-    x_t = x._tensor if hasattr(x, "_tensor") else x
-    # hardswish(x) = x * relu6(x + 3) / 6
-    if hasattr(sops, "hardswish"):
-        return array(sops.hardswish(x_t))
-    out = sops.add(x_t, sops.full_like(x_t, 3.0))
-    out = sops.relu6(out)
-    out = sops.multiply(x_t, out)
-    out = sops.divide(out, sops.full_like(x_t, 6.0))
-    return array(out)
+    return x * mx.minimum(mx.maximum(x + 3.0, 0.0), 6.0) / 6.0
 
 
 # ==============================================================================
@@ -306,7 +261,7 @@ class PReLU(Module):
     def __init__(self, num_parameters: int = 1, init: float = 0.25):
         """Initialize."""
         super().__init__()
-        self.weight = array(sops.full((num_parameters,), init))
+        self.weight = mx.full((num_parameters,), init)
 
     def __call__(self, x: array) -> array:
         """Docstring."""

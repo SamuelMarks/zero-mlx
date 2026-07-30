@@ -14,8 +14,8 @@ if is_available(gpu):  # pragma: no cover
     config.default_device = SwitcherooDevice(SwitcherooDeviceType.GPU, 0)
 
 
-if config.backend == "numpy":  # pragma: no cover
-    config.backend = "mlx"
+if config.backend == "mlx":  # pragma: no cover
+    pass  # we now want to use numpy or whatever is default, actually let's just use ml-switcheroo-compiler defaults.
 
 from zero_mlx.dtypes import (
     DType,
@@ -91,7 +91,7 @@ import zero_mlx.optimizers as optimizers
 from zero_mlx.random_state import state
 import zero_mlx.utils as utils
 
-from ml_switcheroo_compiler import tree_flatten, tree_unflatten
+from ml_switcheroo_compiler.tree_util import tree_flatten, tree_unflatten
 
 from typing import Union, Sequence, Callable, Any, Optional
 
@@ -351,11 +351,6 @@ from zero_mlx.ops import matmul
 
 __all__.append("matmul")
 
-from ml_switcheroo_compiler.ops.aliases import (
-    set_printoptions as _set_printoptions,
-    printoptions as _printoptions,
-)
-
 import contextlib
 
 
@@ -363,7 +358,8 @@ def set_printoptions(**kwargs):  # pragma: no cover
     global _printoptions_precision
     if "precision" in kwargs:
         _printoptions_precision = kwargs["precision"]
-    return _set_printoptions(**kwargs)
+    # We don't have a backend set_printoptions to call anymore, just store the state
+    pass
 
 
 @contextlib.contextmanager
@@ -375,8 +371,7 @@ def printoptions(*args, **kwargs):  # pragma: no cover
     if "precision" in kwargs:
         _printoptions_precision = kwargs["precision"]
     try:
-        with _printoptions(*args, **kwargs):
-            yield
+        yield
     finally:
         _printoptions_precision = old_prec
 

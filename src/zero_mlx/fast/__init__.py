@@ -144,8 +144,6 @@ def scaled_dot_product_attention(*args: Any, **kwargs: Any) -> Any:  # pragma: n
     Returns:
         Any: The result of the attention computation.
 
-    Raises:
-        NotImplementedError: Always raised as this is a stub.
 
     """
     from zero_mlx.array import array

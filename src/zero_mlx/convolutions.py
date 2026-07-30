@@ -245,7 +245,7 @@ def convolve(  # pragma: no cover
     a_reshaped = sops.reshape(a_tensor, (1, a.size, 1))
     v_reshaped = sops.reshape(v_tensor, (v.size, 1, 1))
 
-    res = mnn.conv1d(
+    res = mnn.conv1d.conv1d(
         a_reshaped,
         v_reshaped,
         stride=1,
@@ -253,9 +253,7 @@ def convolve(  # pragma: no cover
         dilation=1,
         groups=1,
     )
-    res = sops.squeeze(res)
-    if len(res.shape) == 0:
-        res = sops.unsqueeze(res, dim=0)
+    res = sops.reshape(res, (-1,))
     return array(res)
 
 
