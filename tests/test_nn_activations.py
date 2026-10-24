@@ -1,182 +1,193 @@
-import pytest
+"""Unit tests for `zero_mlx.nn.activations` functions and module classes."""
+
+from __future__ import annotations
+
+from typing import Callable
+
+import mlx.core as mx
+import mlx.nn as m_nn
 import numpy as np
-import warnings
-from unittest.mock import patch
 
-import zero_mlx.nn as z_nn
+from zero_mlx._types import ArrayInput
 from zero_mlx.array import array
-import ml_switcheroo_compiler.ops as sops
-from ml_switcheroo_compiler.core.tensor import Tensor, TensorConfig
+import zero_mlx.nn as z_nn
+from zero_mlx.nn.base import Module
+
+ActivationFn = Callable[[ArrayInput], array]
 
 
-def _test_func_shape(func, x_shape, expected_shape, **kwargs):
-    x = array(np.random.randn(*x_shape).astype(np.float32))
+def _test_func_shape(
+    func: ActivationFn | Module,
+    x_shape: tuple[int, ...],
+    expected_shape: tuple[int, ...],
+) -> None:
+    """Invoke `func` on a random array of `x_shape` and assert its output shape and finite numerical values.
 
-    mock_ret = Tensor(None, TensorConfig(expected_shape, "float32", "cpu"))
-    out = func(x, **kwargs)
+    Args:
+        func: Activation function or `Module` to test.
+        x_shape: Input array shape.
+        expected_shape: Expected output array shape.
+
+    """
+    x_np = np.random.randn(*x_shape).astype(np.float32)
+    x = array(x_np)
+    raw_out: array | tuple[array, ...] = (
+        func._call_forward(x) if isinstance(func, Module) else func(x)
+    )
+    out: array = raw_out[0] if isinstance(raw_out, tuple) else raw_out
     assert out.shape == expected_shape
+    assert np.all(np.isfinite(np.array(out.tolist())))
+    _ = (mx, m_nn)
 
 
-def test_celu():
+def test_celu() -> None:
+    """Test `celu` and `CELU`."""
     _test_func_shape(z_nn.celu, (2, 3), (2, 3))
     _test_func_shape(z_nn.CELU(), (2, 3), (2, 3))
 
 
-def test_elu():
+def test_elu() -> None:
+    """Test `elu` and `ELU`."""
     _test_func_shape(z_nn.elu, (2, 3), (2, 3))
     _test_func_shape(z_nn.ELU(), (2, 3), (2, 3))
 
 
-def test_gelu():
+def test_gelu() -> None:
+    """Test `gelu` and `GELU` across approximation modes."""
     _test_func_shape(z_nn.gelu, (2, 3), (2, 3))
+    _test_func_shape(z_nn.GELU(), (2, 3), (2, 3))
+    _test_func_shape(z_nn.GELU("approx"), (2, 3), (2, 3))
     _test_func_shape(z_nn.GELU("fast"), (2, 3), (2, 3))
 
 
-def test_glu():
+def test_glu() -> None:
+    """Test `glu` and `GLU`."""
     _test_func_shape(z_nn.glu, (2, 4), (2, 2))
     _test_func_shape(z_nn.GLU(), (2, 4), (2, 2))
 
 
-def test_leaky_relu():
+def test_leaky_relu() -> None:
+    """Test `leaky_relu` and `LeakyReLU`."""
     _test_func_shape(z_nn.leaky_relu, (2, 3), (2, 3))
     _test_func_shape(z_nn.LeakyReLU(), (2, 3), (2, 3))
 
 
-def test_log_sigmoid():
+def test_log_sigmoid() -> None:
+    """Test `log_sigmoid` and `LogSigmoid`."""
     _test_func_shape(z_nn.log_sigmoid, (2, 3), (2, 3))
     _test_func_shape(z_nn.LogSigmoid(), (2, 3), (2, 3))
 
 
-def test_log_softmax():
+def test_log_softmax() -> None:
+    """Test `log_softmax` and `LogSoftmax`."""
     _test_func_shape(z_nn.log_softmax, (2, 3), (2, 3))
     _test_func_shape(z_nn.LogSoftmax(), (2, 3), (2, 3))
 
 
-def test_mish():
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
+def test_mish() -> None:
+    """Test `mish` and `Mish`."""
     _test_func_shape(z_nn.mish, (2, 3), (2, 3))
     _test_func_shape(z_nn.Mish(), (2, 3), (2, 3))
 
 
-def test_prelu():
-    m = z_nn.PReLU(3)
-    x = array(np.random.randn(2, 3).astype(np.float32))
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    out = m(x)
-    assert out.shape == (2, 3)
+def test_prelu() -> None:
+    """Test `prelu` and `PReLU`."""
+    w = array(np.random.randn(3).astype(np.float32))
+    _test_func_shape(lambda x: z_nn.prelu(x, w), (2, 3), (2, 3))
+    _test_func_shape(z_nn.PReLU(3), (2, 3), (2, 3))
 
 
-def test_relu():
+def test_relu() -> None:
+    """Test `relu` and `ReLU`."""
     _test_func_shape(z_nn.relu, (2, 3), (2, 3))
     _test_func_shape(z_nn.ReLU(), (2, 3), (2, 3))
 
 
-def test_relu2():
-    m = z_nn.ReLU2()
-    x = array(np.random.randn(2, 3).astype(np.float32))
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    out = m(x)
-    assert out.shape == (2, 3)
-    out2 = z_nn.relu2(x)
-    assert out2.shape == (2, 3)
+def test_relu2() -> None:
+    """Test `relu2` and `ReLU2`."""
+    _test_func_shape(z_nn.relu2, (2, 3), (2, 3))
+    _test_func_shape(z_nn.ReLU2(), (2, 3), (2, 3))
 
 
-def test_relu6():
+def test_relu6() -> None:
+    """Test `relu6` and `ReLU6`."""
     _test_func_shape(z_nn.relu6, (2, 3), (2, 3))
     _test_func_shape(z_nn.ReLU6(), (2, 3), (2, 3))
 
 
-def test_selu():
+def test_selu() -> None:
+    """Test `selu` and `SELU`."""
     _test_func_shape(z_nn.selu, (2, 3), (2, 3))
     _test_func_shape(z_nn.SELU(), (2, 3), (2, 3))
 
 
-def test_silu():
+def test_silu() -> None:
+    """Test `silu` and `SiLU`."""
     _test_func_shape(z_nn.silu, (2, 3), (2, 3))
     _test_func_shape(z_nn.SiLU(), (2, 3), (2, 3))
 
 
-def test_sigmoid():
+def test_sigmoid() -> None:
+    """Test `sigmoid` and `Sigmoid`."""
     _test_func_shape(z_nn.sigmoid, (2, 3), (2, 3))
     _test_func_shape(z_nn.Sigmoid(), (2, 3), (2, 3))
 
 
-def test_softmax():
+def test_softmax() -> None:
+    """Test `softmax` and `Softmax`."""
     _test_func_shape(z_nn.softmax, (2, 3), (2, 3))
     _test_func_shape(z_nn.Softmax(), (2, 3), (2, 3))
 
 
-def test_softmin():
-    m = z_nn.Softmin()
-    x = array(np.random.randn(2, 3).astype(np.float32))
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    out = m(x)
-    assert out.shape == (2, 3)
-    out2 = z_nn.softmin(x)
-    assert out2.shape == (2, 3)
+def test_softmin() -> None:
+    """Test `softmin` and `Softmin`."""
+    _test_func_shape(z_nn.softmin, (2, 3), (2, 3))
+    _test_func_shape(z_nn.Softmin(), (2, 3), (2, 3))
 
 
-def test_softplus():
+def test_softplus() -> None:
+    """Test `softplus` and `Softplus`."""
     _test_func_shape(z_nn.softplus, (2, 3), (2, 3))
     _test_func_shape(z_nn.Softplus(), (2, 3), (2, 3))
 
 
-def test_softshrink():
-    m = z_nn.Softshrink()
-    x = array(np.random.randn(2, 3).astype(np.float32))
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    out = m(x)
-    assert out.shape == (2, 3)
-    out2 = z_nn.softshrink(x)
-    assert out2.shape == (2, 3)
+def test_softshrink() -> None:
+    """Test `softshrink` and `Softshrink`."""
+    _test_func_shape(z_nn.softshrink, (2, 3), (2, 3))
+    _test_func_shape(z_nn.Softshrink(), (2, 3), (2, 3))
 
 
-def test_softsign():
+def test_softsign() -> None:
+    """Test `softsign` and `Softsign`."""
     _test_func_shape(z_nn.softsign, (2, 3), (2, 3))
     _test_func_shape(z_nn.Softsign(), (2, 3), (2, 3))
 
 
-def test_step():
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
+def test_step() -> None:
+    """Test `step` and `Step`."""
     _test_func_shape(z_nn.step, (2, 3), (2, 3))
     _test_func_shape(z_nn.Step(), (2, 3), (2, 3))
 
 
-def test_tanh():
+def test_tanh() -> None:
+    """Test `tanh` and `Tanh`."""
     _test_func_shape(z_nn.tanh, (2, 3), (2, 3))
     _test_func_shape(z_nn.Tanh(), (2, 3), (2, 3))
 
 
-def test_hard_shrink():
-    # If the backend has hard_shrink:
+def test_hard_shrink() -> None:
+    """Test `hard_shrink` and `HardShrink`."""
     _test_func_shape(z_nn.hard_shrink, (2, 3), (2, 3))
     _test_func_shape(z_nn.HardShrink(), (2, 3), (2, 3))
 
-    # Fallback path if backend doesn't have hard_shrink
-    m = z_nn.HardShrink()
-    x = array(np.random.randn(2, 3).astype(np.float32))
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    out = z_nn.hard_shrink(x)
-    assert out.shape == (2, 3)
 
-
-def test_hard_tanh():
+def test_hard_tanh() -> None:
+    """Test `hard_tanh` and `HardTanh`."""
     _test_func_shape(z_nn.hard_tanh, (2, 3), (2, 3))
     _test_func_shape(z_nn.HardTanh(), (2, 3), (2, 3))
 
-    m = z_nn.HardTanh()
-    x = array(np.random.randn(2, 3).astype(np.float32))
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    out = z_nn.hard_tanh(x)
-    assert out.shape == (2, 3)
 
-
-def test_hardswish():
+def test_hardswish() -> None:
+    """Test `hardswish` and `Hardswish`."""
     _test_func_shape(z_nn.hardswish, (2, 3), (2, 3))
     _test_func_shape(z_nn.Hardswish(), (2, 3), (2, 3))
-
-    m = z_nn.Hardswish()
-    x = array(np.random.randn(2, 3).astype(np.float32))
-    m_ret = Tensor(None, TensorConfig((2, 3), "float32", "cpu"))
-    out = z_nn.hardswish(x)
-    assert out.shape == (2, 3)

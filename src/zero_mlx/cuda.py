@@ -1,36 +1,38 @@
-"""mlx.cuda stub."""
+"""CUDA backend status and memory utilities for zero_mlx."""
+
+from __future__ import annotations
 
 
-def is_available() -> bool:  # pragma: no cover
-    """Check if CUDA is available.
+def is_available() -> bool:
+    """Check if the CUDA backend is available.
 
     Returns:
-        bool: False, as CUDA is not natively available in this stub.
+        False, as native CUDA hardware execution is not required in zero_mlx.
 
     """
     return False
 
 
-def device_count() -> int:  # pragma: no cover
-    """Get the number of available CUDA devices.
+def device_count() -> int:
+    """Return the number of available CUDA devices.
 
     Returns:
-        int: 0, as CUDA is not natively available in this stub.
+        0 in pure-Python mode.
 
     """
     return 0
 
 
-def memory_info() -> dict:  # pragma: no cover
-    """Get memory info for the current CUDA device.
+def memory_info() -> dict[str, int]:
+    """Return memory statistics for the current CUDA device.
 
     Returns:
-        dict: Empty dictionary.
+        Dictionary of CUDA memory counters.
 
     """
     return {}
 
 
-def clear_cache() -> None:  # pragma: no cover
+def clear_cache() -> None:
     """Clear the CUDA memory cache."""
-    pass
+    return None

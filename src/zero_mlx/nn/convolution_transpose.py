@@ -1,221 +1,269 @@
-"""mlx.nn.convolution_transpose module."""
+"""1D, 2D, and 3D Transposed Convolution layers (`mlx.nn.convolution_transpose`) for zero_mlx."""
+
+from __future__ import annotations
 
 import math
-from typing import Optional, Union, Tuple
-from zero_mlx.nn.base import Module
+
+import ml_switcheroo_compiler.ops as sops
+import ml_switcheroo_compiler.ops.shape.frontend as sf
+
 from zero_mlx.array import array
 from zero_mlx.mlx_random import uniform
-import ml_switcheroo_compiler.ops as sops
+from zero_mlx.nn.base import Module
 
 
 class ConvTranspose1d(Module):
-    """Applies a 1D transposed convolution over an input signal."""
+    """Applies a 1D transposed convolution over an input signal `(N, L, C_in)`."""
 
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[int, Tuple[int]],
-        stride: Union[int, Tuple[int]] = 1,
-        padding: Union[int, Tuple[int]] = 0,
-        dilation: Union[int, Tuple[int]] = 1,
+        kernel_size: int | tuple[int],
+        stride: int | tuple[int] = 1,
+        padding: int | tuple[int] = 0,
+        dilation: int | tuple[int] = 1,
+        output_padding: int | tuple[int] = 0,
         groups: int = 1,
         bias: bool = True,
-    ):
-        """Initialize ConvTranspose1d."""
+    ) -> None:
+        """Initialize `ConvTranspose1d`.
+
+        Args:
+            in_channels: Number of input channels.
+            out_channels: Number of output channels.
+            kernel_size: Size of the convolving kernel.
+            stride: Stride of the convolution.
+            padding: Input zero-padding.
+            dilation: Kernel dilation spacing.
+            output_padding: Additional size added to one side of the output shape.
+            groups: Number of blocked connections from input to output channels.
+            bias: Whether to include a learnable bias.
+
+        """
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = (
+        self.in_channels: int = in_channels
+        self.out_channels: int = out_channels
+        self.kernel_size: tuple[int] = (
             kernel_size if isinstance(kernel_size, tuple) else (kernel_size,)
         )
-        self.stride = stride if isinstance(stride, tuple) else (stride,)
-        self.padding = padding if isinstance(padding, tuple) else (padding,)
-        self.dilation = dilation if isinstance(dilation, tuple) else (dilation,)
-        self.groups = groups
+        self.stride: tuple[int] = stride if isinstance(stride, tuple) else (stride,)
+        self.padding: tuple[int] = padding if isinstance(padding, tuple) else (padding,)
+        self.dilation: tuple[int] = dilation if isinstance(dilation, tuple) else (dilation,)
+        self.output_padding: tuple[int] = (
+            output_padding if isinstance(output_padding, tuple) else (output_padding,)
+        )
+        self.groups: int = groups
 
         k_w = self.kernel_size[0]
         in_ch_per_group = in_channels // groups
-        scale = math.sqrt(1.0 / (in_ch_per_group * k_w))
-        # MLX transpose conv weight shape: (out_channels, kernel_size, in_channels // groups) typically, but could be inverted. Assuming same scale.
-        self.weight = uniform(
+        scale = math.sqrt(1.0 / float(in_ch_per_group * k_w))
+        self.weight: array = uniform(
             low=-scale, high=scale, shape=(out_channels, k_w, in_ch_per_group)
         )
-        if bias:
-            self.bias = uniform(low=-scale, high=scale, shape=(out_channels,))
-        else:
-            self.bias = None
-
-    def __call__(self, x: array) -> array:
-        """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        w_t = sops.transpose(w_t, axes=(1, 2, 0))
-
-        out = sops.get_op("ConvTranspose")()(
-            x_t,
-            w_t,
-            strides=self.stride,
-            padding="VALID",
+        self.bias: array | None = (
+            uniform(low=-scale, high=scale, shape=(out_channels,)) if bias else None
         )
 
-        if self.padding[0] > 0:  # pragma: no cover
-            out = sops.slice(
-                out,
-                start_indices=(0, self.padding[0], 0),
-                end_indices=(
-                    out.shape[0],
-                    out.shape[1] - self.padding[0],
-                    out.shape[2],
-                ),
-            )
+    def __call__(self, x: array) -> array:
+        """Apply 1D transposed convolution to `x`.
 
-        if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+        Args:
+            x: Input `array` of shape `(N, L, C_in)`.
+
+        Returns:
+            Output `array` of shape `(N, L_out, C_out)`.
+
+        """
+        x_ncl = sf.permute(x._tensor, dims=(0, 2, 1))
+        w_oi = sf.permute(self.weight._tensor, dims=(0, 2, 1))
+        out_ncl = sops.get_op("ConvTranspose")()(x_ncl, w_oi, self.stride, "VALID")
+        out = sf.permute(out_ncl, dims=(0, 2, 1))
+        if self.padding[0] > 0:
+            p0 = self.padding[0]
+            out_arr = array(out, dtype=x.dtype)[:, p0 : out.shape[1] - p0, :]
+            out = out_arr._tensor
+        if self.bias is not None:
+            out = sops.add(out, self.bias._tensor)
+        return array(out, dtype=x.dtype)
 
 
 class ConvTranspose2d(Module):
-    """Applies a 2D transposed convolution over an input signal."""
+    """Applies a 2D transposed convolution over an input signal `(N, H, W, C_in)`."""
 
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[int, Tuple[int, int]],
-        stride: Union[int, Tuple[int, int]] = 1,
-        padding: Union[int, Tuple[int, int]] = 0,
-        dilation: Union[int, Tuple[int, int]] = 1,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] = 0,
+        dilation: int | tuple[int, int] = 1,
+        output_padding: int | tuple[int, int] = 0,
         groups: int = 1,
         bias: bool = True,
-    ):
-        """Initialize ConvTranspose2d."""
+    ) -> None:
+        """Initialize `ConvTranspose2d`.
+
+        Args:
+            in_channels: Number of input channels.
+            out_channels: Number of output channels.
+            kernel_size: Size of the 2D kernel (`int` or 2-tuple).
+            stride: Convolution stride (`int` or 2-tuple).
+            padding: Input zero-padding (`int` or 2-tuple).
+            dilation: Kernel dilation (`int` or 2-tuple).
+            output_padding: Additional output size (`int` or 2-tuple).
+            groups: Number of channel groups.
+            bias: Whether to include a learnable bias.
+
+        """
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = (
-            kernel_size
-            if isinstance(kernel_size, tuple)
-            else (kernel_size, kernel_size)
+        self.in_channels: int = in_channels
+        self.out_channels: int = out_channels
+        self.kernel_size: tuple[int, int] = (
+            kernel_size if isinstance(kernel_size, tuple) else (kernel_size, kernel_size)
         )
-        self.stride = stride if isinstance(stride, tuple) else (stride, stride)
-        self.padding = padding if isinstance(padding, tuple) else (padding, padding)
-        self.dilation = (
+        self.stride: tuple[int, int] = stride if isinstance(stride, tuple) else (stride, stride)
+        self.padding: tuple[int, int] = (
+            padding if isinstance(padding, tuple) else (padding, padding)
+        )
+        self.dilation: tuple[int, int] = (
             dilation if isinstance(dilation, tuple) else (dilation, dilation)
         )
-        self.groups = groups
+        self.output_padding: tuple[int, int] = (
+            output_padding
+            if isinstance(output_padding, tuple)
+            else (output_padding, output_padding)
+        )
+        self.groups: int = groups
 
         k_h, k_w = self.kernel_size
         in_ch_per_group = in_channels // groups
-        scale = math.sqrt(1.0 / (in_ch_per_group * k_h * k_w))
-        self.weight = uniform(
+        scale = math.sqrt(1.0 / float(in_ch_per_group * k_h * k_w))
+        self.weight: array = uniform(
             low=-scale, high=scale, shape=(out_channels, k_h, k_w, in_ch_per_group)
         )
-        if bias:
-            self.bias = uniform(low=-scale, high=scale, shape=(out_channels,))
-        else:
-            self.bias = None
-
-    def __call__(self, x: array) -> array:
-        """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        w_t = sops.transpose(w_t, axes=(1, 2, 3, 0))
-
-        out = sops.get_op("ConvTranspose")()(
-            x_t,
-            w_t,
-            strides=self.stride,
-            padding="VALID",
+        self.bias: array | None = (
+            uniform(low=-scale, high=scale, shape=(out_channels,)) if bias else None
         )
 
-        if self.padding[0] > 0 or self.padding[1] > 0:  # pragma: no cover
-            p0, p1 = self.padding
-            start = [0, p0, p1, 0]
-            end = [out.shape[0], out.shape[1] - p0, out.shape[2] - p1, out.shape[3]]
-            out = sops.slice(out, start_indices=start, end_indices=end)
+    def __call__(self, x: array) -> array:
+        """Apply 2D transposed convolution to `x`.
 
-        if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+        Args:
+            x: Input `array` of shape `(N, H, W, C_in)`.
+
+        Returns:
+            Output `array` of shape `(N, H_out, W_out, C_out)`.
+
+        """
+        x_nchw = sf.permute(x._tensor, dims=(0, 3, 1, 2))
+        w_oihw = sf.permute(self.weight._tensor, dims=(0, 3, 1, 2))
+        out_nchw = sops.get_op("ConvTranspose")()(x_nchw, w_oihw, self.stride, "VALID")
+        out = sf.permute(out_nchw, dims=(0, 2, 3, 1))
+        if self.padding[0] > 0 or self.padding[1] > 0:
+            p0, p1 = self.padding
+            out_arr = array(out, dtype=x.dtype)[
+                :, p0 : out.shape[1] - p0, p1 : out.shape[2] - p1, :
+            ]
+            out = out_arr._tensor
+        if self.bias is not None:
+            out = sops.add(out, self.bias._tensor)
+        return array(out, dtype=x.dtype)
 
 
 class ConvTranspose3d(Module):
-    """Applies a 3D transposed convolution over an input signal."""
+    """Applies a 3D transposed convolution over an input signal `(N, D, H, W, C_in)`."""
 
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[int, Tuple[int, int, int]],
-        stride: Union[int, Tuple[int, int, int]] = 1,
-        padding: Union[int, Tuple[int, int, int]] = 0,
-        dilation: Union[int, Tuple[int, int, int]] = 1,
+        kernel_size: int | tuple[int, int, int],
+        stride: int | tuple[int, int, int] = 1,
+        padding: int | tuple[int, int, int] = 0,
+        dilation: int | tuple[int, int, int] = 1,
+        output_padding: int | tuple[int, int, int] = 0,
         groups: int = 1,
         bias: bool = True,
-    ):
-        """Initialize ConvTranspose3d."""
+    ) -> None:
+        """Initialize `ConvTranspose3d`.
+
+        Args:
+            in_channels: Number of input channels.
+            out_channels: Number of output channels.
+            kernel_size: Size of the 3D kernel (`int` or 3-tuple).
+            stride: Convolution stride (`int` or 3-tuple).
+            padding: Input zero-padding (`int` or 3-tuple).
+            dilation: Kernel dilation (`int` or 3-tuple).
+            output_padding: Additional output size (`int` or 3-tuple).
+            groups: Number of channel groups.
+            bias: Whether to include a learnable bias.
+
+        """
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.kernel_size = (
+        self.in_channels: int = in_channels
+        self.out_channels: int = out_channels
+        self.kernel_size: tuple[int, int, int] = (
             kernel_size
             if isinstance(kernel_size, tuple)
             else (kernel_size, kernel_size, kernel_size)
         )
-        self.stride = stride if isinstance(stride, tuple) else (stride, stride, stride)
-        self.padding = (
+        self.stride: tuple[int, int, int] = (
+            stride if isinstance(stride, tuple) else (stride, stride, stride)
+        )
+        self.padding: tuple[int, int, int] = (
             padding if isinstance(padding, tuple) else (padding, padding, padding)
         )
-        self.dilation = (
+        self.dilation: tuple[int, int, int] = (
             dilation if isinstance(dilation, tuple) else (dilation, dilation, dilation)
         )
-        self.groups = groups
+        self.output_padding: tuple[int, int, int] = (
+            output_padding
+            if isinstance(output_padding, tuple)
+            else (output_padding, output_padding, output_padding)
+        )
+        self.groups: int = groups
 
         k_d, k_h, k_w = self.kernel_size
         in_ch_per_group = in_channels // groups
-        scale = math.sqrt(1.0 / (in_ch_per_group * k_d * k_h * k_w))
-        self.weight = uniform(
-            low=-scale, high=scale, shape=(out_channels, k_d, k_h, k_w, in_ch_per_group)
+        scale = math.sqrt(1.0 / float(in_ch_per_group * k_d * k_h * k_w))
+        self.weight: array = uniform(
+            low=-scale,
+            high=scale,
+            shape=(out_channels, k_d, k_h, k_w, in_ch_per_group),
         )
-        if bias:
-            self.bias = uniform(low=-scale, high=scale, shape=(out_channels,))
-        else:
-            self.bias = None
+        self.bias: array | None = (
+            uniform(low=-scale, high=scale, shape=(out_channels,)) if bias else None
+        )
 
     def __call__(self, x: array) -> array:
-        """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
-        w_t = self.weight._tensor if hasattr(self.weight, "_tensor") else self.weight
-        w_t = sops.transpose(w_t, axes=(1, 2, 3, 4, 0))
+        """Apply 3D transposed convolution to `x`.
 
-        out = sops.get_op("ConvTranspose")()(
-            x_t,
-            w_t,
-            strides=self.stride,
-            padding="VALID",
-        )
+        Args:
+            x: Input `array` of shape `(N, D, H, W, C_in)`.
 
-        if (
-            self.padding[0] > 0 or self.padding[1] > 0 or self.padding[2] > 0
-        ):  # pragma: no cover
+        Returns:
+            Output `array` of shape `(N, D_out, H_out, W_out, C_out)`.
+
+        """
+        x_ncdhw = sf.permute(x._tensor, dims=(0, 4, 1, 2, 3))
+        w_oidhw = sf.permute(self.weight._tensor, dims=(0, 4, 1, 2, 3))
+        out_ncdhw = sops.get_op("ConvTranspose")()(x_ncdhw, w_oidhw, self.stride, "VALID")
+        out = sf.permute(out_ncdhw, dims=(0, 2, 3, 4, 1))
+        if self.padding[0] > 0 or self.padding[1] > 0 or self.padding[2] > 0:
             p0, p1, p2 = self.padding
-            start = [0, p0, p1, p2, 0]
-            end = [
-                out.shape[0],
-                out.shape[1] - p0,
-                out.shape[2] - p1,
-                out.shape[3] - p2,
-                out.shape[4],
+            out_arr = array(out, dtype=x.dtype)[
+                :,
+                p0 : out.shape[1] - p0,
+                p1 : out.shape[2] - p1,
+                p2 : out.shape[3] - p2,
+                :,
             ]
-            out = sops.slice(out, start_indices=start, end_indices=end)
-
-        if getattr(self, "bias", None) is not None:
-            b_t = self.bias._tensor if hasattr(self.bias, "_tensor") else self.bias
-            out = sops.add(out, b_t)
-        return array(out)
+            out = out_arr._tensor
+        if self.bias is not None:
+            out = sops.add(out, self.bias._tensor)
+        return array(out, dtype=x.dtype)
 
 
 __all__ = ["ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]

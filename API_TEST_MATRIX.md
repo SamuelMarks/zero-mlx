@@ -2,259 +2,490 @@
 
 Requirement: Minimum one test per API.
 
-## Ops
-- [ ] `abs`
-- [ ] `add`
-- [ ] `addmm`
-- [ ] `all`
-- [ ] `allclose`
-- [ ] `any`
-- [ ] `arange`
-- [ ] `arccos`
-- [ ] `arccosh`
-- [ ] `arcsin`
-- [ ] `arcsinh`
-- [ ] `arctan`
-- [ ] `arctan2`
-- [ ] `arctanh`
-- [ ] `argmax`
-- [ ] `argmin`
-- [ ] `argpartition`
-- [ ] `argsort`
-- [ ] `array_equal`
-- [ ] `asarray`
-- [ ] `as_strided`
-- [ ] `astype`
-- [ ] `atleast_1d`
-- [ ] `atleast_2d`
-- [ ] `atleast_3d`
-- [ ] `bartlett`
-- [ ] `bitwise_and`
-- [ ] `bitwise_invert`
-- [ ] `bitwise_or`
-- [ ] `bitwise_xor`
-- [ ] `blackman`
-- [ ] `block_masked_mm`
-- [ ] `broadcast_arrays`
-- [ ] `broadcast_shapes`
-- [ ] `broadcast_to`
-- [ ] `can_cast`
-- [ ] `ceil`
-- [ ] `clip`
-- [ ] `concat`
-- [ ] `concatenate`
-- [ ] `contiguous`
-- [ ] `conj`
-- [ ] `conjugate`
-- [ ] `convolve`
-- [ ] `conv1d`
-- [ ] `conv2d`
-- [ ] `conv3d`
-- [ ] `conv_transpose1d`
-- [ ] `conv_transpose2d`
-- [ ] `conv_transpose3d`
-- [ ] `conv_general`
-- [ ] `cos`
-- [ ] `cosh`
-- [ ] `cummax`
-- [ ] `cummin`
-- [ ] `cumprod`
-- [ ] `cumsum`
-- [ ] `count_nonzero`
-- [ ] `degrees`
-- [ ] `depends`
-- [ ] `dequantize`
-- [ ] `diag`
-- [ ] `diagonal`
-- [ ] `diff`
-- [ ] `divide`
-- [ ] `divmod`
-- [ ] `einsum`
-- [ ] `einsum_path`
-- [ ] `equal`
-- [ ] `erf`
-- [ ] `erfinv`
-- [ ] `exp`
-- [ ] `expm1`
-- [ ] `expand_dims`
-- [ ] `eye`
-- [ ] `flatten`
-- [ ] `flip`
-- [ ] `floor`
-- [ ] `floor_divide`
-- [ ] `full`
-- [ ] `from_dlpack`
-- [ ] `full_like`
-- [ ] `from_fp8`
-- [ ] `gather_mm`
-- [ ] `gather_qmm`
-- [ ] `greater`
-- [ ] `greater_equal`
-- [ ] `hadamard_transform`
-- [ ] `hamming`
-- [ ] `hanning`
-- [ ] `identity`
-- [ ] `imag`
-- [ ] `inner`
-- [ ] `isdtype`
-- [ ] `isfinite`
-- [ ] `isclose`
-- [ ] `isinf`
-- [ ] `isnan`
-- [ ] `isneginf`
-- [ ] `isposinf`
-- [ ] `issubdtype`
-- [ ] `kron`
-- [ ] `left_shift`
-- [ ] `less`
-- [ ] `less_equal`
-- [ ] `linspace`
-- [ ] `load`
-- [ ] `log`
-- [ ] `log2`
-- [ ] `log10`
-- [ ] `log1p`
-- [ ] `logaddexp`
-- [ ] `logcumsumexp`
-- [ ] `logical_not`
-- [ ] `logical_and`
-- [ ] `logical_or`
-- [ ] `logical_xor`
-- [ ] `logsumexp`
-- [ ] `matmul`
-- [ ] `max`
-- [ ] `maximum`
-- [ ] `mean`
-- [ ] `median`
-- [ ] `meshgrid`
-- [ ] `min`
-- [ ] `minimum`
-- [ ] `moveaxis`
-- [ ] `multiply`
-- [ ] `nan_to_num`
-- [ ] `negative`
-- [ ] `not_equal`
-- [ ] `ones`
-- [ ] `ones_like`
-- [ ] `outer`
-- [ ] `partition`
-- [ ] `pad`
-- [ ] `permute_dims`
-- [ ] `positive`
-- [ ] `power`
-- [ ] `prod`
-- [ ] `put_along_axis`
-- [ ] `quantize`
-- [ ] `quantized_matmul`
-- [ ] `qqmm`
-- [ ] `radians`
-- [ ] `real`
-- [ ] `reciprocal`
-- [ ] `remainder`
-- [ ] `repeat`
-- [ ] `reshape`
-- [ ] `result_type`
-- [ ] `right_shift`
-- [ ] `roll`
-- [ ] `round`
-- [ ] `rsqrt`
-- [ ] `save`
-- [ ] `savez`
-- [ ] `savez_compressed`
-- [ ] `save_gguf`
-- [ ] `save_safetensors`
-- [ ] `sigmoid`
-- [ ] `sign`
-- [ ] `sin`
-- [ ] `sinh`
-- [ ] `slice`
-- [ ] `slice_update`
-- [ ] `segmented_mm`
-- [ ] `softmax`
-- [ ] `sort`
-- [ ] `split`
-- [ ] `sqrt`
-- [ ] `square`
-- [ ] `squeeze`
-- [ ] `stack`
-- [ ] `std`
-- [ ] `stop_gradient`
-- [ ] `subtract`
-- [ ] `sum`
-- [ ] `swapaxes`
-- [ ] `take`
-- [ ] `take_along_axis`
-- [ ] `tan`
-- [ ] `tanh`
-- [ ] `tensordot`
-- [ ] `tile`
-- [ ] `topk`
-- [ ] `to_fp8`
-- [ ] `trace`
-- [ ] `transpose`
-- [ ] `tri`
-- [ ] `tril`
-- [ ] `triu`
-- [ ] `trunc`
-- [ ] `unflatten`
-- [ ] `unstack`
-- [ ] `vecdot`
-- [ ] `var`
-- [ ] `view`
-- [ ] `where`
-- [ ] `zeros`
-- [ ] `zeros_like`
-## Nn
-- [ ] `value_and_grad`
-- [ ] `quantize`
-- [ ] `average_gradients`
-- [ ] `fsdp_apply_gradients`
-## Optimizers
-- [ ] `clip_grad_norm`
-## Transforms
-- [ ] `eval`
-- [ ] `async_eval`
-- [ ] `compile`
-- [ ] `checkpoint`
-- [ ] `custom_function`
-- [ ] `disable_compile`
-- [ ] `enable_compile`
-- [ ] `grad`
-- [ ] `value_and_grad`
-- [ ] `jvp`
-- [ ] `vjp`
-- [ ] `vmap`
-## Random
-- [ ] `bernoulli`
-- [ ] `categorical`
-- [ ] `gumbel`
-- [ ] `key`
-- [ ] `normal`
-- [ ] `multivariate_normal`
-- [ ] `randint`
-- [ ] `seed`
-- [ ] `split`
-- [ ] `truncated_normal`
-- [ ] `uniform`
-- [ ] `laplace`
-- [ ] `permutation`
-## Linalg
-- [ ] `inv`
-- [ ] `tri_inv`
-- [ ] `norm`
-- [ ] `cholesky`
-- [ ] `cholesky_inv`
-- [ ] `cross`
-- [ ] `det`
-- [ ] `qr`
-- [ ] `svd`
-- [ ] `eigvals`
-- [ ] `eig`
-- [ ] `eigvalsh`
-- [ ] `eigh`
-- [ ] `lu`
-- [ ] `lu_factor`
-- [ ] `pinv`
-- [ ] `slogdet`
-- [ ] `solve`
-- [ ] `solve_triangular`
+## `mlx.core`
+- [x] `ArrayAt`
+- [x] `ArrayIterator`
+- [x] `ArrayLike`
+- [x] `Device`
+- [x] `DeviceType`
+- [x] `Dtype`
+- [x] `DtypeCategory`
+- [x] `FunctionExporter`
+- [x] `Stream`
+- [x] `StreamContext`
+- [x] `abs`
+- [x] `add`
+- [x] `addmm`
+- [x] `all`
+- [x] `allclose`
+- [x] `any`
+- [x] `arange`
+- [x] `arccos`
+- [x] `arccosh`
+- [x] `arcsin`
+- [x] `arcsinh`
+- [x] `arctan`
+- [x] `arctan2`
+- [x] `arctanh`
+- [x] `argmax`
+- [x] `argmin`
+- [x] `argpartition`
+- [x] `argsort`
+- [x] `array`
+- [x] `array_equal`
+- [x] `as_strided`
+- [x] `async_eval`
+- [x] `atleast_1d`
+- [x] `atleast_2d`
+- [x] `atleast_3d`
+- [x] `bfloat16`
+- [x] `bitwise_and`
+- [x] `bitwise_invert`
+- [x] `bitwise_or`
+- [x] `bitwise_xor`
+- [x] `block_masked_mm`
+- [x] `bool_`
+- [x] `broadcast_arrays`
+- [x] `broadcast_shapes`
+- [x] `broadcast_to`
+- [x] `ceil`
+- [x] `checkpoint`
+- [x] `clear_cache`
+- [x] `clip`
+- [x] `compile`
+- [x] `complex64`
+- [x] `complexfloating`
+- [x] `concat`
+- [x] `concatenate`
+- [x] `conj`
+- [x] `conjugate`
+- [x] `contiguous`
+- [x] `conv1d`
+- [x] `conv2d`
+- [x] `conv3d`
+- [x] `conv_general`
+- [x] `conv_transpose1d`
+- [x] `conv_transpose2d`
+- [x] `conv_transpose3d`
+- [x] `convolve`
+- [x] `cos`
+- [x] `cosh`
+- [x] `cpu`
+- [x] `cuda`
+- [x] `cummax`
+- [x] `cummin`
+- [x] `cumprod`
+- [x] `cumsum`
+- [x] `custom_function`
+- [x] `default_device`
+- [x] `default_stream`
+- [x] `degrees`
+- [x] `depends`
+- [x] `dequantize`
+- [x] `diag`
+- [x] `diagonal`
+- [x] `disable_compile`
+- [x] `distributed`
+- [x] `divide`
+- [x] `divmod`
+- [x] `e`
+- [x] `einsum`
+- [x] `einsum_path`
+- [x] `enable_compile`
+- [x] `equal`
+- [x] `erf`
+- [x] `erfinv`
+- [x] `euler_gamma`
+- [x] `eval`
+- [x] `exp`
+- [x] `expand_dims`
+- [x] `expm1`
+- [x] `export_function`
+- [x] `export_to_dot`
+- [x] `exporter`
+- [x] `eye`
+- [x] `fast`
+- [x] `fft`
+- [x] `finfo`
+- [x] `flatten`
+- [x] `float16`
+- [x] `float32`
+- [x] `float64`
+- [x] `floating`
+- [x] `floor`
+- [x] `floor_divide`
+- [x] `full`
+- [x] `gather_mm`
+- [x] `gather_qmm`
+- [x] `generic`
+- [x] `get_active_memory`
+- [x] `get_cache_memory`
+- [x] `get_peak_memory`
+- [x] `gpu`
+- [x] `grad`
+- [x] `greater`
+- [x] `greater_equal`
+- [x] `hadamard_transform`
+- [x] `identity`
+- [x] `iinfo`
+- [x] `imag`
+- [x] `import_function`
+- [x] `inexact`
+- [x] `inf`
+- [x] `inner`
+- [x] `int16`
+- [x] `int32`
+- [x] `int64`
+- [x] `int8`
+- [x] `integer`
+- [x] `is_available`
+- [x] `isclose`
+- [x] `isfinite`
+- [x] `isinf`
+- [x] `isnan`
+- [x] `isneginf`
+- [x] `isposinf`
+- [x] `issubdtype`
+- [x] `jvp`
+- [x] `kron`
+- [x] `left_shift`
+- [x] `less`
+- [x] `less_equal`
+- [x] `linalg`
+- [x] `linspace`
+- [x] `load`
+- [x] `log`
+- [x] `log10`
+- [x] `log1p`
+- [x] `log2`
+- [x] `logaddexp`
+- [x] `logcumsumexp`
+- [x] `logical_and`
+- [x] `logical_not`
+- [x] `logical_or`
+- [x] `logsumexp`
+- [x] `matmul`
+- [x] `max`
+- [x] `maximum`
+- [x] `mean`
+- [x] `meshgrid`
+- [x] `metal`
+- [x] `min`
+- [x] `minimum`
+- [x] `moveaxis`
+- [x] `multiply`
+- [x] `nan`
+- [x] `nan_to_num`
+- [x] `negative`
+- [x] `new_stream`
+- [x] `newaxis`
+- [x] `not_equal`
+- [x] `number`
+- [x] `ones`
+- [x] `ones_like`
+- [x] `outer`
+- [x] `pad`
+- [x] `partition`
+- [x] `permute_dims`
+- [x] `pi`
+- [x] `power`
+- [x] `prod`
+- [x] `put_along_axis`
+- [x] `quantize`
+- [x] `quantized_matmul`
+- [x] `radians`
+- [x] `random`
+- [x] `real`
+- [x] `reciprocal`
+- [x] `remainder`
+- [x] `repeat`
+- [x] `reset_peak_memory`
+- [x] `reshape`
+- [x] `right_shift`
+- [x] `roll`
+- [x] `round`
+- [x] `rsqrt`
+- [x] `save`
+- [x] `save_gguf`
+- [x] `save_safetensors`
+- [x] `savez`
+- [x] `savez_compressed`
+- [x] `segmented_mm`
+- [x] `set_cache_limit`
+- [x] `set_default_device`
+- [x] `set_default_stream`
+- [x] `set_memory_limit`
+- [x] `set_wired_limit`
+- [x] `sigmoid`
+- [x] `sign`
+- [x] `signedinteger`
+- [x] `sin`
+- [x] `sinh`
+- [x] `slice`
+- [x] `slice_update`
+- [x] `softmax`
+- [x] `sort`
+- [x] `split`
+- [x] `sqrt`
+- [x] `square`
+- [x] `squeeze`
+- [x] `stack`
+- [x] `std`
+- [x] `stop_gradient`
+- [x] `stream`
+- [x] `subtract`
+- [x] `sum`
+- [x] `swapaxes`
+- [x] `synchronize`
+- [x] `take`
+- [x] `take_along_axis`
+- [x] `tan`
+- [x] `tanh`
+- [x] `tensordot`
+- [x] `tile`
+- [x] `topk`
+- [x] `trace`
+- [x] `transpose`
+- [x] `tri`
+- [x] `tril`
+- [x] `triu`
+- [x] `uint16`
+- [x] `uint32`
+- [x] `uint64`
+- [x] `uint8`
+- [x] `unflatten`
+- [x] `unsignedinteger`
+- [x] `value_and_grad`
+- [x] `var`
+- [x] `view`
+- [x] `vjp`
+- [x] `vmap`
+- [x] `where`
+- [x] `zeros`
+- [x] `zeros_like`
+
+## `mlx.core.fft`
+- [x] `fft`
+- [x] `fft2`
+- [x] `fftn`
+- [x] `fftshift`
+- [x] `ifft`
+- [x] `ifft2`
+- [x] `ifftn`
+- [x] `ifftshift`
+- [x] `irfft`
+- [x] `irfft2`
+- [x] `irfftn`
+- [x] `rfft`
+- [x] `rfft2`
+- [x] `rfftn`
+
+## `mlx.core.linalg`
+- [x] `cholesky`
+- [x] `cholesky_inv`
+- [x] `cross`
+- [x] `eig`
+- [x] `eigh`
+- [x] `eigvals`
+- [x] `eigvalsh`
+- [x] `inv`
+- [x] `lu`
+- [x] `lu_factor`
+- [x] `norm`
+- [x] `pinv`
+- [x] `qr`
+- [x] `solve`
+- [x] `solve_triangular`
+- [x] `svd`
+- [x] `tri_inv`
+
+## `mlx.core.random`
+- [x] `bernoulli`
+- [x] `categorical`
+- [x] `gumbel`
+- [x] `key`
+- [x] `laplace`
+- [x] `multivariate_normal`
+- [x] `normal`
+- [x] `permutation`
+- [x] `randint`
+- [x] `seed`
+- [x] `split`
+- [x] `state`
+- [x] `truncated_normal`
+- [x] `uniform`
+
+## `mlx.nn`
+- [x] `ALiBi`
+- [x] `AllToShardedLinear`
+- [x] `AvgPool1d`
+- [x] `AvgPool2d`
+- [x] `AvgPool3d`
+- [x] `BatchNorm`
+- [x] `Bilinear`
+- [x] `CELU`
+- [x] `Conv1d`
+- [x] `Conv2d`
+- [x] `Conv3d`
+- [x] `ConvTranspose1d`
+- [x] `ConvTranspose2d`
+- [x] `ConvTranspose3d`
+- [x] `Dropout`
+- [x] `Dropout2d`
+- [x] `Dropout3d`
+- [x] `ELU`
+- [x] `Embedding`
+- [x] `GELU`
+- [x] `GLU`
+- [x] `GRU`
+- [x] `GroupNorm`
+- [x] `HardShrink`
+- [x] `HardTanh`
+- [x] `Hardswish`
+- [x] `Identity`
+- [x] `InstanceNorm`
+- [x] `LSTM`
+- [x] `LayerNorm`
+- [x] `LeakyReLU`
+- [x] `Linear`
+- [x] `LogSigmoid`
+- [x] `LogSoftmax`
+- [x] `MaxPool1d`
+- [x] `MaxPool2d`
+- [x] `MaxPool3d`
+- [x] `Mish`
+- [x] `Module`
+- [x] `MultiHeadAttention`
+- [x] `PReLU`
+- [x] `QuantizedAllToShardedLinear`
+- [x] `QuantizedEmbedding`
+- [x] `QuantizedLinear`
+- [x] `QuantizedShardedToAllLinear`
+- [x] `RMSNorm`
+- [x] `RNN`
+- [x] `ReLU`
+- [x] `ReLU2`
+- [x] `ReLU6`
+- [x] `RoPE`
+- [x] `SELU`
+- [x] `Sequential`
+- [x] `ShardedToAllLinear`
+- [x] `SiLU`
+- [x] `Sigmoid`
+- [x] `SinusoidalPositionalEncoding`
+- [x] `Softmax`
+- [x] `Softmin`
+- [x] `Softplus`
+- [x] `Softshrink`
+- [x] `Softsign`
+- [x] `Step`
+- [x] `Tanh`
+- [x] `Transformer`
+- [x] `TransformerDecoder`
+- [x] `TransformerDecoderLayer`
+- [x] `TransformerEncoder`
+- [x] `TransformerEncoderLayer`
+- [x] `Upsample`
+- [x] `activations`
+- [x] `average_gradients`
+- [x] `base`
+- [x] `celu`
+- [x] `containers`
+- [x] `convolution`
+- [x] `convolution_transpose`
+- [x] `distributed`
+- [x] `dropout`
+- [x] `elu`
+- [x] `embedding`
+- [x] `gelu`
+- [x] `gelu_approx`
+- [x] `gelu_fast_approx`
+- [x] `glu`
+- [x] `hard_shrink`
+- [x] `hard_tanh`
+- [x] `hardswish`
+- [x] `init`
+- [x] `layers`
+- [x] `leaky_relu`
+- [x] `linear`
+- [x] `log_sigmoid`
+- [x] `log_softmax`
+- [x] `losses`
+- [x] `mish`
+- [x] `normalization`
+- [x] `pooling`
+- [x] `positional_encoding`
+- [x] `prelu`
+- [x] `quantize`
+- [x] `quantized`
+- [x] `recurrent`
+- [x] `relu`
+- [x] `relu2`
+- [x] `relu6`
+- [x] `selu`
+- [x] `sigmoid`
+- [x] `silu`
+- [x] `softmax`
+- [x] `softmin`
+- [x] `softplus`
+- [x] `softshrink`
+- [x] `softsign`
+- [x] `step`
+- [x] `tanh`
+- [x] `transformer`
+- [x] `upsample`
+- [x] `utils`
+- [x] `value_and_grad`
+
+## `mlx.optimizers`
+- [x] `AdaDelta`
+- [x] `Adafactor`
+- [x] `Adagrad`
+- [x] `Adam`
+- [x] `AdamW`
+- [x] `Adamax`
+- [x] `Callable`
+- [x] `Lion`
+- [x] `List`
+- [x] `Module`
+- [x] `MultiOptimizer`
+- [x] `Muon`
+- [x] `Optimizer`
+- [x] `Optional`
+- [x] `RMSprop`
+- [x] `SGD`
+- [x] `Tuple`
+- [x] `Union`
+- [x] `clip_grad_norm`
+- [x] `cosine_decay`
+- [x] `exponential_decay`
+- [x] `join_schedules`
+- [x] `linear_schedule`
+- [x] `math`
+- [x] `mx`
+- [x] `optimizers`
+- [x] `schedulers`
+- [x] `step_decay`
+- [x] `tree_flatten`
+- [x] `tree_map`
+- [x] `tree_merge`
+- [x] `tree_reduce`
+- [x] `tree_unflatten`
+
+## `mlx.utils`
+- [x] `Any`
+- [x] `Callable`
+- [x] `Dict`
+- [x] `List`
+- [x] `Optional`
+- [x] `Tuple`
+- [x] `Union`
+- [x] `defaultdict`
+- [x] `tree_flatten`
+- [x] `tree_map`
+- [x] `tree_map_with_path`
+- [x] `tree_merge`
+- [x] `tree_reduce`
+- [x] `tree_unflatten`
+- [x] `zip_longest`
+

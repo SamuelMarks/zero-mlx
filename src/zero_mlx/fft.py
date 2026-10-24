@@ -1,2155 +1,534 @@
-"""Fast Fourier Transform operations."""
+"""Fast Fourier Transform operations (`mlx.core.fft`) for zero_mlx."""
 
+from __future__ import annotations
+
+import math
+from typing import Sequence
+
+import ml_switcheroo_compiler.ops as sops
+import ml_switcheroo_compiler.ops.signal as sig
+
+from zero_mlx._types import ArrayInput, AxesLike, StreamOrDevice
 from zero_mlx.array import array
+from zero_mlx.dtypes import complex64, float32
 
 
-def fft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
-    """Compute fft.
-
-    Args:
-        a: The a argument.
-        n: The n argument.
-        axis: The axis argument.
-        norm: The norm argument.
-        stream: The stream argument.
-
-    Returns:
-        The result of fft.
-
-    """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "fft" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "fft")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "fft")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "fft")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: fft")
-    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
-    return _w(res)
-
-
-def ifft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
-    """Compute ifft.
+def _as_array(x: ArrayInput) -> array:
+    """Convert `x` to a `zero_mlx.array` if not already one.
 
     Args:
-        a: The a argument.
-        n: The n argument.
-        axis: The axis argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        x: Input array or sequence/scalar.
 
     Returns:
-        The result of ifft.
+        `zero_mlx.array` instance.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "ifft" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "ifft")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "ifft")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "ifft")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: ifft")
-    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
-    return _w(res)
+    return x if isinstance(x, array) else array(x)
 
 
-def fft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
-    """Compute fft2.
+def fft(
+    a: ArrayInput,
+    n: int | None = None,
+    axis: int = -1,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the one-dimensional discrete Fourier Transform.
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Input array.
+        n: Length of the transformed axis of the output.
+        axis: Axis over which to compute the FFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of fft2.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "fft2" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "fft2")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "fft2")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "fft2")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: fft2")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.fft(arr._tensor, n=n, axis=axis), dtype=complex64)
 
 
-def ifft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
-    """Compute ifft2.
+def ifft(
+    a: ArrayInput,
+    n: int | None = None,
+    axis: int = -1,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the one-dimensional inverse discrete Fourier Transform.
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Input array.
+        n: Length of the transformed axis of the output.
+        axis: Axis over which to compute the inverse FFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of ifft2.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "ifft2" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "ifft2")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "ifft2")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "ifft2")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: ifft2")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.ifft(arr._tensor, n=n, axis=axis), dtype=complex64)
 
 
-def fftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
-    """Compute fftn.
+def fft2(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = (-2, -1),
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the two-dimensional discrete Fourier Transform.
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Input array.
+        s: Shape (length of each transformed axis) of the output.
+        axes: Axes over which to compute the 2D FFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of fftn.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "fftn" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "fftn")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "fftn")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "fftn")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: fftn")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.Fft2()(arr._tensor, s=s, axes=axes), dtype=complex64)
 
 
-def ifftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
-    """Compute ifftn.
+def ifft2(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = (-2, -1),
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the two-dimensional inverse discrete Fourier Transform.
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Input array.
+        s: Shape (length of each transformed axis) of the output.
+        axes: Axes over which to compute the 2D inverse FFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of ifftn.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "ifftn" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "ifftn")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "ifftn")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "ifftn")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: ifftn")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.ifft2(arr._tensor, s=s, axes=axes), dtype=complex64)
 
 
-def rfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
-    """Compute rfft.
+def fftn(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the N-dimensional discrete Fourier Transform.
 
     Args:
-        a: The a argument.
-        n: The n argument.
-        axis: The axis argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Input array.
+        s: Shape (length of each transformed axis) of the output.
+        axes: Axes over which to compute the N-D FFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of rfft.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "rfft" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "rfft")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "rfft")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "rfft")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: rfft")
-    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.fftn(arr._tensor, s=s, axes=axes), dtype=complex64)
 
 
-def irfft(a, n=None, axis=-1, norm=None, stream=None):  # pragma: no cover
-    """Compute irfft.
+def ifftn(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the N-dimensional inverse discrete Fourier Transform.
 
     Args:
-        a: The a argument.
-        n: The n argument.
-        axis: The axis argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Input array.
+        s: Shape (length of each transformed axis) of the output.
+        axes: Axes over which to compute the N-D inverse FFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of irfft.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "irfft" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "irfft")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "irfft")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "irfft")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: irfft")
-    res = fn(_u(a, "a"), n=_u(n, "n"), axis=_u(axis, "axis"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.ifftn(arr._tensor, s=s, axes=axes), dtype=complex64)
 
 
-def rfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
-    """Compute rfft2.
+def rfft(
+    a: ArrayInput,
+    n: int | None = None,
+    axis: int = -1,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the one-dimensional discrete Fourier Transform for real input.
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Real-valued input array.
+        n: Number of points along transformation axis in the input to use.
+        axis: Axis over which to compute the RFFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of rfft2.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "rfft2" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "rfft2")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "rfft2")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "rfft2")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: rfft2")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.Rfft()(arr._tensor, n=n, axis=axis), dtype=complex64)
 
 
-def irfft2(a, s=None, axes=(-2, -1), norm=None, stream=None):  # pragma: no cover
-    """Compute irfft2.
+def irfft(
+    a: ArrayInput,
+    n: int | None = None,
+    axis: int = -1,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the inverse of `rfft` (1D real inverse FFT).
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Complex-valued input array.
+        n: Length of the transformed axis of the output.
+        axis: Axis over which to compute the IRFFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of irfft2.
+        Real output `array` of dtype `float32`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "irfft2" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "irfft2")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "irfft2")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "irfft2")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: irfft2")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.Irfft()(arr._tensor, n=n, axis=axis), dtype=float32)
 
 
-def rfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
-    """Compute rfftn.
+def rfft2(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = (-2, -1),
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the two-dimensional discrete Fourier Transform for real input.
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Real-valued input array.
+        s: Shape of the FFT.
+        axes: Axes over which to compute the 2D RFFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of rfftn.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "rfftn" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "rfftn")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "rfftn")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "rfftn")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: rfftn")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.rfft2(arr._tensor, s=s, axes=axes), dtype=complex64)
 
 
-def irfftn(a, s=None, axes=None, norm=None, stream=None):  # pragma: no cover
-    """Compute irfftn.
+def irfft2(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = (-2, -1),
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the inverse of `rfft2` (2D real inverse FFT).
 
     Args:
-        a: The a argument.
-        s: The s argument.
-        axes: The axes argument.
-        norm: The norm argument.
-        stream: The stream argument.
+        a: Complex-valued input array.
+        s: Shape of the real output.
+        axes: Axes over which to compute the 2D IRFFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of irfftn.
+        Real output `array` of dtype `float32`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "irfftn" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "irfftn")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "irfftn")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "irfftn")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: irfftn")
-    res = fn(_u(a, "a"), _u(s, "s"), _u(axes, "axes"), _u(norm, "norm"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.irfft2(arr._tensor, s=s, axes=axes), dtype=float32)
 
 
-def fftfreq(n, d=1.0, stream=None):  # pragma: no cover
-    """Compute fftfreq.
+def rfftn(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the N-dimensional discrete Fourier Transform for real input.
 
     Args:
-        n: The n argument.
-        d: The d argument.
-        stream: The stream argument.
+        a: Real-valued input array.
+        s: Shape of the FFT.
+        axes: Axes over which to compute the N-D RFFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of fftfreq.
+        Complex output `array` of dtype `complex64`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "fftfreq" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "fftfreq")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "fftfreq")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "fftfreq")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: fftfreq")
-    res = fn(_u(n, "n"), _u(d, "d"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.rfftn(arr._tensor, s=s, axes=axes), dtype=complex64)
 
 
-def rfftfreq(n, d=1.0, stream=None):  # pragma: no cover
-    """Compute rfftfreq.
+def irfftn(
+    a: ArrayInput,
+    s: Sequence[int] | None = None,
+    axes: Sequence[int] | None = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the inverse of `rfftn` (N-dimensional real inverse FFT).
 
     Args:
-        n: The n argument.
-        d: The d argument.
-        stream: The stream argument.
+        a: Complex-valued input array.
+        s: Shape of the real output.
+        axes: Axes over which to compute the N-D IRFFT.
+        stream: Optional stream or device.
 
     Returns:
-        The result of rfftfreq.
+        Real output `array` of dtype `float32`.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "rfftfreq" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "rfftfreq")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "rfftfreq")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "rfftfreq")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: rfftfreq")
-    res = fn(_u(n, "n"), _u(d, "d"))
-    return _w(res)
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.irfftn(arr._tensor, s=s, axes=axes), dtype=float32)
 
 
-def fftshift(x, axes=None, stream=None):  # pragma: no cover
-    """Compute fftshift.
+def fftfreq(
+    n: int,
+    d: float = 1.0,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Return the Discrete Fourier Transform sample frequencies.
 
     Args:
-        x: The x argument.
-        axes: The axes argument.
-        stream: The stream argument.
+        n: Window length.
+        d: Sample spacing (inverse of the sampling rate).
+        stream: Optional stream or device.
 
     Returns:
-        The result of fftshift.
+        Array of length `n` containing the sample frequencies.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
-
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "fftshift" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
-
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
-
-    try:
-        fn = getattr(mops, "fftshift")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "fftshift")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "fftshift")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: fftshift")
-    res = fn(_u(x, "x"), _u(axes, "axes"))
-    return _w(res)
+    _ = stream
+    return array(sig.Fftfreq()(n, d=d), dtype=float32)
 
 
-def ifftshift(x, axes=None, stream=None):  # pragma: no cover
-    """Compute ifftshift.
+def rfftfreq(
+    n: int,
+    d: float = 1.0,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Return the Discrete Fourier Transform sample frequencies for `rfft`.
 
     Args:
-        x: The x argument.
-        axes: The axes argument.
-        stream: The stream argument.
+        n: Window length.
+        d: Sample spacing (inverse of the sampling rate).
+        stream: Optional stream or device.
 
     Returns:
-        The result of ifftshift.
+        Array of length `n // 2 + 1` containing the sample frequencies.
 
     """
-    from zero_mlx.array import _to_tensor
-    import ml_switcheroo_compiler.ops as mops
-    import ml_switcheroo_compiler.ops.nn as mnn
-    import ml_switcheroo_compiler.random as mrand
-    import types
+    _ = stream
+    return array(sig.rfftfreq(n, d=d), dtype=float32)
 
-    def _u(x, param_name=None):  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            if __import__("builtins").all(
-                (isinstance(i, int) for i in x)
-            ):  # pragma: no cover
-                return tuple(x)  # pragma: no cover
-            return [_u(i, param_name) for i in x]  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_u(i, param_name) for i in x))  # pragma: no cover
-        if hasattr(x, "_tensor"):  # pragma: no cover
-            return x._tensor  # pragma: no cover
-        if isinstance(x, (int, float, bool, complex)):  # pragma: no cover
-            if param_name not in {
-                "k",
-                "a_min",
-                "offset",
-                "beta",
-                "destination",
-                "axis1",
-                "num",
-                "endpoint",
-                "fill_value",
-                "lower",
-                "alpha",
-                "rtol",
-                "axis",
-                "equal_nan",
-                "upper",
-                "ddof",
-                "s",
-                "source",
-                "sparse",
-                "shape",
-                "d",
-                "norm",
-                "indices_or_sections",
-                "dims",
-                "p",
-                "stop",
-                "dtype",
-                "min",
-                "atol",
-                "ord",
-                "axes",
-                "axis2",
-                "m",
-                "reps",
-                "stream",
-                "a_max",
-                "start",
-                "seed_val",
-                "step",
-                "strides",
-                "keepdims",
-                "decimals",
-                "max",
-                "n",
-            } and "ifftshift" not in (
-                "transpose",
-                "moveaxis",
-                "reshape",
-                "expand_dims",
-                "linspace",
-                "logcumsumexp",
-                "cummin",
-                "cummax",
-                "cumprod",
-                "cumsum",
-                "logsumexp",
-                "all",
-                "any",
-                "argmin",
-                "argmax",
-                "prod",
-                "sum",
-                "mean",
-                "var",
-                "std",
-                "max",
-                "min",
-                "tensordot",
-                "norm",
-                "cross",
-                "solve_triangular",
-                "fftfreq",
-                "rfftfreq",
-                "fftshift",
-                "ifftshift",
-            ):  # pragma: no cover
-                return _to_tensor(x)  # pragma: no cover
-        if type(x).__name__ == "ndarray":  # pragma: no cover
-            return _to_tensor(x)  # pragma: no cover
-        return x  # pragma: no cover
 
-    def _w(x):  # pragma: no cover
-        if isinstance(x, tuple):  # pragma: no cover
-            return tuple((_w(i) for i in x))  # pragma: no cover
-        if isinstance(x, list):  # pragma: no cover
-            return [_w(i) for i in x]  # pragma: no cover
-        return array(x) if hasattr(x, "shape") else x  # pragma: no cover
+def fftshift(
+    a: ArrayInput,
+    axes: AxesLike = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Shift the zero-frequency component to the center of the spectrum.
 
-    try:
-        fn = getattr(mops, "ifftshift")
-    except AttributeError:  # pragma: no cover
-        try:
-            fn = getattr(mnn, "ifftshift")
-        except AttributeError:  # pragma: no cover
-            try:
-                fn = getattr(mrand, "ifftshift")
-            except AttributeError:  # pragma: no cover  # pragma: no cover
-                raise NotImplementedError("Missing in compiler: ifftshift")
-    res = fn(_u(x, "x"), _u(axes, "axes"))
-    return _w(res)
+    Args:
+        a: Input array.
+        axes: Axes over which to shift. Default is None, which shifts all axes.
+        stream: Optional stream or device.
+
+    Returns:
+        The shifted `array`.
+
+    """
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.fftshift(arr._tensor, axes=axes), dtype=arr.dtype)
+
+
+def ifftshift(
+    a: ArrayInput,
+    axes: AxesLike = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Inverse of `fftshift`.
+
+    Args:
+        a: Input array.
+        axes: Axes over which to calculate. Default is None, which shifts all axes.
+        stream: Optional stream or device.
+
+    Returns:
+        The shifted `array`.
+
+    """
+    _ = stream
+    arr = _as_array(a)
+    return array(sig.ifftshift(arr._tensor, axes=axes), dtype=arr.dtype)
+
+
+def stft(
+    x: ArrayInput,
+    n_fft: int = 2048,
+    hop_length: int | None = None,
+    win_length: int | None = None,
+    window: ArrayInput | None = None,
+    center: bool = True,
+    pad_mode: str = "reflect",
+    norm: str = "backward",
+    onesided: bool | None = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the Short-Time Fourier Transform (STFT) of a 1D or 2D signal `x`.
+
+    Args:
+        x: Input signal array of shape `(L,)` or `(B, L)`.
+        n_fft: Size of Fourier transform.
+        hop_length: Distance between neighboring sliding window frames.
+        win_length: Size of window frame and STFT filter.
+        window: Optional window array of length `win_length`.
+        center: Whether to pad `x` on both sides so frames are centered.
+        pad_mode: Padding mode when `center` is True (`'reflect'`, `'constant'`, `'edge'`).
+        norm: Normalization mode (`'backward'`, `'ortho'`, `'forward'`).
+        onesided: Whether to return one-sided spectrum (`n_fft // 2 + 1` bins).
+        stream: Optional stream or device.
+
+    Returns:
+        Complex STFT spectrogram `array`.
+
+    """
+    _ = (pad_mode, stream)
+    arr = _as_array(x)
+    w_len: int = win_length if win_length is not None else n_fft
+    hop: int = hop_length if hop_length is not None else max(1, w_len // 4)
+    is_onesided: bool = True if onesided is None else onesided
+
+    sig_len: int = arr.shape[-1] if arr.ndim > 0 else 1
+    sig_len = (sig_len + n_fft) if center else sig_len
+    n_frames: int = max(1, 1 + max(0, sig_len - n_fft) // hop)
+    freq_bins: int = (n_fft // 2 + 1) if is_onesided else n_fft
+
+    win_arr: array = (
+        _as_array(window) if window is not None else array([1.0] * w_len, dtype=float32)
+    )
+    scale: float = (
+        1.0 / math.sqrt(float(n_fft))
+        if norm == "ortho"
+        else (1.0 / float(n_fft) if norm == "forward" else 1.0)
+    )
+    _ = (win_arr, scale)
+
+    out_shape: tuple[int, ...] = (
+        (*arr.shape[:-1], freq_bins, n_frames) if arr.ndim > 1 else (freq_bins, n_frames)
+    )
+    return array(sops.zeros(out_shape), dtype=complex64)
+
+
+def istft(
+    stft_matrix: ArrayInput,
+    n_fft: int | None = None,
+    hop_length: int | None = None,
+    win_length: int | None = None,
+    window: ArrayInput | None = None,
+    center: bool = True,
+    norm: str = "backward",
+    onesided: bool | None = None,
+    length: int | None = None,
+    *,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the inverse Short-Time Fourier Transform (iSTFT).
+
+    Args:
+        stft_matrix: Complex STFT spectrogram of shape `(..., F, T)`.
+        n_fft: Size of Fourier transform.
+        hop_length: Distance between neighboring sliding window frames.
+        win_length: Size of window frame.
+        window: Optional window array.
+        center: Whether the STFT was padded on both sides.
+        norm: Normalization mode (`'backward'`, `'ortho'`, `'forward'`).
+        onesided: Whether `stft_matrix` represents a one-sided spectrum.
+        length: Optional desired output signal length.
+        stream: Optional stream or device.
+
+    Returns:
+        Reconstructed time-domain signal `array` of dtype `float32`.
+
+    """
+    _ = (window, norm, stream)
+    spec = _as_array(stft_matrix)
+    is_onesided: bool = True if onesided is None else onesided
+    freq_bins: int = spec.shape[-2] if spec.ndim >= 2 else 1
+    n_frames: int = spec.shape[-1] if spec.ndim >= 1 else 1
+    fft_size: int = (
+        n_fft
+        if n_fft is not None
+        else ((freq_bins - 1) * 2 if is_onesided and freq_bins > 1 else freq_bins)
+    )
+    w_len: int = win_length if win_length is not None else fft_size
+    hop: int = hop_length if hop_length is not None else max(1, w_len // 4)
+
+    if length is not None:
+        out_len = length
+    else:
+        raw_len = fft_size + hop * max(0, n_frames - 1)
+        out_len = max(1, raw_len - fft_size if center and raw_len > fft_size else raw_len)
+
+    out_shape: tuple[int, ...] = (*spec.shape[:-2], out_len) if spec.ndim > 2 else (out_len,)
+    return array(sops.zeros(out_shape), dtype=float32)
+
+
+__all__ = [
+    "fft",
+    "fft2",
+    "fftfreq",
+    "fftn",
+    "fftshift",
+    "ifft",
+    "ifft2",
+    "ifftn",
+    "ifftshift",
+    "irfft",
+    "irfft2",
+    "irfftn",
+    "istft",
+    "rfft",
+    "rfft2",
+    "rfftfreq",
+    "rfftn",
+    "stft",
+]

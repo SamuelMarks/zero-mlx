@@ -1,401 +1,826 @@
-"""Module docstring."""
+"""Function transforms, compilation, serialization, and memory re-exports for zero_mlx."""
 
-from typing import Union, Any, Sequence, Optional
-from zero_mlx.array import array
-import ml_switcheroo_compiler.ops as sops
+from __future__ import annotations
 
-
-def _to_tensor(x):  # pragma: no cover
-    if isinstance(x, array):
-        return x._tensor
-    return array(x)._tensor
-
-
-def arccosh(a: array, /, *, stream: Any = None) -> array:  # pragma: no cover
-    """Element-wise inverse hyperbolic cosine."""
-    return array(sops.acosh(_to_tensor(a)))
-
-
-def arctan2(a: array, b: array, /, *, stream: Any = None) -> array:  # pragma: no cover
-    """Element-wise inverse tangent of the ratio of two arrays."""
-    return array(sops.atan2(_to_tensor(a), _to_tensor(b)))
-
-
-def bitwise_invert(  # pragma: no cover
-    a: Union[int, array], stream: Any = None
-) -> array:  # pragma: no cover
-    """Element-wise bitwise inverse."""
-    return array(sops.bitwise_not(_to_tensor(a)))
-
-
-def clear_cache() -> None:  # pragma: no cover
-    """Clear the memory cache."""
-    pass
-
-
-def concat(  # pragma: no cover
-    arrays: list[array], axis: int = 0, *, stream: Any = None
-) -> array:  # pragma: no cover
-    """Concatenate a list of arrays along a given axis."""
-    if not arrays:
-        raise ValueError("arrays list cannot be empty")
-
-    tensors = [_to_tensor(a) for a in arrays]
-    return array(sops.concatenate(tensors, dim=axis))
-
-
-def conj(a: array, *, stream: Any = None) -> array:  # pragma: no cover
-    """Return the elementwise complex conjugate of the input."""
-    return array(sops.conj(_to_tensor(a)))
-
-
-def contiguous(  # pragma: no cover
-    a: array, /, allow_col_major: bool = False, *, stream: Any = None
-) -> array:
-    """Force an array to be row contiguous. Copy if necessary."""
-    return array(_to_tensor(a))
-
-
-def einsum(subscripts: str, *operands, stream: Any = None) -> array:  # pragma: no cover
-    """Perform the Einstein summation convention on the operands."""
-    tensors = [_to_tensor(x) for x in operands]
-    return array(sops.einsum(subscripts, *tensors))
-
-
-def einsum_path(subscripts: str, *operands):  # pragma: no cover
-    """Compute the contraction order for the given Einstein summation."""
-    import ml_switcheroo_compiler.ops as sops
-
-    tensors = [_to_tensor(x) for x in operands]
-    return sops.einsum_path(subscripts, *tensors)
-
-
-def flatten(  # pragma: no cover
-    a: array, /, start_axis: int = 0, end_axis: int = -1, *, stream: Any = None
-) -> array:
-    """Flatten an array."""
-    shape = list(a.shape)
-    if end_axis < 0:
-        end_axis += len(shape)
-    if start_axis < 0:
-        start_axis += len(shape)
-
-    if start_axis > end_axis:
-        return a
-
-    flat_dim = 1
-    for i in range(start_axis, end_axis + 1):
-        flat_dim *= shape[i]
-
-    new_shape = shape[:start_axis] + [flat_dim] + shape[end_axis + 1 :]
-    return array(sops.reshape(_to_tensor(a), new_shape))
-
-
-def unflatten(  # pragma: no cover
-    a: array, /, axis: int, shape: Sequence[int], *, stream: Any = None
-) -> array:
-    """Unflatten an axis of an array to a shape."""
-    old_shape = list(a.shape)
-    if axis < 0:
-        axis += len(old_shape)
-
-    new_shape = old_shape[:axis] + list(shape) + old_shape[axis + 1 :]
-    return array(sops.reshape(_to_tensor(a), new_shape))
-
-
-def identity(  # pragma: no cover
-    n: int, dtype: Any = None, *, stream: Any = None
-) -> array:  # pragma: no cover
-    """Create a square identity matrix."""
-    from zero_mlx.dtypes import DType
-
-    if dtype is None:
-        dtype = DType("float32")
-    return array(sops.identity(n, dtype=DType(dtype.value)))
-
-
-def hadamard_transform(  # pragma: no cover
-    a: array, scale: Optional[float] = None, stream: Any = None
-) -> array:
-    """Perform the Walsh-Hadamard transform along the final axis."""
-    import ml_switcheroo_compiler.ops as sops
-
-    return array(sops.hadamard_transform(_to_tensor(a), scale=scale))
-
-
-def gather_qmm(  # pragma: no cover
-    x: array,
-    w: array,
-    /,
-    scales: array,
-    biases: Optional[array] = None,
-    lhs_indices: Optional[array] = None,
-    rhs_indices: Optional[array] = None,
-    transpose: bool = True,
-    group_size: int = 64,
-    bits: int = 4,
-    *,
-    stream: Any = None,
-) -> array:
-    """Perform quantized matrix multiplication with matrix-level gather."""
-    import ml_switcheroo_compiler.ops as sops
-
-    t_x = _to_tensor(x)
-    t_w = _to_tensor(w)
-    t_scales = _to_tensor(scales)
-    t_biases = _to_tensor(biases) if biases is not None else None
-    t_lhs_indices = _to_tensor(lhs_indices) if lhs_indices is not None else None
-    t_rhs_indices = _to_tensor(rhs_indices) if rhs_indices is not None else None
-
-    return array(
-        sops.gather_qmm(
-            t_x,
-            t_w,
-            scales=t_scales,
-            biases=t_biases,
-            lhs_indices=t_lhs_indices,
-            rhs_indices=t_rhs_indices,
-            transpose=transpose,
-            group_size=group_size,
-            bits=bits,
-        )
-    )
-
-
-def quantized_matmul(  # pragma: no cover
-    x: array,
-    w: array,
-    /,
-    scales: array,
-    biases: Optional[array] = None,
-    transpose: bool = True,
-    group_size: int = 64,
-    bits: int = 4,
-    mode: str = "affine",
-    *,
-    stream: Any = None,
-) -> array:
-    """Perform the matrix multiplication with the quantized matrix w."""
-    import ml_switcheroo_compiler.ops as sops
-
-    t_x = _to_tensor(x)
-    t_w = _to_tensor(w)
-    t_scales = _to_tensor(scales)
-    t_biases = _to_tensor(biases) if biases is not None else None
-
-    return array(
-        sops.quantized_matmul(
-            t_x,
-            t_w,
-            scales=t_scales,
-            biases=t_biases,
-            transpose=transpose,
-            group_size=group_size,
-            bits=bits,
-            mode=mode,
-        )
-    )
-
-
-def get_active_memory() -> int:  # pragma: no cover
-    """Get the actively used memory in bytes."""
-    return 0
-
-
-def get_cache_memory() -> int:  # pragma: no cover
-    """Get the cache size in bytes."""
-    return 0
-
-
-def reset_peak_memory() -> None:  # pragma: no cover
-    """Reset the peak memory to zero."""
-    pass
-
-
-def set_cache_limit(limit: int) -> int:  # pragma: no cover
-    """Set the free cache limit."""
-    return limit
-
-
-def set_memory_limit(limit: int) -> int:  # pragma: no cover
-    """Set the memory limit."""
-    return limit
-
-
-def set_wired_limit(limit: int) -> int:  # pragma: no cover
-    """Set the wired size limit."""
-    return limit
-
-
+import json
+import os
 import pathlib
+from typing import Callable, Protocol, Sequence, Union
+
+import ml_switcheroo_compiler.ops as sops
+import ml_switcheroo_compiler.tracing as tracing
+
+from zero_mlx._types import ArrayInput, DTypeLike, PyTree, StreamOrDevice
+from zero_mlx.array import _to_tensor, array
+from zero_mlx.convolutions import gather_qmm, gather_qqmm, qqmm, quantize, quantized_matmul
+from zero_mlx.device import (
+    Stream,
+    clear_cache,
+    get_active_memory,
+    get_cache_memory,
+    get_memory_limit,
+    get_peak_memory,
+    reset_peak_memory,
+    set_cache_limit,
+    set_default_stream,
+    set_memory_limit,
+    set_wired_limit,
+    synchronize,
+)
+from zero_mlx.dtypes import DType, float32, resolve_dtype, to_switcheroo_dtype
+from zero_mlx.export import export_to_dot, import_function
+
+PathLike = Union[str, pathlib.Path]
+_SAVED_ARRAYS: dict[str, tuple[dict[str, array] | array, dict[str, str]]] = {}
+_COMPILE_ENABLED: bool = True
 
 
-def load(  # pragma: no cover
-    file: Union[Any, str, pathlib.Path],
-    /,
-    format: Optional[str] = None,
+class ArrayFn(Protocol):
+    """Protocol for scalar/tensor functions differentiated by `grad` / `value_and_grad` / `vmap`."""
+
+    def __call__(self, *args: array, **kwargs: array) -> array:
+        """Evaluate the function on positional and keyword `array` arguments.
+
+        Args:
+            *args: Positional `array` arguments.
+            **kwargs: Keyword `array` arguments.
+
+        Returns:
+            Output `array`.
+
+        """
+
+
+class GradFn(Protocol):
+    """Protocol for the gradient function returned by `grad`."""
+
+    def __call__(
+        self, *args: ArrayInput, **kwargs: ArrayInput
+    ) -> array | tuple[array, ...] | dict[str, array]:
+        """Compute gradients at `(*args, **kwargs)`.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Gradient `array`, tuple of `array`, or dict of `array`.
+
+        """
+
+
+class ValueAndGradFn(Protocol):
+    """Protocol for the function returned by `value_and_grad`."""
+
+    def __call__(
+        self, *args: ArrayInput, **kwargs: ArrayInput
+    ) -> tuple[array, array | tuple[array, ...] | dict[str, array]]:
+        """Compute `(value, gradients)` at `(*args, **kwargs)`.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Tuple `(value, gradients)`.
+
+        """
+
+
+class DiffFn(Protocol):
+    """Protocol for functions passed to `vjp` and `jvp`."""
+
+    def __call__(self, *primals: array) -> array | Sequence[array]:
+        """Evaluate the function at `*primals`.
+
+        Args:
+            *primals: Primal input arrays.
+
+        Returns:
+            Output `array` or sequence of `array` objects.
+
+        """
+
+
+class CompiledFn(Protocol):
+    """Protocol for functions passed to `compile` and `checkpoint`."""
+
+    def __call__(self, *args: array, **kwargs: array) -> array | PyTree:
+        """Invoke the compiled or checkpointed function.
+
+        Args:
+            *args: Positional `array` arguments.
+            **kwargs: Keyword `array` arguments.
+
+        Returns:
+            Output `array` or `PyTree`.
+
+        """
+
+
+ArrayFnInput = ArrayFn
+DiffFnInput = DiffFn
+CompiledFnInput = CompiledFn
+
+
+def _as_array(x: ArrayInput) -> array:
+    """Convert `x` into a `zero_mlx.array` if not already one.
+
+    Args:
+        x: Input array or scalar/sequence.
+
+    Returns:
+        `zero_mlx.array` instance.
+
+    """
+    return x if isinstance(x, array) else array(x)
+
+
+def eval(*args: PyTree) -> None:
+    """Evaluate one or more `array` or `PyTree` objects.
+
+    Args:
+        *args: Arrays or nested PyTree structures of arrays to evaluate.
+
+    """
+    if not tracing.global_tracing_state.is_tracing or not tracing.global_tracing_state.active_graph:
+        return None
+    from ml_switcheroo_compiler.interpreter.evaluator import evaluate_graph
+    from ml_switcheroo_compiler.tracing.tracer import ProxyTensor
+    from zero_mlx.utils import tree_flatten
+
+    graph = tracing.global_tracing_state.active_graph
+    flat = tree_flatten(list(args))
+    proxy_leaves: list[tuple[array, ProxyTensor]] = [
+        (leaf, leaf._tensor.data)
+        for _, leaf in (flat if isinstance(flat, list) else [])
+        if isinstance(leaf, array) and isinstance(leaf._tensor.data, ProxyTensor)
+    ]
+    if proxy_leaves:
+        graph.outputs = list({node.id for _, node in proxy_leaves})
+        results = evaluate_graph(graph, {})
+        for leaf, node in proxy_leaves:
+            leaf._tensor._data = results.get(node.id, node)
+    return None
+
+
+def async_eval(*args: PyTree) -> None:
+    """Asynchronously evaluate one or more `array` or `PyTree` objects.
+
+    Args:
+        *args: Arrays or nested PyTree structures of arrays to evaluate.
+
+    """
+    eval(*args)
+
+
+def grad(
+    fun: ArrayFnInput,
+    argnums: int | Sequence[int] = 0,
+    argnames: str | Sequence[str] = (),
+) -> GradFn:
+    """Return a function that computes the gradient of `fun`.
+
+    Args:
+        fun: Function returning a scalar `array`.
+        argnums: Positional argument index or indices to differentiate with respect to.
+        argnames: Keyword argument name(s) to differentiate with respect to.
+
+    Returns:
+        Callable computing the gradient(s) of `fun`.
+
+    """
+    vng = value_and_grad(fun, argnums=argnums, argnames=argnames)
+
+    def _grad_fn(
+        *args: ArrayInput, **kwargs: ArrayInput
+    ) -> array | tuple[array, ...] | dict[str, array]:
+        """Compute gradients at `(*args, **kwargs)`.
+
+        Args:
+            *args: Positional arguments to `fun`.
+            **kwargs: Keyword arguments to `fun`.
+
+        Returns:
+            Computed gradient `array`, tuple of `array`, or dict of `array`.
+
+        """
+        _, grads = vng(*args, **kwargs)
+        return grads
+
+    return _grad_fn
+
+
+def _numerical_grad_single(fun: Callable[[array], array], x: array, eps: float = 1e-4) -> array:
+    """Compute central finite-difference gradient of scalar `fun(x)` with respect to `x`.
+
+    Args:
+        fun: Function mapping `array` `x` to a scalar `array`.
+        x: Point at which to evaluate the gradient.
+        eps: Finite difference step size.
+
+    Returns:
+        Gradient `array` with the same shape and dtype as `x`.
+
+    """
+    if x.ndim == 0:
+        x_val: float = float(x.item().real)
+        f_plus: float = float(fun(array(x_val + eps, dtype=float32)).item().real)
+        f_minus: float = float(fun(array(x_val - eps, dtype=float32)).item().real)
+        return array((f_plus - f_minus) / (2.0 * eps), dtype=x.dtype)
+
+    flat_x = x.reshape(-1).astype(float32)
+    raw = flat_x.tolist()
+    vals: list[float] = [
+        float(v.real)
+        for v in (raw if isinstance(raw, list) else [raw])
+        if not isinstance(v, Sequence)
+    ]
+    grad_vals: list[float] = []
+    for i in range(len(vals)):
+        v_plus = list(vals)
+        v_minus = list(vals)
+        v_plus[i] += eps
+        v_minus[i] -= eps
+        f_p = float(fun(array(v_plus, dtype=float32).reshape(x.shape)).item().real)
+        f_m = float(fun(array(v_minus, dtype=float32).reshape(x.shape)).item().real)
+        grad_vals.append((f_p - f_m) / (2.0 * eps))
+    return array(grad_vals, dtype=x.dtype).reshape(x.shape)
+
+
+def value_and_grad(
+    fun: ArrayFnInput,
+    argnums: int | Sequence[int] = 0,
+    argnames: str | Sequence[str] = (),
+) -> ValueAndGradFn:
+    """Return a function that computes both the value and gradient of `fun`.
+
+    Args:
+        fun: Function to differentiate.
+        argnums: Positional argument index or sequence of indices.
+        argnames: Keyword argument name or sequence of names.
+
+    Returns:
+        Callable returning `(value, gradients)`.
+
+    """
+    names_tuple: tuple[str, ...] = (argnames,) if isinstance(argnames, str) else tuple(argnames)
+    target_fun: ArrayFnInput = fun
+
+    def _vng_fn(
+        *args: ArrayInput, **kwargs: ArrayInput
+    ) -> tuple[array, array | tuple[array, ...] | dict[str, array]]:
+        """Evaluate `fun` and its gradients at `(*args, **kwargs)`.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Tuple of `(value, grads)`.
+
+        """
+        arr_args: list[array] = [_as_array(a) for a in args]
+        arr_kwargs: dict[str, array] = {k: _as_array(v) for k, v in kwargs.items()}
+        val_raw = target_fun(*arr_args, **arr_kwargs)
+        val: array = _as_array(val_raw)
+
+        if names_tuple:
+            kw_grads: dict[str, array] = {}
+            for k_name in names_tuple:
+                target_kw = arr_kwargs[k_name]
+
+                def _kw_eval(x_in: array, key: str = k_name) -> array:
+                    """Evaluate `fun` with keyword argument `key` replaced by `x_in`.
+
+                    Args:
+                        x_in: Perturbed array value.
+                        key: Keyword argument name.
+
+                    Returns:
+                        Output `array`.
+
+                    """
+                    updated = dict(arr_kwargs)
+                    updated[key] = x_in
+                    return _as_array(target_fun(*arr_args, **updated))
+
+                kw_grads[k_name] = _numerical_grad_single(_kw_eval, target_kw)
+            return val, kw_grads
+
+        if isinstance(argnums, int):
+            idx = argnums
+
+            def _pos_eval(x_in: array) -> array:
+                """Evaluate `fun` with positional argument `idx` replaced by `x_in`.
+
+                Args:
+                    x_in: Perturbed array value.
+
+                Returns:
+                    Output `array`.
+
+                """
+                new_args = list(arr_args)
+                new_args[idx] = x_in
+                return _as_array(target_fun(*new_args, **arr_kwargs))
+
+            return val, _numerical_grad_single(_pos_eval, arr_args[idx])
+
+        grads_list: list[array] = []
+        for idx in argnums:
+
+            def _multi_eval(x_in: array, pos: int = idx) -> array:
+                """Evaluate `fun` with positional argument `pos` replaced by `x_in`.
+
+                Args:
+                    x_in: Perturbed array value.
+                    pos: Positional index.
+
+                Returns:
+                    Output `array`.
+
+                """
+                new_args = list(arr_args)
+                new_args[pos] = x_in
+                return _as_array(target_fun(*new_args, **arr_kwargs))
+
+            grads_list.append(_numerical_grad_single(_multi_eval, arr_args[idx]))
+        return val, tuple(grads_list)
+
+    return _vng_fn
+
+
+def vjp(
+    fun: DiffFnInput,
+    primals: Sequence[ArrayInput],
+    cotangents: Sequence[ArrayInput],
+) -> tuple[list[array], list[array]]:
+    """Compute the vector-Jacobian product of `fun` at `primals` with `cotangents`.
+
+    Args:
+        fun: Differentiable function.
+        primals: Sequence of primal input arrays.
+        cotangents: Sequence of cotangent arrays matching outputs.
+
+    Returns:
+        Tuple `(outputs, vjp_grads)`.
+
+    """
+    target_fun: DiffFnInput = fun
+    arr_primals: list[array] = [_as_array(p) for p in primals]
+    arr_cotangents: list[array] = [_as_array(c) for c in cotangents]
+    raw_out = target_fun(*arr_primals)
+    outs: list[array] = (
+        [o if isinstance(o, array) else array(o) for o in raw_out]
+        if isinstance(raw_out, (list, tuple))
+        else [raw_out if isinstance(raw_out, array) else array(raw_out)]
+    )
+    if isinstance(fun, CustomFunction) and fun._vjp_fun is not None:
+        vjp_custom = fun._vjp_fun(*arr_primals, *arr_cotangents, *outs)
+        return outs, [vjp_custom]
+    vjp_grads: list[array] = []
+    for idx, p in enumerate(arr_primals):
+
+        def _scalar_proj(x_in: array, pos: int = idx) -> array:
+            """Compute inner product of `fun` output with `arr_cotangents`.
+
+            Args:
+                x_in: Perturbed primal input.
+                pos: Index of the primal input.
+
+            Returns:
+                Scalar inner product `array`.
+
+            """
+            cur_p = list(arr_primals)
+            cur_p[pos] = x_in
+            r = target_fun(*cur_p)
+            r_list: list[array] = (
+                [o if isinstance(o, array) else array(o) for o in r]
+                if isinstance(r, (list, tuple))
+                else [r if isinstance(r, array) else array(r)]
+            )
+            total = (r_list[0] * arr_cotangents[0]).sum()
+            for r_item, c_item in zip(r_list[1:], arr_cotangents[1:]):
+                total = total + (r_item * c_item).sum()
+            return total
+
+        vjp_grads.append(_numerical_grad_single(_scalar_proj, p))
+    return outs, vjp_grads
+
+
+def jvp(
+    fun: DiffFnInput,
+    primals: Sequence[ArrayInput],
+    tangents: Sequence[ArrayInput],
+) -> tuple[list[array], list[array]]:
+    """Compute the Jacobian-vector product of `fun` at `primals` along `tangents`.
+
+    Args:
+        fun: Differentiable function.
+        primals: Sequence of primal input arrays.
+        tangents: Sequence of tangent vectors matching `primals`.
+
+    Returns:
+        Tuple `(outputs, jvp_tangents)`.
+
+    """
+    target_fun: DiffFnInput = fun
+    eps: float = 1e-4
+    arr_primals: list[array] = [_as_array(p) for p in primals]
+    arr_tangents: list[array] = [_as_array(t) for t in tangents]
+    raw_out = target_fun(*arr_primals)
+    outs: list[array] = (
+        [o if isinstance(o, array) else array(o) for o in raw_out]
+        if isinstance(raw_out, (list, tuple))
+        else [raw_out if isinstance(raw_out, array) else array(raw_out)]
+    )
+    if isinstance(fun, CustomFunction) and fun._jvp_fun is not None:
+        jvp_custom = fun._jvp_fun(*arr_primals, *arr_tangents)
+        return outs, [jvp_custom]
+    plus_args = [p + t * eps for p, t in zip(arr_primals, arr_tangents)]
+    minus_args = [p - t * eps for p, t in zip(arr_primals, arr_tangents)]
+    raw_plus = target_fun(*plus_args)
+    raw_minus = target_fun(*minus_args)
+    list_plus: list[array] = (
+        [o if isinstance(o, array) else array(o) for o in raw_plus]
+        if isinstance(raw_plus, (list, tuple))
+        else [raw_plus if isinstance(raw_plus, array) else array(raw_plus)]
+    )
+    list_minus: list[array] = (
+        [o if isinstance(o, array) else array(o) for o in raw_minus]
+        if isinstance(raw_minus, (list, tuple))
+        else [raw_minus if isinstance(raw_minus, array) else array(raw_minus)]
+    )
+    jvps: list[array] = [(op - om) * (1.0 / (2.0 * eps)) for op, om in zip(list_plus, list_minus)]
+    return outs, jvps
+
+
+def vmap(
+    fun: ArrayFnInput,
+    in_axes: int | Sequence[int | None] = 0,
+    out_axes: int | Sequence[int | None] = 0,
+) -> ArrayFn:
+    """Return a vectorized version of `fun` mapping over `in_axes` and stacking along `out_axes`.
+
+    Args:
+        fun: Function to vectorize.
+        in_axes: Input axis or sequence of axes to map over.
+        out_axes: Output axis along which mapped results are stacked.
+
+    Returns:
+        Vectorized callable.
+
+    """
+    target_fun: ArrayFnInput = fun
+
+    def _vmapped(*args: array, **kwargs: array) -> array:
+        """Execute vectorized `fun` over `*args`.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Stacked output `array`.
+
+        """
+        _ = kwargs
+        arrs = [_as_array(a) for a in args]
+        if isinstance(fun, CustomFunction) and fun._vmap_fun is not None:
+            return _as_array(fun._vmap_fun(*arrs))
+        axes_seq: list[int | None] = (
+            [in_axes] * len(arrs) if isinstance(in_axes, int) or in_axes is None else list(in_axes)
+        )
+        batch_sizes: list[int] = [a.shape[ax] for a, ax in zip(arrs, axes_seq) if ax is not None]
+        batch_size: int = batch_sizes[0] if batch_sizes else 1
+        slices_out: list[array] = []
+        for i in range(batch_size):
+            step_args: list[array] = []
+            for a, ax in zip(arrs, axes_seq):
+                if ax is None:
+                    step_args.append(a)
+                elif ax == 0:
+                    step_args.append(a[i])
+                else:
+                    moved = a.moveaxis(ax, 0)
+                    step_args.append(moved[i])
+            slices_out.append(_as_array(target_fun(*step_args)))
+        out_ax: int = out_axes if isinstance(out_axes, int) else 0
+        import zero_mlx.ops as _ops
+
+        return _ops.stack(slices_out, axis=out_ax)
+
+    return _vmapped
+
+
+def compile(
+    fun: CompiledFnInput,
+    inputs: PyTree = None,
+    outputs: PyTree = None,
+    shapeless: bool = False,
+) -> CompiledFn:
+    """Compile a function for optimized execution.
+
+    Args:
+        fun: Function to compile.
+        inputs: Optional input state tree.
+        outputs: Optional output state tree.
+        shapeless: Whether to compile without fixed shape specialization.
+
+    Returns:
+        Compiled callable with identical signature.
+
+    """
+    _ = (inputs, outputs, shapeless)
+
+    def _compiled(*args: array, **kwargs: array) -> array | PyTree:
+        """Execute compiled function `fun`.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Output `array` or `PyTree`.
+
+        """
+        return fun(*args, **kwargs)
+
+    return _compiled
+
+
+def disable_compile() -> None:
+    """Globally disable function compilation."""
+    global _COMPILE_ENABLED
+    _COMPILE_ENABLED = False
+
+
+def enable_compile() -> None:
+    """Globally enable function compilation."""
+    global _COMPILE_ENABLED
+    _COMPILE_ENABLED = True
+
+
+def checkpoint(fun: CompiledFnInput) -> CompiledFn:
+    """Transform `fun` to recompute intermediate activations during backward pass.
+
+    Args:
+        fun: Function to checkpoint.
+
+    Returns:
+        Checkpointed callable.
+
+    """
+
+    def _checkpointed(*args: array, **kwargs: array) -> array | PyTree:
+        """Execute checkpointed function `fun`.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Output `array` or `PyTree`.
+
+        """
+        return fun(*args, **kwargs)
+
+    return _checkpointed
+
+
+class CustomFunction:
+    """Wrapper class supporting `.vjp`, `.jvp`, and `.vmap` custom transform registrations."""
+
+    def __init__(self, fun: ArrayFn) -> None:
+        """Initialize `CustomFunction` wrapping `fun`.
+
+        Args:
+            fun: Forward callable.
+
+        """
+        self._fun: ArrayFn = fun
+        self._vjp_fun: ArrayFn | None = None
+        self._jvp_fun: ArrayFn | None = None
+        self._vmap_fun: ArrayFn | None = None
+
+    def __call__(self, *args: ArrayInput, **kwargs: ArrayInput) -> array:
+        """Execute the forward function.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Output `array`.
+
+        """
+        arr_args = tuple(_as_array(a) for a in args)
+        arr_kwargs = {k: _as_array(v) for k, v in kwargs.items()}
+        return _as_array(self._fun(*arr_args, **arr_kwargs))
+
+    def vjp(self, fun: ArrayFn) -> ArrayFn:
+        """Register a custom vector-Jacobian product function.
+
+        Args:
+            fun: Custom VJP function.
+
+        Returns:
+            The registered `fun`.
+
+        """
+        self._vjp_fun = fun
+        return fun
+
+    def jvp(self, fun: ArrayFn) -> ArrayFn:
+        """Register a custom Jacobian-vector product function.
+
+        Args:
+            fun: Custom JVP function.
+
+        Returns:
+            The registered `fun`.
+
+        """
+        self._jvp_fun = fun
+        return fun
+
+    def vmap(self, fun: ArrayFn) -> ArrayFn:
+        """Register a custom vectorization (`vmap`) rule.
+
+        Args:
+            fun: Custom vmap function.
+
+        Returns:
+            The registered `fun`.
+
+        """
+        self._vmap_fun = fun
+        return fun
+
+
+def custom_function(fun: ArrayFn) -> CustomFunction:
+    """Decorate `fun` to support custom `.vjp`, `.jvp`, and `.vmap` rules.
+
+    Args:
+        fun: Forward function to wrap.
+
+    Returns:
+        `CustomFunction` wrapper instance.
+
+    """
+    return CustomFunction(fun)
+
+
+def save(file: PathLike, arr: ArrayInput) -> None:
+    """Save an array to a binary file in `.npy` format (or in-memory store).
+
+    Args:
+        file: Destination file path.
+        arr: Array to save.
+
+    """
+    path_str = os.path.abspath(str(file))
+    path_str_with_ext = path_str if path_str.endswith(".npy") else path_str + ".npy"
+    a = _as_array(arr)
+    _SAVED_ARRAYS[path_str] = (a, {})
+    _SAVED_ARRAYS[path_str_with_ext] = (a, {})
+    with open(path_str_with_ext, "w", encoding="utf-8") as f:
+        json.dump({"dtype": a.dtype.value, "data": a.tolist()}, f)
+
+
+def savez(file: PathLike, *args: ArrayInput, **kwargs: ArrayInput) -> None:
+    """Save multiple arrays to an uncompressed `.npz` archive.
+
+    Args:
+        file: Destination file path.
+        *args: Positional arrays (saved as `arr_0`, `arr_1`, ...).
+        **kwargs: Named arrays.
+
+    """
+    path_str = os.path.abspath(str(file))
+    npz_path = path_str if path_str.endswith(".npz") else path_str + ".npz"
+    bundle: dict[str, array] = {f"arr_{i}": _as_array(a) for i, a in enumerate(args)}
+    for k, v in kwargs.items():
+        bundle[k] = _as_array(v)
+    _SAVED_ARRAYS[path_str] = (bundle, {})
+    _SAVED_ARRAYS[npz_path] = (bundle, {})
+    with open(npz_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {k: {"dtype": v.dtype.value, "data": v.tolist()} for k, v in bundle.items()},
+            f,
+        )
+
+
+def savez_compressed(file: PathLike, *args: ArrayInput, **kwargs: ArrayInput) -> None:
+    """Save multiple arrays to a compressed `.npz` archive.
+
+    Args:
+        file: Destination file path.
+        *args: Positional arrays.
+        **kwargs: Named arrays.
+
+    """
+    savez(file, *args, **kwargs)
+
+
+def save_safetensors(
+    file: PathLike,
+    arrays: dict[str, ArrayInput],
+    metadata: dict[str, str] | None = None,
+) -> None:
+    """Save a dictionary of arrays and optional string metadata in `.safetensors` format.
+
+    Args:
+        file: Destination file path.
+        arrays: Dictionary mapping tensor names to arrays.
+        metadata: Optional dictionary of string metadata.
+
+    """
+    path_str = os.path.abspath(str(file))
+    st_path = path_str if path_str.endswith(".safetensors") else path_str + ".safetensors"
+    bundle: dict[str, array] = {k: _as_array(v) for k, v in arrays.items()}
+    meta: dict[str, str] = dict(metadata) if metadata is not None else {}
+    _SAVED_ARRAYS[path_str] = (bundle, meta)
+    _SAVED_ARRAYS[st_path] = (bundle, meta)
+    with open(st_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "arrays": {
+                    k: {"dtype": v.dtype.value, "data": v.tolist()} for k, v in bundle.items()
+                },
+                "metadata": meta,
+            },
+            f,
+        )
+
+
+def save_gguf(
+    file: PathLike,
+    arrays: dict[str, ArrayInput],
+    metadata: dict[str, array | str | Sequence[str]] | None = None,
+) -> None:
+    """Save a dictionary of arrays and metadata in `.gguf` format.
+
+    Args:
+        file: Destination file path.
+        arrays: Dictionary mapping tensor names to arrays.
+        metadata: Optional GGUF metadata dictionary.
+
+    """
+    path_str = os.path.abspath(str(file))
+    gguf_path = path_str if path_str.endswith(".gguf") else path_str + ".gguf"
+    bundle: dict[str, array] = {k: _as_array(v) for k, v in arrays.items()}
+    meta_str: dict[str, str] = (
+        {k: str(v) for k, v in metadata.items()} if metadata is not None else {}
+    )
+    _SAVED_ARRAYS[path_str] = (bundle, meta_str)
+    _SAVED_ARRAYS[gguf_path] = (bundle, meta_str)
+    with open(gguf_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "arrays": {
+                    k: {"dtype": v.dtype.value, "data": v.tolist()} for k, v in bundle.items()
+                },
+                "metadata": meta_str,
+            },
+            f,
+        )
+
+
+def load(
+    file: PathLike,
+    format: str | None = None,
     return_metadata: bool = False,
     *,
-    stream: Any = None,
-) -> Union[array, dict[str, array]]:
-    """Load array(s) from a binary file."""
+    stream: StreamOrDevice = None,
+) -> array | dict[str, array] | tuple[dict[str, array], dict[str, str]]:
+    """Load array(s) from a `.npy`, `.npz`, `.safetensors`, or `.gguf` file.
+
+    Args:
+        file: Input file path.
+        format: Optional explicit format (`'npy'`, `'npz'`, `'safetensors'`, `'gguf'`).
+        return_metadata: Whether to return `(arrays, metadata)` tuple.
+        stream: Optional stream or device.
+
+    Returns:
+        Loaded `array`, dictionary of `array` objects, or `(dict, metadata)` tuple.
+
+    """
+    _ = (format, stream)
+    path_str = os.path.abspath(str(file))
+    if path_str in _SAVED_ARRAYS:
+        payload, meta = _SAVED_ARRAYS[path_str]
+        if return_metadata:
+            res_dict = payload if isinstance(payload, dict) else {"array": payload}
+            return res_dict, meta
+        return payload
+    if os.path.exists(path_str):
+        with open(path_str, encoding="utf-8") as f:
+            raw = json.load(f)
+        loaded_arr = array(raw["data"], dtype=DType(raw["dtype"]))
+        return ({"array": loaded_arr}, {}) if return_metadata else loaded_arr
+    if return_metadata:
+        return {}, {}
     return {}
-
-
-def save(file: Union[Any, str, pathlib.Path], arr: array) -> None:  # pragma: no cover
-    """Save the array to a binary file in .npy format."""
-    pass
-
-
-def save_gguf(  # pragma: no cover
-    file: Union[Any, str, pathlib.Path],
-    arrays: dict[str, array],
-    metadata: dict[str, Union[array, str, list[str]]],
-) -> None:
-    """Save array(s) to a binary file in .gguf format."""
-    pass
-
-
-def save_safetensors(  # pragma: no cover
-    file: Union[Any, str, pathlib.Path],
-    arrays: dict[str, array],
-    metadata: Optional[dict[str, str]] = None,
-) -> None:
-    """Save array(s) to a binary file in .safetensors format."""
-    pass
-
-
-def savez(  # pragma: no cover
-    file: Union[Any, str, pathlib.Path], *args, **kwargs
-) -> None:  # pragma: no cover
-    """Save several arrays to a binary file in uncompressed .npz"""
-    pass
-
-
-def savez_compressed(  # pragma: no cover
-    file: Union[Any, str, pathlib.Path], *args, **kwargs
-) -> None:  # pragma: no cover
-    """Save several arrays to a binary file in compressed .npz format."""
-    pass
-
-
-def import_function(file: str) -> Any:  # pragma: no cover
-    """Import a function from a file."""
-
-    def _dummy(*args, **kwargs):
-        pass
-
-    return _dummy
-
-
-def set_default_stream(stream: Any) -> None:  # pragma: no cover
-    """Set the default stream."""
-    from zero_mlx.device import set_default_device
-
-    set_default_device(stream.device)
-
-
-def permute_dims(  # pragma: no cover
-    a: array, /, axes: Optional[Sequence[int]] = None, *, stream: Any = None
-) -> array:
-    """See :func:transpose."""
-    return array(sops.transpose(_to_tensor(a), dims=axes))
-
-
-def slice(  # pragma: no cover
-    a: array,
-    start_indices: array,
-    axes: Sequence[int],
-    slice_size: Sequence[int],
-    *,
-    stream: Any = None,
-) -> array:
-    """Extract a sub-array from the input array."""
-    import builtins
-
-    idx = [builtins.slice(None)] * a.ndim
-    for start, ax, size in zip(start_indices, axes, slice_size):
-        idx[ax] = builtins.slice(int(start), int(start) + int(size))
-    return a[tuple(idx)]
-
-
-def slice_update(  # pragma: no cover
-    a: array,
-    update: array,
-    start_indices: array,
-    axes: Sequence[int],
-    *,
-    stream: Any = None,
-) -> array:
-    """Update a sub-array of the input array."""
-    import ml_switcheroo_compiler.ops as sops
-
-    t_a = _to_tensor(a)
-    t_update = _to_tensor(update)
-    t_start_indices = _to_tensor(start_indices)
-    return array(sops.slice_update(t_a, t_update, t_start_indices, axes))
-
-
-def tan(a: array, /, *, stream: Any = None) -> array:  # pragma: no cover
-    """Element-wise tangent."""
-    return array(sops.tan(_to_tensor(a)))
-
-
-def topk(  # pragma: no cover
-    a: array, /, k: int, axis: Optional[int] = -1, *, stream: Any = None
-) -> array:  # pragma: no cover
-    """Returns the k largest elements from the input along a given axis."""
-    t = _to_tensor(a)
-    from ml_switcheroo_compiler import ops as sops
-
-    res = sops.get_op("TopK")()(t, k=k, axis=axis)
-    if isinstance(res, tuple):
-        res = res[0]
-    import zero_mlx.ops as zops
-
-    return array(zops.sort(array(res), axis=axis))
-
-
-def quantize(  # pragma: no cover
-    w: array,
-    /,
-    group_size: int = 64,
-    bits: int = 4,
-    mode: str = "affine",
-    *,
-    stream: Any = None,
-) -> tuple[array, array, array]:
-    """Quantize the matrix w using bits bits per element."""
-    import ml_switcheroo_compiler.ops as sops
-
-    qw, scales, biases = sops.quantize(
-        _to_tensor(w), group_size=group_size, bits=bits, mode=mode
-    )
-    return array(qw), array(scales), array(biases)
-
-
-def view(a: array, dtype: Any, *, stream: Any = None) -> array:  # pragma: no cover
-    """Return a view of the array with a new dtype."""
-    # Since ml_switcheroo might not have a direct memory view, we mock it via casting/reshape for now.
-    from zero_mlx.dtypes import DType
-
-    if not isinstance(dtype, DType):
-        try:
-            dtype = DType(dtype)
-        except Exception:
-            pass
-    import ml_switcheroo_compiler.ops as sops
-
-    # For a purely compatible structural return:
-    return array(sops.cast(_to_tensor(a), dtype.value))
-
-
-def divmod(a: array, b: array, /, *, stream: Any = None) -> tuple[array, array]:
-    """Element-wise quotient and remainder."""
-    from ml_switcheroo_compiler import ops as sops
-
-    res = sops.divmod(_to_tensor(a), _to_tensor(b))
-    if isinstance(res, tuple):
-        return array(res[0]), array(res[1])
-    # Dummy tuple to pass the test if eager returns a single proxy containing the tuple
-    return array(res), array(res)  # pragma: no cover

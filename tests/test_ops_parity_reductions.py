@@ -1,113 +1,29 @@
-import pytest
+"""Compiler operation parity tests for `reductions` operations."""
+
+from __future__ import annotations
+
 import numpy as np
+import pytest
 
-try:
-    import mlx.core as mx
-except ImportError:
-    mx = None
-
-import zero_mlx
-from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
+from tests.conftest import check_parity
 
 
-def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):
-    import numpy as np
-
-    if isinstance(z_res, (tuple, list)) and isinstance(m_res, (tuple, list)):
-        for z, m in zip(z_res, m_res):
-            assert_allclose_mlx(z, m, rtol, atol)
-    else:
-        # Extract underlying tensor data if it's a zero_mlx array
-        if hasattr(z_res, "_tensor"):
-            z_res = z_res._tensor.data
-        if hasattr(m_res, "_tensor"):
-            m_res = m_res._tensor.data
-        np.testing.assert_allclose(
-            np.array(z_res), np.array(m_res), rtol=rtol, atol=atol
-        )
-
-
-def check_parity(op_name, args_generator, kwargs_generator=None, rtol=1e-5, atol=1e-5):
-    if mx is None:
-        pytest.skip("MLX not available")
-    func_name = op_name.lower()
-    if not hasattr(zero_mlx, func_name) or not hasattr(mx, func_name):
-        pytest.skip(f"{func_name} not mapped in zero_mlx or mx")
-
-    if func_name == "fft":
-        z_func = zero_mlx.fft.fft
-        try:
-            m_func = mx.fft.fft
-            if not callable(m_func):
-                m_func = getattr(mx, "fft")
-        except AttributeError:
-            m_func = getattr(mx, "fft")
-    elif func_name == "rfft":
-        z_func = zero_mlx.fft.rfft
-        try:
-            m_func = mx.fft.rfft
-            if not callable(m_func):
-                m_func = getattr(mx, "rfft")
-        except AttributeError:
-            m_func = getattr(mx, "rfft")
-    else:
-        z_func = getattr(zero_mlx, func_name)
-        m_func = getattr(mx, func_name)
-
-    args = args_generator()
-    kwargs = kwargs_generator() if kwargs_generator else {}
-
-    _tracer.start_tracing("parity_test")
-
-    def unwrap(x):
-        if isinstance(x, np.generic):
-            return x.item()
-        return x
-
-    z_args = [
-        zero_mlx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args
-    ]
-    m_args = [mx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args]
-
-    try:
-        z_res = z_func(*z_args, **kwargs)
-        if hasattr(zero_mlx, "eval"):
-            zero_mlx.eval(z_res)
-        _tracer.stop_tracing()
-        m_res = m_func(*m_args, **kwargs)
-        assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)
-    except Exception as e:
-        try:
-            if callable(getattr(_tracer, "is_tracing", None)):
-                if _tracer.is_tracing():
-                    _tracer.stop_tracing()
-            elif getattr(_tracer, "is_tracing", False):
-                _tracer.stop_tracing()
-        except Exception:
-            pass
-        if False:
-            _tracer.stop_tracing()
-        raise e
-
-
-def test_Argmax_parity():
+def test_Argmax_parity() -> None:
     """Test parity for Argmax."""
     check_parity("Argmax", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Argmin_parity():
+def test_Argmin_parity() -> None:
     """Test parity for Argmin."""
     check_parity("Argmin", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_AssignVariable_parity():
+def test_AssignVariable_parity() -> None:
     """Test parity for AssignVariable."""
-    check_parity(
-        "AssignVariable", lambda: []
-    )  # Typically stateful, hard to verify blindly
+    check_parity("AssignVariable", lambda: [])  # Typically stateful, hard to verify blindly
 
 
-def test_CountNonzero_parity():
+def test_CountNonzero_parity() -> None:
     """Test parity for CountNonzero."""
     check_parity(
         "Count_Nonzero",
@@ -115,7 +31,7 @@ def test_CountNonzero_parity():
     )
 
 
-def test_Cumsum_parity():
+def test_Cumsum_parity() -> None:
     """Test parity for Cumsum."""
     check_parity(
         "Cumsum",
@@ -124,7 +40,7 @@ def test_Cumsum_parity():
     )
 
 
-def test_Einsum_parity():
+def test_Einsum_parity() -> None:
     """Test parity for Einsum."""
     check_parity(
         "Einsum",
@@ -136,7 +52,7 @@ def test_Einsum_parity():
     )
 
 
-def test_Fmax_parity():
+def test_Fmax_parity() -> None:
     """Test parity for Fmax."""
     check_parity(
         "Fmax",
@@ -147,7 +63,7 @@ def test_Fmax_parity():
     )
 
 
-def test_Fmin_parity():
+def test_Fmin_parity() -> None:
     """Test parity for Fmin."""
     check_parity(
         "Fmin",
@@ -158,17 +74,17 @@ def test_Fmin_parity():
     )
 
 
-def test_Logsumexp_parity():
+def test_Logsumexp_parity() -> None:
     """Test parity for Logsumexp."""
     check_parity("Logsumexp", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Max_parity():
+def test_Max_parity() -> None:
     """Test parity for Max."""
     check_parity("Max", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Maximum_parity():
+def test_Maximum_parity() -> None:
     """Test parity for Maximum."""
     check_parity(
         "Maximum",
@@ -179,17 +95,17 @@ def test_Maximum_parity():
     )
 
 
-def test_Mean_parity():
+def test_Mean_parity() -> None:
     """Test parity for Mean."""
     check_parity("Mean", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Min_parity():
+def test_Min_parity() -> None:
     """Test parity for Min."""
     check_parity("Min", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Minimum_parity():
+def test_Minimum_parity() -> None:
     """Test parity for Minimum."""
     check_parity(
         "Minimum",
@@ -200,47 +116,47 @@ def test_Minimum_parity():
     )
 
 
-def test_Pmean_parity():
+def test_Pmean_parity() -> None:
     """Test parity for Pmean."""
     check_parity("Pmean", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Prod_parity():
+def test_Prod_parity() -> None:
     """Test parity for Prod."""
     check_parity("Prod", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Psum_parity():
+def test_Psum_parity() -> None:
     """Test parity for Psum."""
     check_parity("Psum", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_ReadVariable_parity():
+def test_ReadVariable_parity() -> None:
     """Test parity for ReadVariable."""
     check_parity("ReadVariable", lambda: [])
 
 
-def test_SegmentSum_parity():
+def test_SegmentSum_parity() -> None:
     """Test parity for SegmentSum."""
     check_parity("SegmentSum", lambda: [])
 
 
-def test_Std_parity():
+def test_Std_parity() -> None:
     """Test parity for Std."""
     check_parity("Std", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Sum_parity():
+def test_Sum_parity() -> None:
     """Test parity for Sum."""
     check_parity("Sum", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Variance_parity():
+def test_Variance_parity() -> None:
     """Test parity for Variance."""
     check_parity("Variance", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_ApproxMaxK_parity():
+def test_ApproxMaxK_parity() -> None:
     """Test parity for ApproxMaxK."""
     check_parity(
         "ApproxMaxK",
@@ -248,7 +164,7 @@ def test_ApproxMaxK_parity():
     )
 
 
-def test_ApproxMaxKIndices_parity():
+def test_ApproxMaxKIndices_parity() -> None:
     """Test parity for ApproxMaxKIndices."""
     check_parity(
         "ApproxMaxKIndices",
@@ -256,7 +172,7 @@ def test_ApproxMaxKIndices_parity():
     )
 
 
-def test_ApproxMinK_parity():
+def test_ApproxMinK_parity() -> None:
     """Test parity for ApproxMinK."""
     check_parity(
         "ApproxMinK",
@@ -264,7 +180,7 @@ def test_ApproxMinK_parity():
     )
 
 
-def test_ApproxMinKIndices_parity():
+def test_ApproxMinKIndices_parity() -> None:
     """Test parity for ApproxMinKIndices."""
     check_parity(
         "ApproxMinKIndices",
@@ -272,7 +188,7 @@ def test_ApproxMinKIndices_parity():
     )
 
 
-def test_ArgSort_parity():
+def test_ArgSort_parity() -> None:
     """Test parity for ArgSort."""
     check_parity(
         "ArgSort",
@@ -280,23 +196,23 @@ def test_ArgSort_parity():
     )
 
 
-def test_Argpartition_parity():
+def test_Argpartition_parity() -> None:
     """Test parity for Argpartition."""
-    import tests.test_ops_parity_reductions as module
-    import numpy as np
+    import mlx.core as mx
+    import zero_mlx
 
-    orig = module.assert_allclose_mlx
-    module.assert_allclose_mlx = lambda z, m, **k: orig(np.sort(z), np.sort(m), **k)
-    try:
-        check_parity(
-            "Argpartition",
-            lambda: [np.random.randn(5).astype(np.float32), 2],
-        )
-    finally:
-        module.assert_allclose_mlx = orig
+    arr_np = np.array([3.0, 1.0, 4.0, 1.5, 2.0], dtype=np.float32)
+    z_idx = zero_mlx.argpartition(zero_mlx.array(arr_np), 2)
+    m_idx = mx.argpartition(mx.array(arr_np), 2)
+    z_part = arr_np[np.array(z_idx.tolist(), dtype=np.int64)]
+    m_part = arr_np[np.array(m_idx, dtype=np.int64)]
+    assert z_part[2] == pytest.approx(m_part[2])
+    assert np.all(z_part[:2] <= z_part[2])
+    assert np.all(z_part[2:] >= z_part[2])
+    np.testing.assert_allclose(np.sort(z_idx.tolist()), np.sort(np.array(m_idx)))
 
 
-def test_Argwhere_parity():
+def test_Argwhere_parity() -> None:
     """Test parity for Argwhere."""
     check_parity(
         "Argwhere",
@@ -304,7 +220,7 @@ def test_Argwhere_parity():
     )
 
 
-def test_Bincount_parity():
+def test_Bincount_parity() -> None:
     """Test parity for Bincount."""
     check_parity(
         "Bincount",
@@ -312,7 +228,7 @@ def test_Bincount_parity():
     )
 
 
-def test_BitwiseCount_parity():
+def test_BitwiseCount_parity() -> None:
     """Test parity for BitwiseCount."""
     check_parity(
         "BitwiseCount",
@@ -320,7 +236,7 @@ def test_BitwiseCount_parity():
     )
 
 
-def test_Cumlogsumexp_parity():
+def test_Cumlogsumexp_parity() -> None:
     """Test parity for Cumlogsumexp."""
     check_parity(
         "Cumlogsumexp",
@@ -328,7 +244,7 @@ def test_Cumlogsumexp_parity():
     )
 
 
-def test_Cummax_parity():
+def test_Cummax_parity() -> None:
     """Test parity for Cummax."""
     check_parity(
         "Cummax",
@@ -336,7 +252,7 @@ def test_Cummax_parity():
     )
 
 
-def test_Cummin_parity():
+def test_Cummin_parity() -> None:
     """Test parity for Cummin."""
     check_parity(
         "Cummin",
@@ -344,7 +260,7 @@ def test_Cummin_parity():
     )
 
 
-def test_Cumprod_parity():
+def test_Cumprod_parity() -> None:
     """Test parity for Cumprod."""
     check_parity(
         "Cumprod",
@@ -352,7 +268,7 @@ def test_Cumprod_parity():
     )
 
 
-def test_CumulativeLogsumexp_parity():
+def test_CumulativeLogsumexp_parity() -> None:
     """Test parity for CumulativeLogsumexp."""
     check_parity(
         "CumulativeLogsumexp",
@@ -360,7 +276,7 @@ def test_CumulativeLogsumexp_parity():
     )
 
 
-def test_DoubleSidedMaxwell_parity():
+def test_DoubleSidedMaxwell_parity() -> None:
     """Test parity for DoubleSidedMaxwell."""
     check_parity(
         "DoubleSidedMaxwell",
@@ -368,7 +284,7 @@ def test_DoubleSidedMaxwell_parity():
     )
 
 
-def test_GroupMean_parity():
+def test_GroupMean_parity() -> None:
     """Test parity for GroupMean."""
     check_parity(
         "GroupMean",
@@ -376,7 +292,7 @@ def test_GroupMean_parity():
     )
 
 
-def test_GroupVariance_parity():
+def test_GroupVariance_parity() -> None:
     """Test parity for GroupVariance."""
     check_parity(
         "GroupVariance",
@@ -384,7 +300,7 @@ def test_GroupVariance_parity():
     )
 
 
-def test_Hamming_parity():
+def test_Hamming_parity() -> None:
     """Test parity for Hamming."""
     check_parity(
         "Hamming",
@@ -392,7 +308,7 @@ def test_Hamming_parity():
     )
 
 
-def test_HammingWindow_parity():
+def test_HammingWindow_parity() -> None:
     """Test parity for HammingWindow."""
     check_parity(
         "HammingWindow",
@@ -400,7 +316,7 @@ def test_HammingWindow_parity():
     )
 
 
-def test_HouseholderProduct_parity():
+def test_HouseholderProduct_parity() -> None:
     """Test parity for HouseholderProduct."""
     check_parity(
         "HouseholderProduct",
@@ -408,7 +324,7 @@ def test_HouseholderProduct_parity():
     )
 
 
-def test_Maxwell_parity():
+def test_Maxwell_parity() -> None:
     """Test parity for Maxwell."""
     check_parity(
         "Maxwell",
@@ -416,7 +332,7 @@ def test_Maxwell_parity():
     )
 
 
-def test_Nanargmax_parity():
+def test_Nanargmax_parity() -> None:
     """Test parity for Nanargmax."""
     check_parity(
         "Nanargmax",
@@ -424,7 +340,7 @@ def test_Nanargmax_parity():
     )
 
 
-def test_Nanargmin_parity():
+def test_Nanargmin_parity() -> None:
     """Test parity for Nanargmin."""
     check_parity(
         "Nanargmin",
@@ -432,7 +348,7 @@ def test_Nanargmin_parity():
     )
 
 
-def test_Nancumprod_parity():
+def test_Nancumprod_parity() -> None:
     """Test parity for Nancumprod."""
     check_parity(
         "Nancumprod",
@@ -440,7 +356,7 @@ def test_Nancumprod_parity():
     )
 
 
-def test_Nancumsum_parity():
+def test_Nancumsum_parity() -> None:
     """Test parity for Nancumsum."""
     check_parity(
         "Nancumsum",
@@ -448,7 +364,7 @@ def test_Nancumsum_parity():
     )
 
 
-def test_Nanmax_parity():
+def test_Nanmax_parity() -> None:
     """Test parity for Nanmax."""
     check_parity(
         "Nanmax",
@@ -456,7 +372,7 @@ def test_Nanmax_parity():
     )
 
 
-def test_Nanmean_parity():
+def test_Nanmean_parity() -> None:
     """Test parity for Nanmean."""
     check_parity(
         "Nanmean",
@@ -464,7 +380,7 @@ def test_Nanmean_parity():
     )
 
 
-def test_Nanmin_parity():
+def test_Nanmin_parity() -> None:
     """Test parity for Nanmin."""
     check_parity(
         "Nanmin",
@@ -472,7 +388,7 @@ def test_Nanmin_parity():
     )
 
 
-def test_Nanprod_parity():
+def test_Nanprod_parity() -> None:
     """Test parity for Nanprod."""
     check_parity(
         "Nanprod",
@@ -480,7 +396,7 @@ def test_Nanprod_parity():
     )
 
 
-def test_Nanstd_parity():
+def test_Nanstd_parity() -> None:
     """Test parity for Nanstd."""
     check_parity(
         "Nanstd",
@@ -488,7 +404,7 @@ def test_Nanstd_parity():
     )
 
 
-def test_Nansum_parity():
+def test_Nansum_parity() -> None:
     """Test parity for Nansum."""
     check_parity(
         "Nansum",
@@ -496,7 +412,7 @@ def test_Nansum_parity():
     )
 
 
-def test_Nanvar_parity():
+def test_Nanvar_parity() -> None:
     """Test parity for Nanvar."""
     check_parity(
         "Nanvar",
@@ -504,7 +420,7 @@ def test_Nanvar_parity():
     )
 
 
-def test_NonMaxSuppression_parity():
+def test_NonMaxSuppression_parity() -> None:
     """Test parity for NonMaxSuppression."""
     check_parity(
         "NonMaxSuppression",
@@ -512,7 +428,7 @@ def test_NonMaxSuppression_parity():
     )
 
 
-def test_Pmax_parity():
+def test_Pmax_parity() -> None:
     """Test parity for Pmax."""
     check_parity(
         "Pmax",
@@ -520,7 +436,7 @@ def test_Pmax_parity():
     )
 
 
-def test_Pmin_parity():
+def test_Pmin_parity() -> None:
     """Test parity for Pmin."""
     check_parity(
         "Pmin",
@@ -528,7 +444,7 @@ def test_Pmin_parity():
     )
 
 
-def test_PopulationCount_parity():
+def test_PopulationCount_parity() -> None:
     """Test parity for PopulationCount."""
     check_parity(
         "PopulationCount",
@@ -536,7 +452,7 @@ def test_PopulationCount_parity():
     )
 
 
-def test_PsumScatter_parity():
+def test_PsumScatter_parity() -> None:
     """Test parity for PsumScatter."""
     check_parity(
         "PsumScatter",
@@ -544,7 +460,7 @@ def test_PsumScatter_parity():
     )
 
 
-def test_ScatterMax_parity():
+def test_ScatterMax_parity() -> None:
     """Test parity for ScatterMax."""
     check_parity(
         "ScatterMax",
@@ -552,7 +468,7 @@ def test_ScatterMax_parity():
     )
 
 
-def test_ScatterMin_parity():
+def test_ScatterMin_parity() -> None:
     """Test parity for ScatterMin."""
     check_parity(
         "ScatterMin",
@@ -560,7 +476,7 @@ def test_ScatterMin_parity():
     )
 
 
-def test_SegmentMax_parity():
+def test_SegmentMax_parity() -> None:
     """Test parity for SegmentMax."""
     check_parity(
         "SegmentMax",
@@ -568,7 +484,7 @@ def test_SegmentMax_parity():
     )
 
 
-def test_SegmentMean_parity():
+def test_SegmentMean_parity() -> None:
     """Test parity for SegmentMean."""
     check_parity(
         "SegmentMean",
@@ -576,7 +492,7 @@ def test_SegmentMean_parity():
     )
 
 
-def test_SegmentMin_parity():
+def test_SegmentMin_parity() -> None:
     """Test parity for SegmentMin."""
     check_parity(
         "SegmentMin",
@@ -584,7 +500,7 @@ def test_SegmentMin_parity():
     )
 
 
-def test_SegmentProd_parity():
+def test_SegmentProd_parity() -> None:
     """Test parity for SegmentProd."""
     check_parity(
         "SegmentProd",
@@ -592,7 +508,7 @@ def test_SegmentProd_parity():
     )
 
 
-def test_SparseBincount_parity():
+def test_SparseBincount_parity() -> None:
     """Test parity for SparseBincount."""
     check_parity(
         "SparseBincount",
@@ -600,7 +516,7 @@ def test_SparseBincount_parity():
     )
 
 
-def test_SparseMaximum_parity():
+def test_SparseMaximum_parity() -> None:
     """Test parity for SparseMaximum."""
     check_parity(
         "SparseMaximum",
@@ -608,7 +524,7 @@ def test_SparseMaximum_parity():
     )
 
 
-def test_SparseMinimum_parity():
+def test_SparseMinimum_parity() -> None:
     """Test parity for SparseMinimum."""
     check_parity(
         "SparseMinimum",
@@ -616,7 +532,7 @@ def test_SparseMinimum_parity():
     )
 
 
-def test_SparseReduceMax_parity():
+def test_SparseReduceMax_parity() -> None:
     """Test parity for SparseReduceMax."""
     check_parity(
         "SparseReduceMax",
@@ -624,7 +540,7 @@ def test_SparseReduceMax_parity():
     )
 
 
-def test_SparseReduceSum_parity():
+def test_SparseReduceSum_parity() -> None:
     """Test parity for SparseReduceSum."""
     check_parity(
         "SparseReduceSum",
@@ -632,7 +548,7 @@ def test_SparseReduceSum_parity():
     )
 
 
-def test_SparseSegmentMean_parity():
+def test_SparseSegmentMean_parity() -> None:
     """Test parity for SparseSegmentMean."""
     check_parity(
         "SparseSegmentMean",
@@ -640,7 +556,7 @@ def test_SparseSegmentMean_parity():
     )
 
 
-def test_SparseSegmentSum_parity():
+def test_SparseSegmentSum_parity() -> None:
     """Test parity for SparseSegmentSum."""
     check_parity(
         "SparseSegmentSum",
@@ -648,7 +564,7 @@ def test_SparseSegmentSum_parity():
     )
 
 
-def test_UniqueCounts_parity():
+def test_UniqueCounts_parity() -> None:
     """Test parity for UniqueCounts."""
     check_parity(
         "UniqueCounts",
@@ -656,7 +572,7 @@ def test_UniqueCounts_parity():
     )
 
 
-def test_UnsortedSegmentMax_parity():
+def test_UnsortedSegmentMax_parity() -> None:
     """Test parity for UnsortedSegmentMax."""
     check_parity(
         "UnsortedSegmentMax",
@@ -664,7 +580,7 @@ def test_UnsortedSegmentMax_parity():
     )
 
 
-def test_UnsortedSegmentMean_parity():
+def test_UnsortedSegmentMean_parity() -> None:
     """Test parity for UnsortedSegmentMean."""
     check_parity(
         "UnsortedSegmentMean",
@@ -672,7 +588,7 @@ def test_UnsortedSegmentMean_parity():
     )
 
 
-def test_UnsortedSegmentMin_parity():
+def test_UnsortedSegmentMin_parity() -> None:
     """Test parity for UnsortedSegmentMin."""
     check_parity(
         "UnsortedSegmentMin",
@@ -680,7 +596,7 @@ def test_UnsortedSegmentMin_parity():
     )
 
 
-def test_UnsortedSegmentProd_parity():
+def test_UnsortedSegmentProd_parity() -> None:
     """Test parity for UnsortedSegmentProd."""
     check_parity(
         "UnsortedSegmentProd",
@@ -688,7 +604,7 @@ def test_UnsortedSegmentProd_parity():
     )
 
 
-def test_UnsortedSegmentSum_parity():
+def test_UnsortedSegmentSum_parity() -> None:
     """Test parity for UnsortedSegmentSum."""
     check_parity(
         "UnsortedSegmentSum",
@@ -696,7 +612,7 @@ def test_UnsortedSegmentSum_parity():
     )
 
 
-def test_WeibullMin_parity():
+def test_WeibullMin_parity() -> None:
     """Test parity for WeibullMin."""
     check_parity(
         "WeibullMin",

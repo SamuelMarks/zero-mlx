@@ -9,9 +9,9 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Acos` |
 | [x] | `Acosh` |
 | [x] | `ActivityRegularization` |
+| [ ] | `AdamaxHyperparams` |
 | [x] | `AdaptiveAvgPool2D` |
 | [ ] | `AdaptiveAvgPool3D` |
-| [ ] | `AdaptiveLogSoftmaxWithLoss` |
 | [x] | `AdaptiveMaxPool2D` |
 | [ ] | `AdaptiveMaxPool3D` |
 | [ ] | `AdaptiveMaxPool3D_Indices` |
@@ -26,15 +26,16 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `AffineGrid` |
 | [x] | `AffineTransform` |
 | [x] | `All` |
-| [x] | `AllGather` |
-| [x] | `AllReduce` |
-| [x] | `AllToAll` |
 | [x] | `Allclose` |
 | [x] | `AlphaDropout` |
 | [x] | `Angle` |
 | [x] | `Any` |
 | [ ] | `Append` |
+| [ ] | `ApplyAdagrad` |
+| [ ] | `ApplyAdam` |
+| [ ] | `ApplyFtrl` |
 | [ ] | `ApplyOverAxes` |
+| [ ] | `ApplyRMSProp` |
 | [x] | `Argmax` |
 | [x] | `Argmin` |
 | [x] | `Argpartition` |
@@ -61,7 +62,6 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `AugMix` |
 | [x] | `AutoContrast` |
 | [ ] | `Average` |
-| [x] | `AxisIndex` |
 | [x] | `Ball` |
 | [x] | `BandPart` |
 | [x] | `BandedTriangularSolve` |
@@ -97,12 +97,8 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [ ] | `Block` |
 | [x] | `BlockMaskedMm` |
 | [x] | `BooleanMask` |
-| [ ] | `Broadcast` |
-| [ ] | `BroadcastArrays` |
 | [x] | `BroadcastInDim` |
 | [x] | `BroadcastTo` |
-| [ ] | `BroadcastToRank` |
-| [ ] | `BroadcastedIota` |
 | [ ] | `C` |
 | [x] | `CTCLoss` |
 | [ ] | `CanCast` |
@@ -142,8 +138,8 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Cosh` |
 | [x] | `CountNonzero` |
 | [x] | `Cov` |
+| [ ] | `CreateToken` |
 | [x] | `Cross` |
-| [ ] | `CtcLoss` |
 | [x] | `Cumlogsumexp` |
 | [x] | `Cummax` |
 | [x] | `Cummin` |
@@ -232,7 +228,6 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Fftnd` |
 | [x] | `Fftshift` |
 | [ ] | `FillDiagonal` |
-| [ ] | `Finfo` |
 | [x] | `Fix` |
 | [ ] | `Flatnonzero` |
 | [ ] | `Flip` |
@@ -270,8 +265,6 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [ ] | `Geometric` |
 | [ ] | `Geomspace` |
 | [x] | `GetItem` |
-| [ ] | `GetPrintoptions` |
-| [ ] | `Gradient` |
 | [x] | `Greater` |
 | [x] | `GreaterEqual` |
 | [x] | `GroupMean` |
@@ -279,24 +272,16 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `GroupVariance` |
 | [x] | `Gru` |
 | [x] | `Gumbel` |
-| [ ] | `HardSilu` |
-| [ ] | `HardSwish` |
 | [x] | `Hashing` |
 | [x] | `Heaviside` |
 | [ ] | `HermitePolynomialH` |
 | [ ] | `HermitePolynomialHe` |
 | [x] | `Hessenberg` |
 | [x] | `Hfft` |
-| [ ] | `HierarchicalCopyAllReduce` |
-| [ ] | `Histogram` |
-| [ ] | `Histogram2d` |
-| [ ] | `HistogramBinEdges` |
-| [ ] | `Histogramdd` |
 | [x] | `HouseholderProduct` |
 | [x] | `Hsplit` |
 | [x] | `Hstack` |
 | [x] | `Hypot` |
-| [ ] | `I0` |
 | [x] | `Ifft` |
 | [ ] | `Ifft2` |
 | [ ] | `Ifftn` |
@@ -306,17 +291,11 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `IgammaGradA` |
 | [x] | `Igammac` |
 | [x] | `Ihfft` |
-| [ ] | `Iinfo` |
 | [x] | `Imag` |
-| [ ] | `InTopK` |
 | [ ] | `IndexInDim` |
-| [ ] | `Indices` |
-| [x] | `Infeed` |
 | [x] | `Inner` |
 | [ ] | `Insert` |
 | [x] | `IntegerLookup` |
-| [ ] | `Interp` |
-| [ ] | `Intersect1d` |
 | [x] | `Inv` |
 | [ ] | `InvEx` |
 | [x] | `Invert` |
@@ -339,15 +318,11 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [ ] | `Isposinf` |
 | [ ] | `Isreal` |
 | [ ] | `Isrealobj` |
-| [ ] | `Isscalar` |
 | [ ] | `Issubdtype` |
 | [x] | `Istft` |
-| [ ] | `Iterable` |
-| [ ] | `Ix` |
 | [x] | `Key` |
 | [x] | `KeyData` |
 | [x] | `KeyImpl` |
-| [ ] | `Kron` |
 | [x] | `L2Normalize` |
 | [ ] | `LaguerrePolynomialL` |
 | [x] | `Laplace` |
@@ -360,6 +335,28 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `LessEqual` |
 | [ ] | `Lexsort` |
 | [x] | `Lgamma` |
+| [ ] | `LinearOperator` |
+| [ ] | `LinearOperatorAdjoint` |
+| [ ] | `LinearOperatorBlockDiag` |
+| [ ] | `LinearOperatorBlockLowerTriangular` |
+| [ ] | `LinearOperatorCirculant` |
+| [ ] | `LinearOperatorCirculant2D` |
+| [ ] | `LinearOperatorCirculant3D` |
+| [ ] | `LinearOperatorComposition` |
+| [ ] | `LinearOperatorDiag` |
+| [ ] | `LinearOperatorFullMatrix` |
+| [ ] | `LinearOperatorHouseholder` |
+| [ ] | `LinearOperatorIdentity` |
+| [ ] | `LinearOperatorInversion` |
+| [ ] | `LinearOperatorKronecker` |
+| [ ] | `LinearOperatorLowRankUpdate` |
+| [ ] | `LinearOperatorLowerTriangular` |
+| [ ] | `LinearOperatorPermutation` |
+| [ ] | `LinearOperatorScaledIdentity` |
+| [ ] | `LinearOperatorToeplitz` |
+| [ ] | `LinearOperatorTridiag` |
+| [ ] | `LinearOperatorZeros` |
+| [ ] | `LionConfig` |
 | [ ] | `Load` |
 | [x] | `Log` |
 | [x] | `Log10` |
@@ -388,7 +385,6 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [ ] | `LuReconstruct` |
 | [x] | `LuSolve` |
 | [ ] | `MapFlatValues` |
-| [ ] | `MaskIndices` |
 | [x] | `Matmul` |
 | [x] | `MatrixExponential` |
 | [x] | `MatrixNorm` |
@@ -404,13 +400,9 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Maximum` |
 | [x] | `Maxwell` |
 | [x] | `Mean` |
-| [ ] | `Median` |
-| [ ] | `Mgrid` |
 | [x] | `Min` |
 | [x] | `Minimum` |
-| [ ] | `Mish` |
 | [x] | `Mod` |
-| [ ] | `Modf` |
 | [ ] | `ModifiedBesselI0` |
 | [ ] | `ModifiedBesselI1` |
 | [ ] | `ModifiedBesselK0` |
@@ -436,21 +428,20 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Nanstd` |
 | [x] | `Nansum` |
 | [x] | `Nanvar` |
-| [ ] | `NcclAllReduce` |
 | [x] | `Ndtri` |
 | [x] | `Negative` |
 | [x] | `Nextafter` |
 | [ ] | `Nms` |
+| [ ] | `NonblockingLoad` |
+| [ ] | `NonblockingSave` |
 | [ ] | `Nonzero` |
 | [x] | `Norm` |
 | [ ] | `NormCdf` |
 | [ ] | `NormPdf` |
+| [ ] | `Normalization` |
 | [x] | `NotEqual` |
-| [ ] | `Ogrid` |
-| [ ] | `OneHot` |
 | [x] | `Orthogonal` |
 | [x] | `Outer` |
-| [x] | `Outfeed` |
 | [x] | `Packbits` |
 | [ ] | `Pad` |
 | [x] | `Pareto` |
@@ -458,16 +449,12 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [ ] | `ParseSequenceExample` |
 | [ ] | `ParseTensor` |
 | [x] | `Partition` |
-| [x] | `Pbroadcast` |
 | [x] | `Pdot` |
 | [ ] | `Percentile` |
 | [x] | `Permute` |
 | [x] | `PerspectiveTransform` |
-| [ ] | `Piecewise` |
 | [x] | `Pinv` |
-| [x] | `Pmax` |
 | [x] | `Pmean` |
-| [x] | `Pmin` |
 | [x] | `Poisson` |
 | [ ] | `PoissonCdf` |
 | [ ] | `PoissonPmf` |
@@ -487,18 +474,12 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Posterize` |
 | [x] | `Power` |
 | [x] | `PowerIteration` |
-| [x] | `Ppermute` |
 | [x] | `Prod` |
-| [ ] | `PromoteTypes` |
-| [x] | `Pshuffle` |
 | [x] | `Psum` |
-| [x] | `PsumScatter` |
-| [x] | `Pswapaxes` |
 | [x] | `PutAlongAxis` |
 | [ ] | `Qdwh` |
 | [x] | `Qr` |
 | [ ] | `Quantile` |
-| [ ] | `R` |
 | [x] | `Rad2Deg` |
 | [ ] | `Radians` |
 | [x] | `RaggedAdd` |
@@ -528,10 +509,8 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Real` |
 | [x] | `Reciprocal` |
 | [x] | `ReciprocalNoNan` |
-| [ ] | `Reduce` |
 | [x] | `ReduceEuclideanNorm` |
 | [x] | `ReducePrecision` |
-| [x] | `ReduceScatter` |
 | [x] | `RegexFullMatch` |
 | [x] | `RegexReplace` |
 | [ ] | `Rem` |
@@ -539,7 +518,6 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Repeat` |
 | [x] | `Reshape` |
 | [x] | `Resize` |
-| [ ] | `ResultType` |
 | [x] | `Rfft` |
 | [ ] | `Rfft2` |
 | [x] | `Rfftfreq` |
@@ -552,15 +530,15 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `RngUniform` |
 | [x] | `Roll` |
 | [x] | `Roots` |
-| [ ] | `Rot90` |
 | [x] | `Round` |
 | [x] | `RowStack` |
-| [ ] | `Rrelu` |
 | [x] | `Rsqrt` |
 | [ ] | `Save` |
 | [ ] | `SaveGguf` |
 | [ ] | `Savez` |
 | [ ] | `SavezCompressed` |
+| [ ] | `ScalarMul` |
+| [ ] | `ScaledDotProductAttention` |
 | [x] | `Scan` |
 | [x] | `Scatter` |
 | [x] | `ScatterAdd` |
@@ -577,12 +555,10 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [ ] | `SerializeTensor` |
 | [x] | `Setdiff1d` |
 | [x] | `Setxor1d` |
-| [x] | `ShardTensor` |
 | [ ] | `ShiftedChebyshevPolynomialT` |
 | [ ] | `ShiftedChebyshevPolynomialU` |
 | [ ] | `ShiftedChebyshevPolynomialV` |
 | [ ] | `ShiftedChebyshevPolynomialW` |
-| [ ] | `Sigmoid` |
 | [x] | `Sign` |
 | [x] | `Signbit` |
 | [x] | `Sin` |
@@ -594,7 +570,6 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Slogdet` |
 | [ ] | `Smm` |
 | [x] | `SobolSample` |
-| [ ] | `Softmax` |
 | [ ] | `Softsign` |
 | [x] | `Solarize` |
 | [x] | `Solve` |
@@ -641,7 +616,6 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Sqrtm` |
 | [x] | `Square` |
 | [x] | `SquaredDifference` |
-| [ ] | `Squareplus` |
 | [x] | `Squeeze` |
 | [x] | `Stack` |
 | [x] | `Std` |
@@ -680,18 +654,13 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `TopK` |
 | [x] | `Trace` |
 | [x] | `Transpose` |
-| [ ] | `Trapezoid` |
 | [x] | `TrapezoidalIntegral` |
-| [ ] | `Tri` |
 | [x] | `TriInv` |
 | [x] | `Triangular` |
 | [x] | `TriangularSolve` |
 | [x] | `Tridiagonal` |
 | [ ] | `TridiagonalMatmul` |
 | [x] | `TridiagonalSolve` |
-| [x] | `Tril` |
-| [ ] | `TrimZeros` |
-| [x] | `Triu` |
 | [x] | `TrueDivide` |
 | [x] | `Trunc` |
 | [x] | `TruncateDiv` |
@@ -706,14 +675,11 @@ This tracks which ml-switcheroo-compiler operations have a dedicated parity test
 | [x] | `Unpackbits` |
 | [x] | `UnravelIndex` |
 | [ ] | `Unstack` |
-| [ ] | `Unwrap` |
 | [ ] | `UpdateSlice` |
-| [ ] | `Vander` |
 | [x] | `Variance` |
 | [x] | `Vdot` |
 | [x] | `Vecdot` |
 | [x] | `VectorNorm` |
-| [ ] | `Vectorize` |
 | [x] | `Vsplit` |
 | [x] | `Vstack` |
 | [x] | `Wald` |

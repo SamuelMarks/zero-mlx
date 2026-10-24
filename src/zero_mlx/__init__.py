@@ -1,642 +1,693 @@
-# ruff: noqa
-"""zero_mlx API."""
+"""Zero-dependency pure-Python implementation of the MLX API surface (`zero_mlx`)."""
+
+from __future__ import annotations
+
+import math
 
 from ml_switcheroo_compiler.core.config import config
 
-
 config.eager_mode = True
 
-from zero_mlx.device import is_available, gpu
-from ml_switcheroo_compiler.core.device import Device as SwitcherooDevice
-from ml_switcheroo_compiler.core.device import DeviceType as SwitcherooDeviceType
-
-if is_available(gpu):  # pragma: no cover
-    config.default_device = SwitcherooDevice(SwitcherooDeviceType.GPU, 0)
-
-
-if config.backend == "mlx":  # pragma: no cover
-    pass  # we now want to use numpy or whatever is default, actually let's just use ml-switcheroo-compiler defaults.
-
-from zero_mlx.dtypes import (
-    DType,
-    Dtype,
-    DtypeCategory,
-    bool_,
-    uint8,
-    uint16,
-    uint32,
-    uint64,
-    int8,
-    int16,
-    int32,
-    int64,
-    float16,
-    bfloat16,
-    float32,
-    float64,
-    complex64,
-    complex128,
-)
-from zero_mlx.device import (
-    new_stream,
-    default_device,
-    set_default_device,
-    stream,
-    clear_streams,
-    Stream,
-)
-
-StreamContext = stream
-
+import zero_mlx.cuda as cuda
+import zero_mlx.distributed as distributed
+import zero_mlx.fast as fast
+import zero_mlx.fft as fft
+import zero_mlx.linalg as linalg
+import zero_mlx.metal as metal
+import zero_mlx.mlx_random as random
+import zero_mlx.nn as nn
+import zero_mlx.optimizers as optimizers
+import zero_mlx.utils as utils
 from zero_mlx.array import array
-from zero_mlx.mlx_random import (
-    key,
-    split,
-    uniform,
-    normal,
-    randint,
-    bernoulli,
-    truncated_normal,
-    gumbel,
-    categorical,
-)
+from zero_mlx.array_iterator import ArrayIterator
+from zero_mlx.array_like import ArrayLike
+from zero_mlx.array_repr import get_printoptions, printoptions, set_printoptions
+from zero_mlx.at_mocker import ArrayAt
 from zero_mlx.convolutions import (
     conv1d,
     conv2d,
     conv3d,
+    conv_general,
     conv_transpose1d,
     conv_transpose2d,
     conv_transpose3d,
-    conv_general,
+    convolve,
+    dequantize,
+    gather_qmm,
+    gather_qqmm,
+    qqmm,
+    quantize,
+    quantized_matmul,
 )
-import zero_mlx.distributed as distributed
-from zero_mlx.export import export_function, exporter
-import zero_mlx.fast as fast
-import zero_mlx.fft as fft
-from zero_mlx.metal import (
+from zero_mlx.device import (
+    Device,
+    DeviceType,
+    Stream,
+    StreamContext,
+    ThreadLocalStream,
+    clear_cache,
+    clear_streams,
+    cpu,
+    default_device,
+    default_stream,
+    device_count,
+    device_info,
     get_active_memory,
     get_cache_memory,
-    set_cache_limit,
+    get_memory_limit,
+    get_peak_memory,
+    gpu,
+    is_available,
+    new_stream,
+    new_thread_local_stream,
+    new_thread_unsafe_stream,
     reset_peak_memory,
+    set_cache_limit,
+    set_default_device,
+    set_default_stream,
+    set_memory_limit,
+    set_wired_limit,
+    stream,
+    synchronize,
 )
-import zero_mlx.linalg as linalg
-import zero_mlx.metal as metal
-import zero_mlx.nn as nn
-from zero_mlx.ops import *  # type: ignore[attr-defined]
-
-from zero_mlx.ops import (  # type: ignore[attr-defined]
-    __all__ as ops_all,
+from zero_mlx.dlpack import from_dlpack
+from zero_mlx.dtypes import (
+    DType,
+    Dtype,
+    DtypeCategory,
+    bfloat16,
+    bool_,
+    complex64,
+    complex128,
+    complexfloating,
+    float16,
+    float32,
+    float64,
+    floating,
+    generic,
+    inexact,
+    int8,
+    int16,
+    int32,
+    int64,
+    integer,
+    isdtype,
+    issubdtype,
+    number,
+    signedinteger,
+    uint8,
+    uint16,
+    uint32,
+    uint64,
+    unsignedinteger,
 )
-import zero_mlx.optimizers as optimizers
+from zero_mlx.export import (
+    FunctionExporter,
+    export_function,
+    export_to_dot,
+    exporter,
+    import_function,
+)
+from zero_mlx.info import finfo, iinfo
+from zero_mlx.mlx_random import (
+    bernoulli,
+    categorical,
+    gumbel,
+    key,
+    laplace,
+    multivariate_normal,
+    normal,
+    permutation,
+    randint,
+    seed,
+    split as random_split,
+    truncated_normal,
+    uniform,
+)
+from zero_mlx.new_ops import (
+    CustomFunction,
+    async_eval,
+    checkpoint,
+    compile,
+    custom_function,
+    disable_compile,
+    enable_compile,
+    eval,
+    grad,
+    jvp,
+    load,
+    save,
+    save_gguf,
+    save_safetensors,
+    savez,
+    savez_compressed,
+    value_and_grad,
+    vjp,
+    vmap,
+)
+from zero_mlx.ops import (
+    abs,
+    acos,
+    acosh,
+    add,
+    addmm,
+    all,
+    allclose,
+    any,
+    arange,
+    arccos,
+    arccosh,
+    arcsin,
+    arcsinh,
+    arctan,
+    arctan2,
+    arctanh,
+    argmax,
+    argmin,
+    argpartition,
+    argsort,
+    as_strided,
+    asarray,
+    asin,
+    asinh,
+    astype,
+    atan,
+    atan2,
+    atanh,
+    atleast_1d,
+    atleast_2d,
+    atleast_3d,
+    bartlett,
+    bitwise_and,
+    bitwise_invert,
+    bitwise_or,
+    bitwise_xor,
+    blackman,
+    block_masked_mm,
+    broadcast_arrays,
+    broadcast_shapes,
+    broadcast_to,
+    can_cast,
+    ceil,
+    clip,
+    concat,
+    concatenate,
+    conj,
+    conjugate,
+    contiguous,
+    cos,
+    cosh,
+    count_nonzero,
+    cummax,
+    cummin,
+    cumprod,
+    cumsum,
+    degrees,
+    depends,
+    diag,
+    diagonal,
+    diff,
+    divide,
+    divmod,
+    einsum,
+    einsum_path,
+    empty,
+    empty_like,
+    equal,
+    erf,
+    erfinv,
+    exp,
+    expand_dims,
+    expm1,
+    eye,
+    flatten,
+    flip,
+    floor,
+    floor_divide,
+    from_fp8,
+    full,
+    full_like,
+    gather_mm,
+    greater,
+    greater_equal,
+    hadamard_transform,
+    hamming,
+    hanning,
+    identity,
+    imag,
+    inner,
+    isclose,
+    isfinite,
+    isinf,
+    isnan,
+    isneginf,
+    isposinf,
+    kron,
+    left_shift,
+    less,
+    less_equal,
+    linspace,
+    log,
+    log1p,
+    log2,
+    log10,
+    logaddexp,
+    logcumsumexp,
+    logical_and,
+    logical_not,
+    logical_or,
+    logical_xor,
+    logsumexp,
+    matmul,
+    matrix_transpose,
+    max,
+    maximum,
+    mean,
+    median,
+    meshgrid,
+    min,
+    minimum,
+    minmax,
+    moveaxis,
+    multiply,
+    nan_to_num,
+    negative,
+    not_equal,
+    ones,
+    ones_like,
+    outer,
+    pad,
+    partition,
+    permute_dims,
+    positive,
+    pow,
+    power,
+    prod,
+    put_along_axis,
+    radians,
+    real,
+    reciprocal,
+    remainder,
+    repeat,
+    reshape,
+    result_type,
+    right_shift,
+    roll,
+    round,
+    rsqrt,
+    searchsorted,
+    segmented_mm,
+    sigmoid,
+    sign,
+    sin,
+    sinh,
+    slice,
+    slice_update,
+    softmax,
+    sort,
+    split,
+    sqrt,
+    square,
+    squeeze,
+    stack,
+    std,
+    stop_gradient,
+    subtract,
+    sum,
+    swapaxes,
+    take,
+    take_along_axis,
+    tan,
+    tanh,
+    tensordot,
+    tile,
+    to_fp8,
+    topk,
+    trace,
+    transpose,
+    tri,
+    tril,
+    triu,
+    trunc,
+    unflatten,
+    unique,
+    unstack,
+    var,
+    vecdot,
+    view,
+    where,
+    zeros,
+    zeros_like,
+    array_equal,
+)
+from zero_mlx.linalg import matrix_norm, norm
 from zero_mlx.random_state import state
-import zero_mlx.utils as utils
+from zero_mlx.utils import get_array_buffer_size, tree_flatten, tree_unflatten
 
-from ml_switcheroo_compiler.tree_util import tree_flatten, tree_unflatten
+__version__: str = "0.32.4"
+inf: float = float("inf")
+nan: float = float("nan")
+pi: float = math.pi
+e: float = math.e
+euler_gamma: float = 0.5772156649015329
+newaxis: None = None
 
-from typing import Union, Sequence, Callable, Any, Optional
+import zero_mlx as core
 
 __all__ = [
+    "ArrayAt",
+    "ArrayIterator",
+    "ArrayLike",
+    "CustomFunction",
     "DType",
+    "Device",
+    "DeviceType",
     "Dtype",
     "DtypeCategory",
-    "bool_",
-    "uint8",
-    "uint16",
-    "uint32",
-    "uint64",
-    "int8",
-    "int16",
-    "int32",
-    "int64",
-    "float16",
-    "bfloat16",
-    "float32",
-    "float64",
-    "complex64",
-    "complex128",
-    "default_device",
-    "set_default_device",
-    "stream",
-    "clear_streams",
+    "FunctionExporter",
     "Stream",
+    "StreamContext",
+    "ThreadLocalStream",
+    "__version__",
+    "abs",
+    "acos",
+    "acosh",
+    "add",
+    "addmm",
+    "all",
+    "allclose",
+    "any",
+    "arange",
+    "arccos",
+    "arccosh",
+    "arcsin",
+    "arcsinh",
+    "arctan",
+    "arctan2",
+    "arctanh",
+    "argmax",
+    "argmin",
+    "argpartition",
+    "argsort",
+    "as_strided",
+    "asarray",
+    "asin",
+    "asinh",
     "array",
-    "key",
-    "split",
-    "uniform",
-    "normal",
-    "randint",
+    "array_equal",
+    "astype",
+    "async_eval",
+    "atan",
+    "atan2",
+    "atanh",
+    "atleast_1d",
+    "atleast_2d",
+    "atleast_3d",
+    "bartlett",
     "bernoulli",
-    "truncated_normal",
-    "gumbel",
+    "bfloat16",
+    "bitwise_and",
+    "bitwise_invert",
+    "bitwise_or",
+    "bitwise_xor",
+    "blackman",
+    "block_masked_mm",
+    "bool_",
+    "broadcast_arrays",
+    "broadcast_shapes",
+    "broadcast_to",
+    "can_cast",
     "categorical",
+    "ceil",
+    "checkpoint",
+    "clear_cache",
+    "clear_streams",
+    "clip",
+    "compile",
+    "complex128",
+    "complex64",
+    "complexfloating",
+    "concat",
+    "concatenate",
+    "conj",
+    "conjugate",
+    "contiguous",
     "conv1d",
     "conv2d",
     "conv3d",
-    "export_function",
-    "exporter",
-    "get_active_memory",
-    "get_cache_memory",
-    "set_cache_limit",
-    "reset_peak_memory",
-    "state",
-    "tree_flatten",
-    "tree_unflatten",
-    "ArrayAt",
-    "StreamContext",
-    "distributed",
-    "fast",
-    "fft",
-    "linalg",
-    "metal",
-    "nn",
-    "optimizers",
-    "utils",
-    "eval",
-    "async_eval",
-]
-
-__all__ += ops_all
-
-# Optional dependencies based functions
-
-
-def compile(  # pragma: no cover
-    fun: Optional[Callable] = None,
-    *,
-    inputs: Any = None,
-    outputs: Any = None,
-    shapeless: bool = False,
-) -> Union[Callable, Any]:
-    """Compile a function.
-
-    Args:
-        fun: The function to compile.
-        inputs: The inputs to the function.
-        outputs: The outputs to the function.
-        shapeless: Whether the compilation is shapeless.
-
-    Returns:
-        The compiled function.
-    """
-    if fun is None:
-
-        def decorator(f):  # pragma: no cover
-            return compile(f, inputs=inputs, outputs=outputs, shapeless=shapeless)
-
-        return decorator
-
-    import ml_switcheroo_compiler.tracing as tracing
-    import ml_switcheroo_compiler as compiler
-
-    def compiled_fn(*args, **kwargs):  # pragma: no cover
-        """Evaluate the compiled function."""
-        # This is a naive compilation tracing mock, will replace when ml-switcheroo-compiler provides a JIT decorator
-        # for now, we just return the result of the function
-        return fun(*args, **kwargs)
-
-    return compiled_fn
-
-
-def value_and_grad(  # pragma: no cover
-    fun: Callable, argnums: Union[int, Sequence[int]] = 0
-) -> Callable:  # pragma: no cover
-    """Compute value_and_grad.
-
-    Args:
-        fun: The fun argument.
-        argnums: The argnums argument.
-
-    Returns:
-        The result of value_and_grad.
-    """
-
-    def _grad(*args, **kwargs):  # pragma: no cover
-        """Evaluate the gradient of the function."""
-        # mock grad returns same shape with zeros
-        import ml_switcheroo_compiler.ops as sops  # pragma: no cover
-
-        res = fun(*args, **kwargs)  # pragma: no cover
-        if isinstance(argnums, int):  # pragma: no cover
-            return res, array(
-                sops.zeros_like(args[argnums]._tensor)
-            )  # pragma: no cover
-        return res, tuple(
-            array(sops.zeros_like(args[i]._tensor)) for i in argnums
-        )  # pragma: no cover
-
-    return _grad  # pragma: no cover
-
-
-def grad(  # pragma: no cover
-    fun: Callable, argnums: Union[int, Sequence[int]] = 0
-) -> Callable:  # pragma: no cover
-    """Compute grad.
-
-    Args:
-        fun: The fun argument.
-        argnums: The argnums argument.
-
-    Returns:
-        The result of grad.
-    """
-
-    def _grad(*args, **kwargs):  # pragma: no cover
-        """Evaluate the gradient of the function."""
-        # mock grad returns same shape with zeros
-        import ml_switcheroo_compiler.ops as sops  # pragma: no cover
-
-        res = fun(*args, **kwargs)  # pragma: no cover
-        if isinstance(argnums, int):  # pragma: no cover
-            return array(sops.zeros_like(args[argnums]._tensor))  # pragma: no cover
-        return tuple(
-            array(sops.zeros_like(args[i]._tensor)) for i in argnums
-        )  # pragma: no cover
-
-    return _grad  # pragma: no cover
-
-
-def vjp(  # pragma: no cover
-    fun: Callable,
-    primals: Union[list[array], tuple[array, ...]],
-    cotangents: Union[list[array], tuple[array, ...]],
-) -> tuple[
-    Union[list[array], tuple[array, ...]], Union[list[array], tuple[array, ...]]
-]:
-    """Compute vjp.
-
-    Args:
-        fun: The fun argument.
-        primals: The primals argument.
-        cotangents: The cotangents argument.
-
-    Returns:
-        The result of vjp.
-    """
-    res = fun(*primals)  # pragma: no cover
-    import ml_switcheroo_compiler.ops as sops  # pragma: no cover
-
-    if isinstance(res, (list, tuple)):  # pragma: no cover
-        return res, tuple(
-            array(sops.zeros_like(p._tensor)) for p in primals
-        )  # pragma: no cover
-    return (res,), tuple(
-        array(sops.zeros_like(p._tensor)) for p in primals
-    )  # pragma: no cover
-
-
-def jvp(  # pragma: no cover
-    fun: Callable,
-    primals: Union[list[array], tuple[array, ...]],
-    tangents: Union[list[array], tuple[array, ...]],
-) -> tuple[
-    Union[list[array], tuple[array, ...]], Union[list[array], tuple[array, ...]]
-]:
-    """Compute jvp.
-
-    Args:
-        fun: The fun argument.
-        primals: The primals argument.
-        tangents: The tangents argument.
-
-    Returns:
-        The result of jvp.
-    """
-    res = fun(*primals)  # pragma: no cover
-    import ml_switcheroo_compiler.ops as sops  # pragma: no cover
-
-    if isinstance(res, (list, tuple)):  # pragma: no cover
-        return res, tuple(
-            array(sops.zeros_like(r._tensor)) for r in res
-        )  # pragma: no cover
-    return (res,), (array(sops.zeros_like(res._tensor)),)  # pragma: no cover
-
-
-def vmap(  # pragma: no cover
-    fun: Callable,
-    in_axes: Union[int, tuple[Optional[int], ...], list[Optional[int]]] = 0,
-    out_axes: Union[int, tuple[Optional[int], ...], list[Optional[int]]] = 0,
-) -> Callable:
-    """Compute vmap.
-
-    Args:
-        fun: The fun argument.
-        in_axes: The in_axes argument.
-        out_axes: The out_axes argument.
-
-    Returns:
-        The result of vmap.
-    """
-
-    def _vmap(*args, **kwargs):  # pragma: no cover
-        # Dummy vmap
-        return fun(*args, **kwargs)  # pragma: no cover
-
-    return _vmap  # pragma: no cover
-
-
-__all__.extend(
-    [
-        "compile",
-        "value_and_grad",
-        "grad",
-        "vjp",
-        "jvp",
-        "vmap",
-    ]
-)
-
-
-__all__.append("add")
-from zero_mlx.ops import matmul
-
-__all__.append("matmul")
-
-import contextlib
-
-
-def set_printoptions(**kwargs):  # pragma: no cover
-    global _printoptions_precision
-    if "precision" in kwargs:
-        _printoptions_precision = kwargs["precision"]
-    # We don't have a backend set_printoptions to call anymore, just store the state
-    pass
-
-
-@contextlib.contextmanager
-def printoptions(*args, **kwargs):  # pragma: no cover
-    global _printoptions_precision
-    import zero_mlx as _zm
-
-    old_prec = getattr(_zm, "_printoptions_precision", 5)
-    if "precision" in kwargs:
-        _printoptions_precision = kwargs["precision"]
-    try:
-        yield
-    finally:
-        _printoptions_precision = old_prec
-
-
-from zero_mlx.ops_patch import patch_ops, eval, async_eval
-
-patch_ops()
-
-# For AST checker
-
-StreamContext = StreamContext
-distributed = distributed
-fast = fast
-linalg = linalg
-metal = metal
-nn = nn
-optimizers = optimizers
-utils = utils
-
-__version__ = "0.0.0"
-
-from zero_mlx.device import (
-    new_stream,
-    device_count,
-    device_info,
-    default_stream,
-    Device,
-    DeviceType,
-    cpu,
-    gpu,
-    is_available,
-)
-from zero_mlx.convolutions import convolve, dequantize
-from zero_mlx.array_iterator import ArrayIterator
-from zero_mlx.at_mocker import ArrayAt
-from ml_switcheroo_compiler.core.device import clear_cache
-from zero_mlx.export import FunctionExporter
-
-
-import sys as _sys
-
-core = _sys.modules[__name__]
-random = _sys.modules["zero_mlx.mlx_random"]
-
-new_exports = [
-    "__version__",
-    "device_count",
-    "device_info",
-    "default_stream",
-    "Device",
-    "DeviceType",
-    "cpu",
-    "gpu",
-    "is_available",
-    "convolve",
-    "dequantize",
-    "ArrayIterator",
-    "ArrayAt",
-    "FunctionExporter",
-    "clear_cache",
-    "pi",
-    "e",
-    "inf",
-    "nan",
-    "newaxis",
-    "finfo",
-    "iinfo",
-    "arccosh",
-    "arctan2",
-    "bitwise_invert",
-    "concat",
-    "conj",
-    "contiguous",
-    "einsum",
-    "einsum_path",
-    "permute_dims",
-    "core",
-    "random",
-]
-
-__all__.extend(new_exports)
-
-__all__.extend(["set_printoptions", "printoptions"])
-
-import math
-
-inf = float("inf")
-nan = float("nan")
-pi = math.pi
-e = math.e
-newaxis = None
-euler_gamma = 0.5772156649015329
-
-from zero_mlx import cuda
-from zero_mlx.info import finfo, iinfo
-
-__all__.extend(
-    [
-        "inf",
-        "nan",
-        "pi",
-        "e",
-        "newaxis",
-        "euler_gamma",
-        "finfo",
-        "iinfo",
-        "new_stream",
-        "conj",
-        "conjugate",
-        "cuda",
-        "checkpoint",
-        "custom_function",
-    ]
-)
-
-cuda = cuda
-
-
-def checkpoint(fun: Callable) -> Callable:  # pragma: no cover
-    """Gradient checkpointing.
-
-    Args:
-        fun: The function to checkpoint.
-
-    Returns:
-        Callable: The checkpointed function.
-    """
-    import ml_switcheroo_compiler as compiler
-
-    if hasattr(compiler, "recompute_grad"):
-        return compiler.recompute_grad(fun)
-
-    def _checkpoint(*args, **kwargs):  # pragma: no cover
-        return fun(*args, **kwargs)
-
-    return _checkpoint
-
-
-class custom_function:  # pragma: no cover
-    """Set up a function for custom gradient and vmap definitions.
-
-    Args:
-        fun: The forward function.
-    """
-
-    def __init__(self, fun: Callable):  # pragma: no cover
-        self.fun = fun
-        self._vjp = None
-        self._jvp = None
-        self._vmap = None
-
-    def __call__(self, *args, **kwargs):  # pragma: no cover
-        """Call the custom function."""
-        return self.fun(*args, **kwargs)
-
-    def vjp(self, vjp_fun: Callable) -> Callable:  # pragma: no cover
-        """Set the vjp rule."""
-        self._vjp = vjp_fun
-        import ml_switcheroo_compiler as compiler
-
-        if hasattr(compiler, "custom_vjp"):
-            try:
-                fun_obj = compiler.custom_vjp(self.fun)
-
-                def fwd(*args, **kwargs):  # pragma: no cover
-                    outputs = self.fun(*args, **kwargs)
-                    return outputs, (args, outputs)
-
-                def bwd(res, cotangents):  # pragma: no cover
-                    args, outputs = res
-                    return vjp_fun(args, outputs, cotangents)
-
-                fun_obj.defvjp(fwd, bwd)
-                self.fun = fun_obj
-            except Exception:
-                pass
-        return vjp_fun
-
-    def jvp(self, jvp_fun: Callable) -> Callable:  # pragma: no cover
-        """Set the jvp rule."""
-        self._jvp = jvp_fun
-        import ml_switcheroo_compiler as compiler
-
-        if hasattr(compiler, "custom_jvp"):
-            try:
-                fun_obj = compiler.custom_jvp(self.fun)
-
-                def jvp_wrapper(primals, tangents):  # pragma: no cover
-                    return jvp_fun(primals, tangents)
-
-                fun_obj.defjvp(jvp_wrapper)
-                self.fun = fun_obj
-            except Exception:
-                pass
-        return jvp_fun
-
-    def vmap(self, vmap_fun: Callable) -> Callable:  # pragma: no cover
-        """Set the vmap rule."""
-        self._vmap = vmap_fun
-        return vmap_fun
-
-
-def new_stream(device):  # pragma: no cover
-    import ml_switcheroo_compiler as compiler
-
-    class MockStream:  # pragma: no cover
-        def __init__(self, dev):  # pragma: no cover
-            self.device = dev
-
-    return MockStream(device)
-
-
-from zero_mlx.new_ops import *
-from zero_mlx.array_like import ArrayLike
-from zero_mlx.dtypes import DtypeCategory
-
-complexfloating = DtypeCategory.complexfloating
-floating = DtypeCategory.floating
-inexact = DtypeCategory.inexact
-signedinteger = DtypeCategory.signedinteger
-unsignedinteger = DtypeCategory.unsignedinteger
-integer = DtypeCategory.integer
-number = DtypeCategory.number
-generic = DtypeCategory.generic
-
-# Missing APIs that should be in __all__
-more_exports = [
-    "ArrayLike",
-    "complexfloating",
     "conv_general",
     "conv_transpose1d",
     "conv_transpose2d",
     "conv_transpose3d",
+    "convolve",
+    "core",
+    "cos",
+    "cosh",
+    "count_nonzero",
+    "cpu",
+    "cuda",
+    "cummax",
+    "cummin",
+    "cumprod",
+    "cumsum",
+    "custom_function",
+    "default_device",
+    "default_stream",
+    "degrees",
+    "depends",
+    "dequantize",
+    "device_count",
+    "device_info",
+    "diag",
+    "diagonal",
+    "diff",
     "disable_compile",
+    "distributed",
+    "divide",
+    "divmod",
+    "e",
+    "einsum",
+    "einsum_path",
+    "empty",
+    "empty_like",
     "enable_compile",
+    "equal",
+    "erf",
+    "erfinv",
+    "euler_gamma",
+    "eval",
+    "exp",
+    "expand_dims",
+    "expm1",
+    "export_function",
     "export_to_dot",
+    "exporter",
+    "eye",
+    "fast",
+    "fft",
+    "finfo",
     "flatten",
+    "flip",
+    "float16",
+    "float32",
+    "float64",
     "floating",
+    "floor",
+    "floor_divide",
+    "from_dlpack",
+    "from_fp8",
+    "full",
+    "full_like",
+    "gather_mm",
     "gather_qmm",
+    "gather_qqmm",
     "generic",
+    "get_active_memory",
+    "get_array_buffer_size",
+    "get_cache_memory",
+    "get_memory_limit",
+    "get_peak_memory",
+    "get_printoptions",
+    "gpu",
+    "grad",
+    "greater",
+    "greater_equal",
+    "gumbel",
     "hadamard_transform",
+    "hamming",
+    "hanning",
     "identity",
+    "iinfo",
+    "imag",
     "import_function",
     "inexact",
+    "inf",
+    "inner",
+    "int16",
+    "int32",
+    "int64",
+    "int8",
     "integer",
+    "is_available",
+    "isclose",
+    "isdtype",
+    "isfinite",
+    "isinf",
+    "isnan",
+    "isneginf",
+    "isposinf",
+    "issubdtype",
+    "jvp",
+    "key",
+    "kron",
+    "laplace",
+    "left_shift",
+    "less",
+    "less_equal",
+    "linalg",
+    "linspace",
     "load",
+    "log",
+    "log10",
+    "log1p",
+    "log2",
+    "logaddexp",
+    "logcumsumexp",
+    "logical_and",
+    "logical_not",
+    "logical_or",
+    "logical_xor",
+    "logsumexp",
+    "matmul",
+    "matrix_norm",
+    "matrix_transpose",
+    "max",
+    "maximum",
+    "mean",
+    "median",
+    "meshgrid",
+    "metal",
+    "min",
+    "minimum",
+    "minmax",
+    "moveaxis",
+    "multiply",
+    "multivariate_normal",
+    "nan",
+    "nan_to_num",
+    "negative",
+    "new_stream",
+    "new_thread_local_stream",
+    "new_thread_unsafe_stream",
+    "newaxis",
+    "nn",
+    "norm",
+    "normal",
+    "not_equal",
     "number",
+    "ones",
+    "ones_like",
+    "optimizers",
+    "outer",
+    "pad",
+    "partition",
+    "permutation",
+    "permute_dims",
+    "pi",
+    "positive",
+    "pow",
+    "power",
+    "printoptions",
+    "prod",
+    "put_along_axis",
+    "qqmm",
     "quantize",
     "quantized_matmul",
+    "radians",
+    "randint",
+    "random",
+    "random_split",
+    "real",
+    "reciprocal",
+    "remainder",
+    "repeat",
+    "reset_peak_memory",
+    "reshape",
+    "result_type",
+    "right_shift",
+    "roll",
+    "round",
+    "rsqrt",
     "save",
     "save_gguf",
     "save_safetensors",
     "savez",
     "savez_compressed",
+    "searchsorted",
+    "seed",
+    "segmented_mm",
+    "set_cache_limit",
+    "set_default_device",
     "set_default_stream",
     "set_memory_limit",
+    "set_printoptions",
     "set_wired_limit",
+    "sigmoid",
+    "sign",
     "signedinteger",
+    "sin",
+    "sinh",
     "slice",
     "slice_update",
+    "softmax",
+    "sort",
+    "split",
+    "sqrt",
+    "square",
+    "squeeze",
+    "stack",
+    "state",
+    "std",
+    "stop_gradient",
+    "stream",
+    "subtract",
+    "sum",
+    "swapaxes",
+    "synchronize",
+    "take",
+    "take_along_axis",
     "tan",
+    "tanh",
+    "tensordot",
+    "tile",
+    "to_fp8",
     "topk",
+    "trace",
+    "transpose",
+    "tree_flatten",
+    "tree_unflatten",
+    "tri",
+    "tril",
+    "triu",
+    "trunc",
+    "truncated_normal",
+    "uint16",
+    "uint32",
+    "uint64",
+    "uint8",
     "unflatten",
+    "uniform",
+    "unique",
     "unsignedinteger",
+    "unstack",
+    "utils",
+    "value_and_grad",
+    "var",
+    "vecdot",
     "view",
+    "vjp",
+    "vmap",
+    "where",
+    "zeros",
+    "zeros_like",
 ]
-
-__all__.extend(more_exports)

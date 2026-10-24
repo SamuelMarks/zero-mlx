@@ -1,175 +1,273 @@
-"""mlx.core.distributed: Communication operations"""
+"""Distributed communication operations (`mlx.core.distributed`) for zero_mlx."""
 
-from typing import Any, Optional
+from __future__ import annotations
 
+from typing import Sequence
 
-class Group:  # pragma: no cover
-    """Group class."""
+import ml_switcheroo_compiler.ops as sops
 
-    def __init__(self) -> None:  # pragma: no cover
-        """Initialize the Group."""
-        pass
-
-
-def all_gather(  # pragma: no cover
-    x: Any, group: Optional[Group] = None, *, stream: Optional[Any] = None
-) -> Any:
-    """Perform an all_gather operation.
-
-    Args:
-        x (Any): The input array.
-        group (Optional[Group], optional): The distributed group. Defaults to None.
-        stream (Optional[Any], optional): The stream. Defaults to None.
-
-    Returns:
-        Any: The gathered array.
+from zero_mlx._types import ArrayInput, ShapeLike, StreamOrDevice
+from zero_mlx.array import array
+from zero_mlx.dtypes import DTypeLike, float32, resolve_dtype, to_switcheroo_dtype
 
 
-    """
-    from zero_mlx.array import array
-    import ml_switcheroo_compiler.ops as sops
+class Group:
+    """Representation of a distributed communication group."""
 
-    return array(sops.distributed.all_gather(x._tensor))
+    def __init__(self, rank: int = 0, size: int = 1) -> None:
+        """Initialize a distributed `Group`.
 
+        Args:
+            rank: Process rank within the group.
+            size: Total number of processes in the group.
 
-def all_max(  # pragma: no cover
-    x: Any, group: Optional[Group] = None, *, stream: Optional[Any] = None
-) -> Any:
-    """Perform an all_max operation.
+        """
+        self._rank: int = rank
+        self._size: int = size
 
-    Args:
-        x (Any): The input array.
-        group (Optional[Group], optional): The distributed group. Defaults to None.
-        stream (Optional[Any], optional): The stream. Defaults to None.
+    def rank(self) -> int:
+        """Return the rank of the current process in the group.
 
-    Returns:
-        Any: The max array.
+        Returns:
+            Integer process rank.
 
+        """
+        return self._rank
 
-    """
-    from zero_mlx.array import array
-    import ml_switcheroo_compiler.ops as sops
+    def size(self) -> int:
+        """Return the total number of processes in the group.
 
-    return array(sops.distributed.pmax(x._tensor, axis_name="group"))
+        Returns:
+            Group size.
 
+        """
+        return self._size
 
-def all_min(  # pragma: no cover
-    x: Any, group: Optional[Group] = None, *, stream: Optional[Any] = None
-) -> Any:
-    """Perform an all_min operation.
+    def split(self, color: int, key: int = -1) -> Group:
+        """Split the group based on `color` and `key`.
 
-    Args:
-        x (Any): The input array.
-        group (Optional[Group], optional): The distributed group. Defaults to None.
-        stream (Optional[Any], optional): The stream. Defaults to None.
+        Args:
+            color: Subgroup color identifier.
+            key: Rank ordering key within the subgroup.
 
-    Returns:
-        Any: The min array.
+        Returns:
+            New split `Group` instance.
 
-
-    """
-    from zero_mlx.array import array
-    import ml_switcheroo_compiler.ops as sops
-
-    return array(sops.distributed.pmin(x._tensor, axis_name="group"))
+        """
+        _ = (color, key)
+        return Group(self._rank, self._size)
 
 
-def all_sum(  # pragma: no cover
-    x: Any, group: Optional[Group] = None, *, stream: Optional[Any] = None
-) -> Any:
-    """Perform an all_sum operation.
+def init(strict: bool = False, backend: str = "any") -> Group:
+    """Initialize the distributed communication runtime and return the global group.
 
     Args:
-        x (Any): The input array.
-        group (Optional[Group], optional): The distributed group. Defaults to None.
-        stream (Optional[Any], optional): The stream. Defaults to None.
+        strict: If True, raise an error if distributed initialization fails.
+        backend: Distributed communication backend name.
 
     Returns:
-        Any: The sum array.
-
+        Global `Group` object.
 
     """
-    from zero_mlx.array import array
-    import ml_switcheroo_compiler.ops as sops
-
-    return array(sops.distributed.all_reduce(x._tensor))
+    _ = (strict, backend)
+    return Group(0, 1)
 
 
-def init(strict: bool = False) -> Group:  # pragma: no cover
-    """Initialize the distributed group.
+def is_available(backend: str = "any") -> bool:
+    """Check if distributed communication is available.
 
     Args:
-        strict (bool, optional): Whether to initialize strictly. Defaults to False.
+        backend: Distributed backend to check.
 
     Returns:
-        Group: A new distributed Group object.
+        False in single-process pure-Python mode.
 
     """
-    return Group()
-
-
-def is_available() -> bool:  # pragma: no cover
-    """Check if distributed operations are available.
-
-    Returns:
-        bool: False, as distributed operations are not natively available in this stub.
-
-    """
+    _ = backend
     return False
 
 
-def recv(dst: Any, src: int, stream: Optional[Any] = None) -> Any:  # pragma: no cover
-    """Receive data from a source.
+def all_gather(
+    x: ArrayInput,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Gather arrays from all processes in the group and concatenate along axis 0.
 
     Args:
-        dst (Any): The destination array.
-        src (int): The source rank.
-        stream (Optional[Any], optional): The stream. Defaults to None.
+        x: Input array to gather.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
 
     Returns:
-        Any: The received array.
-
+        Gathered `array`.
 
     """
-    from zero_mlx.array import array
+    _ = (group, stream)
+    arr = x if isinstance(x, array) else array(x)
+    return arr.copy()
 
-    return array(0)
 
-
-def recv_like(  # pragma: no cover
-    src: int, template: Any, stream: Optional[Any] = None
-) -> Any:  # pragma: no cover
-    """Receive data shaped like a template from a source.
+def all_max(
+    x: ArrayInput,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the element-wise maximum across all processes in the group.
 
     Args:
-        src (int): The source rank.
-        template (Any): The template array.
-        stream (Optional[Any], optional): The stream. Defaults to None.
+        x: Input array.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
 
     Returns:
-        Any: The received array.
-
+        Element-wise maximum `array`.
 
     """
-    from zero_mlx.array import array
+    _ = (group, stream)
+    arr = x if isinstance(x, array) else array(x)
+    return arr.copy()
 
-    return array(0)
 
-
-def send(x: Any, dst: int, stream: Optional[Any] = None) -> Any:  # pragma: no cover
-    """Send data to a destination.
+def all_min(
+    x: ArrayInput,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the element-wise minimum across all processes in the group.
 
     Args:
-        x (Any): The input array to send.
-        dst (int): The destination rank.
-        stream (Optional[Any], optional): The stream. Defaults to None.
+        x: Input array.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
 
     Returns:
-        Any: The sent array.
-
+        Element-wise minimum `array`.
 
     """
-    pass
+    _ = (group, stream)
+    arr = x if isinstance(x, array) else array(x)
+    return arr.copy()
+
+
+def all_sum(
+    x: ArrayInput,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Compute the element-wise sum across all processes in the group.
+
+    Args:
+        x: Input array.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
+
+    Returns:
+        Element-wise sum `array`.
+
+    """
+    _ = (group, stream)
+    arr = x if isinstance(x, array) else array(x)
+    return arr.copy()
+
+
+def sum_scatter(
+    x: ArrayInput,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Sum arrays across all processes and scatter the result blocks across ranks.
+
+    Args:
+        x: Input array.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
+
+    Returns:
+        Sum-scattered `array`.
+
+    """
+    return all_sum(x, group=group, stream=stream)
+
+
+def send(
+    x: ArrayInput,
+    dst: int,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Send an array `x` to destination rank `dst`.
+
+    Args:
+        x: Input array to send.
+        dst: Destination rank.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
+
+    Returns:
+        The sent `array`.
+
+    """
+    _ = (dst, group, stream)
+    return x if isinstance(x, array) else array(x)
+
+
+def recv(
+    shape: ShapeLike,
+    dtype: DTypeLike,
+    src: int,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Receive an array of given `shape` and `dtype` from source rank `src`.
+
+    Args:
+        shape: Shape of the array to receive.
+        dtype: Data type of the array to receive.
+        src: Source process rank.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
+
+    Returns:
+        Received `array` initialized to zeros.
+
+    """
+    _ = (src, group, stream)
+    shp: tuple[int, ...] = (
+        () if shape is None else ((shape,) if isinstance(shape, int) else tuple(shape))
+    )
+    dt = resolve_dtype(dtype, default=float32)
+    return array(sops.zeros(shp, dtype=to_switcheroo_dtype(dt)), dtype=dt)
+
+
+def recv_like(
+    x: ArrayInput,
+    src: int,
+    *,
+    group: Group | None = None,
+    stream: StreamOrDevice = None,
+) -> array:
+    """Receive an array with the same shape and dtype as `x` from rank `src`.
+
+    Args:
+        x: Template array defining shape and dtype.
+        src: Source process rank.
+        group: Optional distributed `Group`.
+        stream: Optional stream or device.
+
+    Returns:
+        Received `array`.
+
+    """
+    arr = x if isinstance(x, array) else array(x)
+    return recv(arr.shape, arr.dtype, src, group=group, stream=stream)
 
 
 __all__ = [
@@ -183,4 +281,5 @@ __all__ = [
     "recv",
     "recv_like",
     "send",
+    "sum_scatter",
 ]

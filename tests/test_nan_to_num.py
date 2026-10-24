@@ -1,9 +1,14 @@
-import pytest
+"""Parity test for `nan_to_num` operation."""
+
+from __future__ import annotations
+
 import numpy as np
-from tests.test_ops_parity_logical import check_parity
+
+from tests.conftest import check_parity
 
 
-def test_NanToNum_parity():
+def test_NanToNum_parity() -> None:
+    """Verify `nan_to_num` parity between `zero_mlx` and `mlx.core`."""
     check_parity(
         "Nan_To_Num",
         lambda: [np.array([np.nan, np.inf, -np.inf, 1.0], dtype=np.float32)],

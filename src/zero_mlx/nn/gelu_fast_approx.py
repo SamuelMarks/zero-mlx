@@ -1,22 +1,24 @@
-"""mlx.nn.gelu_fast_approx module stub."""
+"""Fast sigmoid-based approximation to the Gaussian Error Linear Unit (`gelu_fast_approx`)."""
 
-from typing import Any
+from __future__ import annotations
+
+from zero_mlx._types import ArrayInput
+from zero_mlx.array import array
+import zero_mlx.ops as mx
 
 
-def gelu_fast_approx(x: Any) -> Any:  # pragma: no cover
-    """A fast approximation to Gaussian Error Linear Unit.
+def gelu_fast_approx(x: ArrayInput) -> array:
+    """Compute the fast sigmoid approximation `x * sigmoid(1.702 * x)` to GELU.
 
     Args:
-        x (Any): The input array.
+        x: Input array.
 
     Returns:
-        Any: The output array.
-
+        Fast approximate GELU `array`.
 
     """
-    from zero_mlx.array import array
-    import ml_switcheroo_compiler.ops as sops
+    arr = x if isinstance(x, array) else array(x)
+    return arr * mx.sigmoid(arr * 1.702)
 
-    if not hasattr(x, "_tensor"):
-        x = array(x)
-    return array(sops.nn.gelu(x._tensor, approximate=True))
+
+__all__ = ["gelu_fast_approx"]

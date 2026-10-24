@@ -13,19 +13,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ruff pytest pytest-cov build
-        if [ -f "pyproject.toml" ]; then pip install -e .[test]; fi
-        if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
+        pip install ruff pytest pytest-cov mypy interrogate build
+        pip install "ml-switcheroo-ir @ https://github.com/SamuelMarks/ml-switcheroo-ir/releases/download/v0.0.4/ml_switcheroo_ir-0.0.4-py3-none-any.whl"
+        pip install "ml-ecosystem-snapshots @ https://github.com/SamuelMarks/ml-ecosystem-snapshots/releases/download/v0.0.4/ml_ecosystem_snapshots-0.0.4-py3-none-any.whl"
+        if [ -f "pyproject.toml" ]; then pip install -e ".[test]"; fi
 
     - name: Check Code Formatting (Ruff)
       run: ruff format --check .
@@ -33,9 +34,23 @@ jobs:
     - name: Check Linting (Ruff)
       run: ruff check .
 
-    - name: Check API Parity
+    - name: Check Strict Static Typing (Mypy & AST Linter)
+      run: |
+        mypy --strict src tests scripts
+        python3 scripts/lint_typing.py
+
+    - name: Check Docstring Coverage (Interrogate & AST Verifier)
+      run: |
+        interrogate -vv -f 100 -M -i -c pyproject.toml src scripts tests
+        python3 scripts/check_docstrings.py src scripts tests
+
+    - name: Check Test Quality (No Vacuous Assertions)
+      run: python3 scripts/lint_pass.py --check-zero-assertions
+
+    - name: Check API Parity & Snapshot Grounding
       run: |
         python3 scripts/check_api_parity.py
+        python3 scripts/check_api_snapshot.py
         if ! git diff --exit-code MLX_MISSING_API.md; then
           echo "API Parity missing file MLX_MISSING_API.md was updated. Please run scripts/check_api_parity.py locally and commit the changes."
           exit 1
@@ -49,17 +64,17 @@ jobs:
           exit 1
         fi
 
-    - name: Test & Coverage
+    - name: Test & Coverage (100% Line & Branch)
       run: |
-        PYTHONPATH=src:tests/official pytest tests/official --cov=src/zero_mlx --cov-report=xml
-        
+        PYTHONPATH=src pytest --cov=src/zero_mlx --cov=scripts --cov-branch --cov-fail-under=100 --cov-report=xml
+
     - name: Update Badges
       run: |
-        python scripts/update_badges.py
+        python3 scripts/update_badges.py
         if ! git diff --exit-code README.md; then
           echo "Coverage badges in README.md are out of date. Please run pre-commit or the update badges script locally and commit the changes."
           exit 1
         fi
 
     - name: Build Package
-      run: python -m build
+      run: python3 -m build

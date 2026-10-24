@@ -1,86 +1,98 @@
-import pytest
+"""Unit tests for `zero_mlx.nn.base` and `zero_mlx.nn.containers`."""
+
+from __future__ import annotations
+
 import numpy as np
+import pytest
 
-try:
-    import mlx.core as mx
-    import mlx.nn as mx_nn
-except ImportError:
-    mx = None
-    mx_nn = None
-
-import zero_mlx.nn as z_nn
 from zero_mlx.array import array
+import zero_mlx.nn as z_nn
 
 
-@pytest.mark.skipif(mx is None, reason="mlx not installed")
-def test_module():
-    m = z_nn.Module()
-    # Test __setattr__
-    sub_m = z_nn.Module()
-    m.sub = sub_m
+def test_module() -> None:
+    """Test `Module` parameter registration, submodule updates, and `train`/`eval` modes."""
+
+    class SubModule(z_nn.Module):
+        """Child test module."""
+
+        sub_param: array
+
+    class MainModule(z_nn.Module):
+        """Parent test module."""
+
+        param: array
+        sub: SubModule
+
+    m = MainModule()
+    assert m.training is True
+
     m.param = array([1, 2, 3])
+    sub = SubModule()
+    sub.sub_param = array([4, 5])
+    m.sub = sub
 
-    assert "sub" in m._modules
-    assert "param" in m._parameters
-
-    # Test parameters()
     params = m.parameters()
     assert "param" in params
     assert "sub" in params
+    sub_dict = params["sub"]
+    assert isinstance(sub_dict, dict)
+    assert "sub_param" in sub_dict
 
-    # Test update()
-    m.update({"param": array([4, 5, 6]), "sub": {}})
+    m.update({"param": array([4, 5, 6]), "sub": {"sub_param": array([7, 8])}})
     np.testing.assert_allclose(m.param.tolist(), [4, 5, 6])
+    np.testing.assert_allclose(m.sub.sub_param.tolist(), [7, 8])
 
-    # Test update with missing key (branch 59->56)
-    m.update({"missing_key": array([7, 8, 9])})
-
-    # Test train/eval
-    assert m.training
     m.eval()
-    assert not m.training
-    assert not sub_m.training
+    assert m.training is False
+    assert m.sub.training is False
+
     m.train()
-    assert m.training
-    assert sub_m.training
+    assert m.training is True
+    assert m.sub.training is True
 
-    # Test call raises NotImplementedError
-    with pytest.raises(NotImplementedError):
-        m()
-
-    # Test missing attributes branches
     class BadModule(z_nn.Module):
-        def __init__(self):
-            # Do not call super().__init__()
-            self.early_sub = z_nn.Module()
-            self.early_param = array([1])
+        """Subclass that omits `super().__init__()`."""
 
-    bad_m = BadModule()
-    assert "early_sub" in bad_m._modules
-    assert "early_param" in bad_m._parameters
+        m: z_nn.Module
+        p: array
 
-    # Test parameters without _parameters and _modules (delete them to simulate)
-    del bad_m._parameters
-    del bad_m._modules
-    assert bad_m.parameters() == {}
+        def __init__(self) -> None:
+            """Initialize without calling super."""
 
-    bad_m.train()
+    bm = BadModule()
+    bm.m = z_nn.Module()
+    bm.p = array([1])
+    assert "m" in bm._modules
+    assert "p" in bm._parameters
+    assert "p" in bm
+    assert isinstance(bm["p"], array)
+    bm["extra"] = array([2])
+    assert isinstance(bm.extra, array)
+    bm.update_modules({"m": z_nn.Identity()})
+    assert isinstance(bm.m, z_nn.Identity)
+    with pytest.raises(AttributeError):
+        _ = bm.nonexistent_attr
+    with pytest.raises(KeyError):
+        _ = bm["nonexistent_key"]
+    assert z_nn.Module()._call_forward(array([1.0])).item() == 0.0
+    bm.list_attr = [z_nn.Identity(), array([1.0])]
+    assert "list_attr.0" in bm._modules
 
 
-@pytest.mark.skipif(mx is None, reason="mlx not installed")
-def test_identity():
-    ident = z_nn.Identity()
+def test_identity() -> None:
+    """Test `Identity` module passthrough with arbitrary extra arguments."""
+    id_layer = z_nn.Identity(1, 2, a=3)
     x = array([1, 2, 3])
-    out = ident(x, something=True)
+    out = id_layer(x, 4, b=5)
     np.testing.assert_allclose(out.tolist(), [1, 2, 3])
 
 
-@pytest.mark.skipif(mx is None, reason="mlx not installed")
-def test_sequential():
+def test_sequential() -> None:
+    """Test `Sequential` container chaining multiple layers."""
     layer1 = z_nn.Identity()
     layer2 = z_nn.Identity()
-    seq = z_nn.Sequential(layer1, layer2)
+    seq = z_nn.Sequential(layer1, layer2, lambda t: t * 2)
 
     x = array([1, 2, 3])
     out = seq(x, something=True)
-    np.testing.assert_allclose(out.tolist(), [1, 2, 3])
+    np.testing.assert_allclose(out.tolist(), [2, 4, 6])

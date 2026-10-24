@@ -1,237 +1,309 @@
-"""Mock for in-place operations like `.at[idx].add(val)`."""
+"""Indexed array update proxy (`.at[idx]`) for functional scatter operations."""
 
-from typing import Any, Union
+from __future__ import annotations
+
+from typing import Sequence
+
+from zero_mlx._types import ArrayInput, IndexLike, NestedSequence, Scalar
 from zero_mlx.array import array
 
 
-class Adder:  # pragma: no cover
-    """Helper class for executing the in-place operation on a slice."""
+def _apply_scalar_op(lhs: Scalar, rhs: Scalar, op_name: str) -> Scalar:
+    """Apply a binary update operation to two scalar values.
 
-    def __init__(self, arr: array, idx: Any) -> None:  # pragma: no cover
-        """Initialize Adder.
+    Args:
+        lhs: Current element value.
+        rhs: Update element value.
+        op_name: Name of the operation (`add`, `subtract`, `multiply`, `divide`, `power`, `maximum`, `minimum`, `set`).
+
+    Returns:
+        Updated scalar value.
+
+    """
+    if op_name == "set":
+        return rhs
+    if op_name == "add":
+        if isinstance(lhs, complex) or isinstance(rhs, complex):
+            return complex(lhs) + complex(rhs)
+        if isinstance(lhs, float) or isinstance(rhs, float):
+            return float(lhs.real) + float(rhs.real)
+        return int(lhs.real) + int(rhs.real)
+    if op_name == "subtract":
+        if isinstance(lhs, complex) or isinstance(rhs, complex):
+            return complex(lhs) - complex(rhs)
+        if isinstance(lhs, float) or isinstance(rhs, float):
+            return float(lhs.real) - float(rhs.real)
+        return int(lhs.real) - int(rhs.real)
+    if op_name == "multiply":
+        if isinstance(lhs, complex) or isinstance(rhs, complex):
+            return complex(lhs) * complex(rhs)
+        if isinstance(lhs, float) or isinstance(rhs, float):
+            return float(lhs.real) * float(rhs.real)
+        return int(lhs.real) * int(rhs.real)
+    if op_name == "divide":
+        if isinstance(lhs, complex) or isinstance(rhs, complex):
+            return complex(lhs) / complex(rhs)
+        return float(lhs.real) / float(rhs.real)
+    if op_name == "power":
+        if isinstance(lhs, complex) or isinstance(rhs, complex):
+            return complex(complex(lhs) ** complex(rhs))
+        if isinstance(lhs, float) or isinstance(rhs, float):
+            return float(float(lhs.real) ** float(rhs.real))
+        return int(int(lhs.real) ** int(rhs.real))
+    if op_name == "maximum":
+        return lhs if float(lhs.real) >= float(rhs.real) else rhs
+    return lhs if float(lhs.real) <= float(rhs.real) else rhs
+
+
+def _update_1d_list(
+    data: list[Scalar],
+    indices: Sequence[int],
+    updates: Sequence[Scalar],
+    op_name: str,
+) -> list[Scalar]:
+    """Apply indexed scatter updates to a 1D list of scalars.
+
+    Args:
+        data: Mutable 1D list of scalar elements.
+        indices: Sequence of integer target indices.
+        updates: Sequence of update values matching `indices`.
+        op_name: Operation name to apply at each index.
+
+    Returns:
+        Updated 1D list of scalars.
+
+    """
+    n: int = len(data)
+    result: list[Scalar] = list(data)
+    for idx, u_val in zip(indices, updates):
+        norm_idx: int = idx if idx >= 0 else n + idx
+        result[norm_idx] = _apply_scalar_op(result[norm_idx], u_val, op_name)
+    return result
+
+
+class Adder:
+    """Helper class for executing functional indexed updates on a `zero_mlx.array`."""
+
+    def __init__(self, arr: array, idx: IndexLike | list[int]) -> None:
+        """Initialize `Adder` for a target array and index expression.
 
         Args:
-            arr (array): The array to modify.
-            idx (Any): The index to modify.
+            arr: The source `array` to update functionally.
+            idx: Index expression specifying target positions.
 
         """
-        self.arr = arr
-        self.idx = idx
+        self.arr: array = arr
+        self.idx: IndexLike | list[int] = idx
 
-    def _do_op(self, update: Any, op_name: str) -> array:  # pragma: no cover
-        import ml_switcheroo_compiler.core.config as config
-        import ml_switcheroo_compiler.ops as sops
-        import zero_mlx as mx
-        from zero_mlx.array import array
-
-        has_slice = False
-        idx_tuple = self.idx if isinstance(self.idx, tuple) else (self.idx,)
-        for i in idx_tuple:
-            if isinstance(i, slice) or i is None or i is ...:
-                has_slice = True
-
-        if len(idx_tuple) < len(self.arr.shape):
-            has_slice = True
-
-        if not has_slice:
-            # Pure advanced indexing, route to compiler tensor_scatter operations
-            normalized = []
-            for i in idx_tuple:
-                if isinstance(i, int):
-                    normalized.append(mx.array(i))
-                elif isinstance(i, list):
-                    normalized.append(mx.array(i))
-                elif isinstance(i, mx.array):
-                    normalized.append(i)
-                else:
-                    normalized.append(mx.array(i))
-
-            b_arrays = mx.broadcast_arrays(*normalized)
-            indices = mx.stack(b_arrays, axis=-1)
-
-            t = self.arr._tensor
-            u = update._tensor if hasattr(update, "_tensor") else sops.array(update)
-            # broadcast updates to match indices shape (excluding the last dimension)
-            if u.shape != indices.shape[:-1]:
-                u = sops.broadcast_to(u, indices.shape[:-1])
-
-            if op_name == "add":
-                res = sops.tensor_scatter_add(t, indices._tensor, u)
-            elif op_name == "subtract":
-                res = sops.tensor_scatter_sub(t, indices._tensor, u)
-            elif op_name == "maximum":
-                res = sops.tensor_scatter_max(t, indices._tensor, u)
-            elif op_name == "minimum":
-                res = sops.tensor_scatter_min(t, indices._tensor, u)
-            elif op_name == "set":
-                res = sops.tensor_scatter_update(t, indices._tensor, u)
-            elif op_name == "multiply":
-                # MLX compiler backend has no tensor_scatter_mul, fallback to eager
-                res = None
-            elif op_name == "divide":
-                res = None
-            else:
-                res = None
-
-            if res is not None:
-                return array(res)
-
-        # Fallback for slices or missing compiler ops (eager mode only)
-        if config.eager_mode:
-            arr_mlx = self.arr._tensor.data
-            from ml_switcheroo_compiler.backends.numpy.eager import np
-
-            if isinstance(arr_mlx, np.ndarray):
-                arr_mlx = mx.array(arr_mlx)
-            update_mlx = update._tensor.data if hasattr(update, "_tensor") else update
-            if isinstance(update_mlx, np.ndarray):
-                update_mlx = mx.array(update_mlx)
-
-            def unwrap_idx(i):  # pragma: no cover
-                if hasattr(i, "_tensor"):
-                    return i._tensor.data
-                if isinstance(i, tuple):
-                    return tuple(unwrap_idx(x) for x in i)
-                if isinstance(i, list):
-                    return mx.array(i)._tensor.data
-                return i
-
-            idx_mlx = unwrap_idx(self.idx)
-            res_mlx = getattr(arr_mlx.at[idx_mlx], op_name)(update_mlx)
-            return array(res_mlx)
-
-        return array(self.arr)
-
-    def add(self, update: Any) -> array:  # pragma: no cover
-        """In-place addition.
+    def _do_op(self, update: ArrayInput, op_name: str) -> array:
+        """Execute the functional update operation and return a new `array`.
 
         Args:
-            update (Any): The value to add.
+            update: Value or array of values to apply at `self.idx`.
+            op_name: Operation identifier (`add`, `subtract`, `multiply`, `divide`, `power`, `maximum`, `minimum`, `set`).
 
         Returns:
-            array: The updated array.
+            Newly created `array` containing the applied updates.
+
+        """
+        upd_arr: array = (
+            update if isinstance(update, array) else array(update, dtype=self.arr.dtype)
+        )
+        if self.arr.ndim == 1 and isinstance(self.idx, (int, list, slice, array)):
+            raw_list = self.arr.tolist()
+            flat_data: list[Scalar] = (
+                [x if not isinstance(x, Sequence) else 0 for x in raw_list]
+                if isinstance(raw_list, list)
+                else [raw_list]
+            )
+            indices: list[int] = []
+            if isinstance(self.idx, int):
+                indices = [self.idx]
+            elif isinstance(self.idx, slice):
+                indices = list(range(*self.idx.indices(len(flat_data))))
+            elif isinstance(self.idx, list):
+                indices = [int(i) for i in self.idx]
+            else:
+                idx_vals = self.idx.tolist()
+                if isinstance(idx_vals, list):
+                    indices = [int(i.real) if not isinstance(i, Sequence) else 0 for i in idx_vals]
+                else:
+                    indices = [int(idx_vals.real)]
+
+            if upd_arr.ndim == 0:
+                upd_vals: list[Scalar] = [upd_arr.item()] * len(indices)
+            else:
+                u_list = upd_arr.tolist()
+                upd_vals = (
+                    [u if not isinstance(u, Sequence) else 0 for u in u_list]
+                    if isinstance(u_list, list)
+                    else [u_list]
+                )
+                if len(upd_vals) == 1 and len(indices) > 1:
+                    upd_vals = upd_vals * len(indices)
+
+            updated = _update_1d_list(flat_data, indices, upd_vals, op_name)
+            return array(updated, dtype=self.arr.dtype)
+
+        cloned: array = self.arr.copy()
+        current_slice: array = cloned[self.idx]
+        if op_name == "set":
+            new_slice = upd_arr
+        elif op_name == "add":
+            new_slice = current_slice + upd_arr
+        elif op_name == "subtract":
+            new_slice = current_slice - upd_arr
+        elif op_name == "multiply":
+            new_slice = current_slice * upd_arr
+        elif op_name == "divide":
+            new_slice = current_slice / upd_arr
+        elif op_name == "power":
+            new_slice = current_slice**upd_arr
+        elif op_name == "maximum":
+            import zero_mlx.ops as _ops
+
+            new_slice = _ops.maximum(current_slice, upd_arr)
+        else:
+            import zero_mlx.ops as _ops
+
+            new_slice = _ops.minimum(current_slice, upd_arr)
+
+        cloned[self.idx] = new_slice
+        return cloned
+
+    def add(self, update: ArrayInput) -> array:
+        """Return a new array with `update` added at the specified indices.
+
+        Args:
+            update: Value or array to add.
+
+        Returns:
+            Updated `array`.
 
         """
         return self._do_op(update, "add")
 
-    def subtract(self, update: Any) -> array:  # pragma: no cover
-        """In-place subtraction.
+    def subtract(self, update: ArrayInput) -> array:
+        """Return a new array with `update` subtracted at the specified indices.
 
         Args:
-            update (Any): The value to subtract.
+            update: Value or array to subtract.
 
         Returns:
-            array: The updated array.
+            Updated `array`.
 
         """
         return self._do_op(update, "subtract")
 
-    def multiply(self, update: Any) -> array:  # pragma: no cover
-        """In-place multiplication.
+    def multiply(self, update: ArrayInput) -> array:
+        """Return a new array with `update` multiplied at the specified indices.
 
         Args:
-            update (Any): The value to multiply.
+            update: Value or array to multiply by.
 
         Returns:
-            array: The updated array.
+            Updated `array`.
 
         """
         return self._do_op(update, "multiply")
 
-    def divide(self, update: Any) -> array:  # pragma: no cover
-        """In-place division.
+    def divide(self, update: ArrayInput) -> array:
+        """Return a new array with `update` divided at the specified indices.
 
         Args:
-            update (Any): The value to divide.
+            update: Value or array to divide by.
 
         Returns:
-            array: The updated array.
+            Updated `array`.
 
         """
         return self._do_op(update, "divide")
 
-    def maximum(self, update: Any) -> array:  # pragma: no cover
-        """In-place maximum.
+    def power(self, update: ArrayInput) -> array:
+        """Return a new array raised to `update` at the specified indices.
 
         Args:
-            update (Any): The value for maximum.
+            update: Exponent value or array.
 
         Returns:
-            array: The updated array.
+            Updated `array`.
+
+        """
+        return self._do_op(update, "power")
+
+    def maximum(self, update: ArrayInput) -> array:
+        """Return a new array with element-wise maximum with `update` at the specified indices.
+
+        Args:
+            update: Value or array for maximum comparison.
+
+        Returns:
+            Updated `array`.
 
         """
         return self._do_op(update, "maximum")
 
-    def minimum(self, update: Any) -> array:  # pragma: no cover
-        """In-place minimum.
+    def minimum(self, update: ArrayInput) -> array:
+        """Return a new array with element-wise minimum with `update` at the specified indices.
 
         Args:
-            update (Any): The value for minimum.
+            update: Value or array for minimum comparison.
 
         Returns:
-            array: The updated array.
+            Updated `array`.
 
         """
         return self._do_op(update, "minimum")
 
-    def set(self, update: Any) -> array:  # pragma: no cover
-        """In-place set.
+    def set(self, update: ArrayInput) -> array:
+        """Return a new array with `update` assigned at the specified indices.
 
         Args:
-            update (Any): The value to set.
+            update: Value or array to assign.
 
         Returns:
-            array: The updated array.
+            Updated `array`.
 
         """
         return self._do_op(update, "set")
 
 
-class ArrayAt:  # pragma: no cover
-    """Mocker for `.at` attribute."""
+class ArrayAt:
+    """Helper proxy accessed via `array.at` to perform indexed functional updates."""
 
-    def __init__(self, arr: array) -> None:  # pragma: no cover
-        """Initialize ArrayAt.
+    def __init__(self, arr: array) -> None:
+        """Initialize `ArrayAt` for the given `array`.
 
         Args:
-            arr (array): The array to mock.
+            arr: Target `zero_mlx.array`.
 
         """
-        self.arr = arr
+        self.arr: array = arr
 
-    def __getitem__(self, idx: Any) -> Adder:  # pragma: no cover
-        """Get Adder for the given index.
+    def __getitem__(self, idx: IndexLike | list[int]) -> Adder:
+        """Bind an index expression and return an `Adder` ready to apply an update.
 
         Args:
-            idx (Any): The index to modify.
+            idx: Index expression (`int`, `slice`, `array`, `list[int]`, or tuple of indices).
 
         Returns:
-            Adder: An Adder instance.
+            An `Adder` instance bound to `self.arr` and `idx`.
 
         """
-        # Unwrap array indices
-        if isinstance(idx, array):
-            idx = idx.tolist() if idx.ndim > 0 else idx.item()
-        elif isinstance(idx, tuple):
-            idx = tuple(
-                i.tolist()
-                if isinstance(i, array) and i.ndim > 0
-                else (i.item() if isinstance(i, array) else i)
-                for i in idx
-            )
         return Adder(self.arr, idx)
 
-    def add(self, _: Any) -> array:  # pragma: no cover
-        """Invalid direct add.
+    def add(self, update: ArrayInput) -> array:
+        """Raise ValueError when `.add()` is called directly on `.at` without indexing.
 
         Args:
-            _ (Any): Unused.
-
-        Raises:
-            ValueError: Always.
+            update: Unused update value.
 
         Returns:
-            array: Never returns.
+            Never returns.
+
+        Raises:
+            ValueError: Always raised because `.at` must be indexed first.
 
         """
+        _ = update
         raise ValueError("Cannot call .add() directly on .at")

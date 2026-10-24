@@ -1,60 +1,87 @@
-"""mlx.nn.upsample module."""
+"""Spatial upsampling layer (`Upsample`) for `mlx.nn`."""
 
-from typing import Union, Tuple, Optional
-from zero_mlx.nn.base import Module
-from zero_mlx.array import array
+from __future__ import annotations
+
+from typing import Sequence
+
 import ml_switcheroo_compiler.ops as sops
+
+from zero_mlx.array import array
+from zero_mlx.nn.base import Module
 
 
 class Upsample(Module):
-    """Upsamples a given multi-channel data."""
+    """Upsamples a multi-channel 1D, 2D, or 3D input signal."""
 
     def __init__(
         self,
-        scale_factor: Union[float, Tuple[float, ...]] = None,
-        size: Union[int, Tuple[int, ...]] = None,
+        scale_factor: float | tuple[float, ...] | None = None,
+        size: int | tuple[int, ...] | None = None,
         mode: str = "nearest",
         align_corners: bool = False,
-    ):
-        """Initialize Upsample."""
+        antialias: bool = False,
+    ) -> None:
+        """Initialize `Upsample`.
+
+        Args:
+            scale_factor: Multiplier for spatial size (`float` or tuple of `float`).
+            size: Optional explicit output spatial size (`int` or tuple of `int`).
+            mode: Interpolation mode (`'nearest'`, `'linear'`, `'cubic'`).
+            align_corners: Whether to align corner pixels in linear/cubic interpolation.
+            antialias: Whether to apply anti-aliasing when downsampling.
+
+        """
         super().__init__()
-        self.scale_factor = scale_factor
-        self.size = size
-        self.mode = mode
-        self.align_corners = align_corners
+        if mode not in ("nearest", "linear", "cubic"):
+            raise ValueError(
+                f"Unsupported Upsample mode '{mode}', expected 'nearest', 'linear', or 'cubic'"
+            )
+        self.scale_factor: float | tuple[float, ...] | None = scale_factor
+        self.size: int | tuple[int, ...] | None = size
+        self.mode: str = mode
+        self.align_corners: bool = align_corners
+        self.antialias: bool = antialias
 
     def __call__(self, x: array) -> array:
-        """Call."""
-        x_t = x._tensor if hasattr(x, "_tensor") else x
+        """Upsample `x` according to `size` or `scale_factor`.
 
-        target_size = self.size
-        if target_size is None and self.scale_factor is not None:  # pragma: no cover
-            # Assuming NCHW or NHWC. If it's 4D, spatial dims are usually the last two (NCHW) or middle two (NHWC).  # pragma: no cover
-            # But in zero_mlx it is usually NHWC or NCHW. Let's use x.shape[-2:] as an approximation or provide scale_factor manually.  # pragma: no cover
-            # ml_switcheroo_compiler's resize_nearest uses the scale_factor internally if size is missing, but its signature requires size.  # pragma: no cover
-            # Wait, signature is `(images: Tensor, size: tuple[int, int], align_corners: bool = False)`  # pragma: no cover
-            # We'll assume NHWC since size usually targets H, W.  # pragma: no cover
-            spatial_shape = (
-                x.shape[1:3] if len(x.shape) == 4 else x.shape[-2:]
-            )  # pragma: no cover
-            if isinstance(self.scale_factor, (list, tuple)):  # pragma: no cover
-                target_size = tuple(  # pragma: no cover
-                    int(s * f)
-                    for s, f in zip(
-                        spatial_shape, self.scale_factor
-                    )  # pragma: no cover
-                )  # pragma: no cover
-            else:  # pragma: no cover
-                target_size = tuple(
-                    int(s * self.scale_factor) for s in spatial_shape
-                )  # pragma: no cover
-        # pragma: no cover
-        out = sops.resize_nearest(  # pragma: no cover
-            x_t,
-            size=target_size,
-            align_corners=self.align_corners,
-        )
-        return array(out)
+        Args:
+            x: Input `array` of shape `(N, ..., C)`.
+
+        Returns:
+            Upsampled `array`.
+
+        Raises:
+            ValueError: If `x.ndim < 3` or `scale_factor`/`size` dimensions do not match `x.ndim - 2`.
+
+        """
+        if x.ndim < 3:
+            raise ValueError(f"Upsample expects at least 3D input (N, ..., C), got {x.ndim}D")
+        spatial_shape = x.shape[1:-1]
+        if self.size is not None:
+            target_size = (
+                (self.size,) * len(spatial_shape)
+                if isinstance(self.size, int)
+                else tuple(int(s) for s in self.size)
+            )
+            if len(target_size) != len(spatial_shape):
+                raise ValueError(
+                    f"size length {len(target_size)} does not match spatial dims {len(spatial_shape)}"
+                )
+        elif self.scale_factor is not None:
+            if isinstance(self.scale_factor, Sequence):
+                if len(self.scale_factor) != len(spatial_shape):
+                    raise ValueError(
+                        f"scale_factor length {len(self.scale_factor)} does not match spatial dims {len(spatial_shape)}"
+                    )
+                target_size = tuple(int(s * f) for s, f in zip(spatial_shape, self.scale_factor))
+            else:
+                target_size = tuple(int(s * float(self.scale_factor)) for s in spatial_shape)
+        else:
+            target_size = spatial_shape
+
+        out = sops.resize_nearest(x._tensor, size=target_size, align_corners=self.align_corners)
+        return array(out, dtype=x.dtype)
 
 
 __all__ = ["Upsample"]

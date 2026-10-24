@@ -1,118 +1,29 @@
-import pytest
+"""Compiler operation parity tests for `math` operations."""
+
+from __future__ import annotations
+
 import numpy as np
+import pytest
 
-try:
-    import mlx.core as mx
-except ImportError:
-    mx = None
-
-import zero_mlx
-from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
+from tests.conftest import check_parity
 
 
-def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):
-    import numpy as np
-
-    if isinstance(z_res, (tuple, list)) and isinstance(m_res, (tuple, list)):
-        for z, m in zip(z_res, m_res):
-            assert_allclose_mlx(z, m, rtol, atol)
-    else:
-        # Extract underlying tensor data if it's a zero_mlx array
-        if hasattr(z_res, "_tensor"):
-            z_res = z_res._tensor.data
-        if hasattr(m_res, "_tensor"):
-            m_res = m_res._tensor.data
-        np.testing.assert_allclose(
-            np.array(z_res), np.array(m_res), rtol=rtol, atol=atol
-        )
-
-
-def check_parity(op_name, args_generator, kwargs_generator=None, rtol=1e-5, atol=1e-5):
-    if mx is None:
-        pytest.skip("MLX not available")
-    func_name = op_name.lower()
-    if not hasattr(zero_mlx, func_name) or not hasattr(mx, func_name):
-        pytest.skip(f"{func_name} not mapped in zero_mlx or mx")
-
-    if func_name == "fft":
-        z_func = zero_mlx.fft.fft
-        try:
-            m_func = mx.fft.fft
-            if not callable(m_func):
-                m_func = getattr(mx, "fft")
-        except AttributeError:
-            m_func = getattr(mx, "fft")
-    elif func_name == "rfft":
-        z_func = zero_mlx.fft.rfft
-        try:
-            m_func = mx.fft.rfft
-            if not callable(m_func):
-                m_func = getattr(mx, "rfft")
-        except AttributeError:
-            m_func = getattr(mx, "rfft")
-    else:
-        z_func = getattr(zero_mlx, func_name)
-        m_func = getattr(mx, func_name)
-
-    args = args_generator()
-    kwargs = kwargs_generator() if kwargs_generator else {}
-
-    _tracer.start_tracing("parity_test")
-
-    def unwrap(x):
-        if isinstance(x, np.generic):
-            return x.item()
-        return x
-
-    z_args = [
-        zero_mlx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args
-    ]
-    m_args = [mx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args]
-
-    try:
-        z_res = z_func(*z_args, **kwargs)
-        if hasattr(zero_mlx, "eval"):
-            if isinstance(z_res, (list, tuple)):
-                zero_mlx.eval(*z_res)
-            else:
-                zero_mlx.eval(z_res)
-        _tracer.stop_tracing()
-        m_res = m_func(*m_args, **kwargs)
-        assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)
-    except Exception as e:
-        try:
-            if callable(getattr(_tracer, "is_tracing", None)):
-                if _tracer.is_tracing():
-                    _tracer.stop_tracing()
-            elif getattr(_tracer, "is_tracing", False):
-                _tracer.stop_tracing()
-        except Exception:
-            pass
-        if False:
-            _tracer.stop_tracing()
-        raise e
-
-
-def test_Abs_parity():
+def test_Abs_parity() -> None:
     """Test parity for Abs."""
     check_parity("Abs", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Acos_parity():
+def test_Acos_parity() -> None:
     """Test parity for Acos."""
-    check_parity(
-        "Acos", lambda: [np.random.uniform(-1, 1, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Acos", lambda: [np.random.uniform(-1, 1, size=(2, 3)).astype(np.float32)])
 
 
-def test_Acosh_parity():
+def test_Acosh_parity() -> None:
     """Test parity for Acosh."""
-    check_parity(
-        "Acosh", lambda: [np.random.uniform(1, 5, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Acosh", lambda: [np.random.uniform(1, 5, size=(2, 3)).astype(np.float32)])
 
 
-def test_Add_parity():
+def test_Add_parity() -> None:
     """Test parity for Add."""
     check_parity(
         "Add",
@@ -123,24 +34,22 @@ def test_Add_parity():
     )
 
 
-def test_Asin_parity():
+def test_Asin_parity() -> None:
     """Test parity for Asin."""
-    check_parity(
-        "Asin", lambda: [np.random.uniform(-1, 1, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Asin", lambda: [np.random.uniform(-1, 1, size=(2, 3)).astype(np.float32)])
 
 
-def test_Asinh_parity():
+def test_Asinh_parity() -> None:
     """Test parity for Asinh."""
     check_parity("Asinh", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Atan_parity():
+def test_Atan_parity() -> None:
     """Test parity for Atan."""
     check_parity("Atan", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Atan2_parity():
+def test_Atan2_parity() -> None:
     """Test parity for Atan2."""
     check_parity(
         "Atan2",
@@ -151,29 +60,27 @@ def test_Atan2_parity():
     )
 
 
-def test_Atanh_parity():
+def test_Atanh_parity() -> None:
     """Test parity for Atanh."""
-    check_parity(
-        "Atanh", lambda: [np.random.uniform(-0.9, 0.9, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Atanh", lambda: [np.random.uniform(-0.9, 0.9, size=(2, 3)).astype(np.float32)])
 
 
-def test_Cbrt_parity():
+def test_Cbrt_parity() -> None:
     """Test parity for Cbrt."""
     check_parity("Cbrt", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Ceil_parity():
+def test_Ceil_parity() -> None:
     """Test parity for Ceil."""
     check_parity("Ceil", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Conj_parity():
+def test_Conj_parity() -> None:
     """Test parity for Conj."""
     check_parity("Conj", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Copysign_parity():
+def test_Copysign_parity() -> None:
     """Test parity for Copysign."""
     check_parity(
         "Copysign",
@@ -184,24 +91,22 @@ def test_Copysign_parity():
     )
 
 
-def test_Cos_parity():
+def test_Cos_parity() -> None:
     """Test parity for Cos."""
     check_parity("Cos", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Cosh_parity():
+def test_Cosh_parity() -> None:
     """Test parity for Cosh."""
     check_parity("Cosh", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Digamma_parity():
+def test_Digamma_parity() -> None:
     """Test parity for Digamma."""
-    check_parity(
-        "Digamma", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Digamma", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)])
 
 
-def test_Divide_parity():
+def test_Divide_parity() -> None:
     """Test parity for Divide."""
     check_parity(
         "Divide",
@@ -212,7 +117,7 @@ def test_Divide_parity():
     )
 
 
-def test_Divmod_parity():
+def test_Divmod_parity() -> None:
     """Test parity for Divmod."""
     check_parity(
         "Divmod",
@@ -223,36 +128,32 @@ def test_Divmod_parity():
     )
 
 
-def test_Erf_parity():
-    import pytest
-
-    pytest.skip("Aborts full test suite")
+def test_Erf_parity() -> None:
     """Test parity for Erf."""
     check_parity("Erf", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Erfc_parity():
+def test_Erfc_parity() -> None:
     """Test parity for Erfc."""
     check_parity("Erfc", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Exp_parity():
+def test_Exp_parity() -> None:
     """Test parity for Exp."""
     check_parity("Exp", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Exp2_parity():
+def test_Exp2_parity() -> None:
     """Test parity for Exp2."""
     check_parity("Exp2", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-@pytest.mark.skip("Crashes MLX natively")
-def test_Expm1_parity():
+def test_Expm1_parity() -> None:
     """Test parity for Expm1."""
     check_parity("Expm1", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_FloatPower_parity():
+def test_FloatPower_parity() -> None:
     """Test parity for FloatPower."""
     check_parity(
         "Float_Power",
@@ -263,7 +164,7 @@ def test_FloatPower_parity():
     )
 
 
-def test_Fmod_parity():
+def test_Fmod_parity() -> None:
     """Test parity for Fmod."""
     check_parity(
         "Fmod",
@@ -274,17 +175,17 @@ def test_Fmod_parity():
     )
 
 
-def test_Frexp_parity():
+def test_Frexp_parity() -> None:
     """Test parity for Frexp."""
     check_parity("Frexp", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Imag_parity():
+def test_Imag_parity() -> None:
     """Test parity for Imag."""
     check_parity("Imag", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Ldexp_parity():
+def test_Ldexp_parity() -> None:
     """Test parity for Ldexp."""
     check_parity(
         "Ldexp",
@@ -295,42 +196,32 @@ def test_Ldexp_parity():
     )
 
 
-def test_Lgamma_parity():
+def test_Lgamma_parity() -> None:
     """Test parity for Lgamma."""
-    check_parity(
-        "Lgamma", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Lgamma", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)])
 
 
-def test_Log_parity():
+def test_Log_parity() -> None:
     """Test parity for Log."""
-    check_parity(
-        "Log", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Log", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)])
 
 
-def test_Log10_parity():
+def test_Log10_parity() -> None:
     """Test parity for Log10."""
-    check_parity(
-        "Log10", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Log10", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)])
 
 
-def test_Log1P_parity():
+def test_Log1P_parity() -> None:
     """Test parity for Log1P."""
-    check_parity(
-        "Log1p", lambda: [np.random.uniform(0, 1, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Log1p", lambda: [np.random.uniform(0, 1, size=(2, 3)).astype(np.float32)])
 
 
-def test_Log2_parity():
+def test_Log2_parity() -> None:
     """Test parity for Log2."""
-    check_parity(
-        "Log2", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Log2", lambda: [np.random.uniform(0.1, 5, size=(2, 3)).astype(np.float32)])
 
 
-def test_Logaddexp_parity():
+def test_Logaddexp_parity() -> None:
     """Test parity for Logaddexp."""
     check_parity(
         "Logaddexp",
@@ -341,7 +232,7 @@ def test_Logaddexp_parity():
     )
 
 
-def test_Logaddexp2_parity():
+def test_Logaddexp2_parity() -> None:
     """Test parity for Logaddexp2."""
     check_parity(
         "Logaddexp2",
@@ -352,14 +243,12 @@ def test_Logaddexp2_parity():
     )
 
 
-def test_Logit_parity():
+def test_Logit_parity() -> None:
     """Test parity for Logit."""
-    check_parity(
-        "Logit", lambda: [np.random.uniform(0.1, 0.9, size=(2, 3)).astype(np.float32)]
-    )
+    check_parity("Logit", lambda: [np.random.uniform(0.1, 0.9, size=(2, 3)).astype(np.float32)])
 
 
-def test_Mod_parity():
+def test_Mod_parity() -> None:
     """Test parity for Mod."""
     check_parity(
         "Mod",
@@ -370,7 +259,7 @@ def test_Mod_parity():
     )
 
 
-def test_Multiply_parity():
+def test_Multiply_parity() -> None:
     """Test parity for Multiply."""
     check_parity(
         "Multiply",
@@ -381,7 +270,7 @@ def test_Multiply_parity():
     )
 
 
-def test_Mvlgamma_parity():
+def test_Mvlgamma_parity() -> None:
     """Test parity for Mvlgamma."""
     check_parity(
         "Mvlgamma",
@@ -389,7 +278,7 @@ def test_Mvlgamma_parity():
     )
 
 
-def test_Power_parity():
+def test_Power_parity() -> None:
     """Test parity for Power."""
     check_parity(
         "Power",
@@ -400,42 +289,42 @@ def test_Power_parity():
     )
 
 
-def test_Real_parity():
+def test_Real_parity() -> None:
     """Test parity for Real."""
     check_parity("Real", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Round_parity():
+def test_Round_parity() -> None:
     """Test parity for Round."""
     check_parity("Round", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Sign_parity():
+def test_Sign_parity() -> None:
     """Test parity for Sign."""
     check_parity("Sign", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Signbit_parity():
+def test_Signbit_parity() -> None:
     """Test parity for Signbit."""
     check_parity("Signbit", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Sin_parity():
+def test_Sin_parity() -> None:
     """Test parity for Sin."""
     check_parity("Sin", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Sinc_parity():
+def test_Sinc_parity() -> None:
     """Test parity for Sinc."""
     check_parity("Sinc", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Sinh_parity():
+def test_Sinh_parity() -> None:
     """Test parity for Sinh."""
     check_parity("Sinh", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Subtract_parity():
+def test_Subtract_parity() -> None:
     """Test parity for Subtract."""
     check_parity(
         "Subtract",
@@ -446,17 +335,17 @@ def test_Subtract_parity():
     )
 
 
-def test_Tan_parity():
+def test_Tan_parity() -> None:
     """Test parity for Tan."""
     check_parity("Tan", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Tanh_parity():
+def test_Tanh_parity() -> None:
     """Test parity for Tanh."""
     check_parity("Tanh", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Xlogy_parity():
+def test_Xlogy_parity() -> None:
     """Test parity for Xlogy."""
     check_parity(
         "Xlogy",
@@ -467,7 +356,7 @@ def test_Xlogy_parity():
     )
 
 
-def test_AccumulateN_parity():
+def test_AccumulateN_parity() -> None:
     """Test parity for AccumulateN."""
     check_parity(
         "AccumulateN",
@@ -475,7 +364,7 @@ def test_AccumulateN_parity():
     )
 
 
-def test_AddN_parity():
+def test_AddN_parity() -> None:
     """Test parity for AddN."""
     check_parity(
         "AddN",
@@ -483,7 +372,7 @@ def test_AddN_parity():
     )
 
 
-def test_Assign_parity():
+def test_Assign_parity() -> None:
     """Test parity for Assign."""
     check_parity(
         "Assign",
@@ -491,7 +380,7 @@ def test_Assign_parity():
     )
 
 
-def test_AssignAdd_parity():
+def test_AssignAdd_parity() -> None:
     """Test parity for AssignAdd."""
     check_parity(
         "AssignAdd",
@@ -499,7 +388,7 @@ def test_AssignAdd_parity():
     )
 
 
-def test_AssignSub_parity():
+def test_AssignSub_parity() -> None:
     """Test parity for AssignSub."""
     check_parity(
         "AssignSub",
@@ -507,7 +396,7 @@ def test_AssignSub_parity():
     )
 
 
-def test_BesselI0_parity():
+def test_BesselI0_parity() -> None:
     """Test parity for BesselI0."""
     check_parity(
         "BesselI0",
@@ -515,7 +404,7 @@ def test_BesselI0_parity():
     )
 
 
-def test_BesselI0e_parity():
+def test_BesselI0e_parity() -> None:
     """Test parity for BesselI0e."""
     check_parity(
         "BesselI0e",
@@ -523,7 +412,7 @@ def test_BesselI0e_parity():
     )
 
 
-def test_BesselI1_parity():
+def test_BesselI1_parity() -> None:
     """Test parity for BesselI1."""
     check_parity(
         "BesselI1",
@@ -531,7 +420,7 @@ def test_BesselI1_parity():
     )
 
 
-def test_BesselI1e_parity():
+def test_BesselI1e_parity() -> None:
     """Test parity for BesselI1e."""
     check_parity(
         "BesselI1e",
@@ -539,7 +428,7 @@ def test_BesselI1e_parity():
     )
 
 
-def test_BesselJ0_parity():
+def test_BesselJ0_parity() -> None:
     """Test parity for BesselJ0."""
     check_parity(
         "BesselJ0",
@@ -547,7 +436,7 @@ def test_BesselJ0_parity():
     )
 
 
-def test_BesselJ1_parity():
+def test_BesselJ1_parity() -> None:
     """Test parity for BesselJ1."""
     check_parity(
         "BesselJ1",
@@ -555,7 +444,7 @@ def test_BesselJ1_parity():
     )
 
 
-def test_BesselJn_parity():
+def test_BesselJn_parity() -> None:
     """Test parity for BesselJn."""
     check_parity(
         "BesselJn",
@@ -563,7 +452,7 @@ def test_BesselJn_parity():
     )
 
 
-def test_BesselK0_parity():
+def test_BesselK0_parity() -> None:
     """Test parity for BesselK0."""
     check_parity(
         "BesselK0",
@@ -571,7 +460,7 @@ def test_BesselK0_parity():
     )
 
 
-def test_BesselK0e_parity():
+def test_BesselK0e_parity() -> None:
     """Test parity for BesselK0e."""
     check_parity(
         "BesselK0e",
@@ -579,7 +468,7 @@ def test_BesselK0e_parity():
     )
 
 
-def test_BesselK1_parity():
+def test_BesselK1_parity() -> None:
     """Test parity for BesselK1."""
     check_parity(
         "BesselK1",
@@ -587,7 +476,7 @@ def test_BesselK1_parity():
     )
 
 
-def test_BesselK1e_parity():
+def test_BesselK1e_parity() -> None:
     """Test parity for BesselK1e."""
     check_parity(
         "BesselK1e",
@@ -595,7 +484,7 @@ def test_BesselK1e_parity():
     )
 
 
-def test_BesselY0_parity():
+def test_BesselY0_parity() -> None:
     """Test parity for BesselY0."""
     check_parity(
         "BesselY0",
@@ -603,7 +492,7 @@ def test_BesselY0_parity():
     )
 
 
-def test_BesselY1_parity():
+def test_BesselY1_parity() -> None:
     """Test parity for BesselY1."""
     check_parity(
         "BesselY1",
@@ -611,7 +500,7 @@ def test_BesselY1_parity():
     )
 
 
-def test_Beta_parity():
+def test_Beta_parity() -> None:
     """Test parity for Beta."""
     check_parity(
         "Beta",
@@ -619,7 +508,7 @@ def test_Beta_parity():
     )
 
 
-def test_Betainc_parity():
+def test_Betainc_parity() -> None:
     """Test parity for Betainc."""
     check_parity(
         "Betainc",
@@ -627,7 +516,7 @@ def test_Betainc_parity():
     )
 
 
-def test_ConstantOfShape_parity():
+def test_ConstantOfShape_parity() -> None:
     """Test parity for ConstantOfShape."""
     check_parity(
         "ConstantOfShape",
@@ -635,7 +524,7 @@ def test_ConstantOfShape_parity():
     )
 
 
-def test_CropImages_parity():
+def test_CropImages_parity() -> None:
     """Test parity for CropImages."""
     check_parity(
         "CropImages",
@@ -643,7 +532,7 @@ def test_CropImages_parity():
     )
 
 
-def test_Expint_parity():
+def test_Expint_parity() -> None:
     """Test parity for Expint."""
     check_parity(
         "Expint",
@@ -651,7 +540,7 @@ def test_Expint_parity():
     )
 
 
-def test_FresnelCos_parity():
+def test_FresnelCos_parity() -> None:
     """Test parity for FresnelCos."""
     check_parity(
         "FresnelCos",
@@ -659,7 +548,7 @@ def test_FresnelCos_parity():
     )
 
 
-def test_FresnelSin_parity():
+def test_FresnelSin_parity() -> None:
     """Test parity for FresnelSin."""
     check_parity(
         "FresnelSin",
@@ -667,7 +556,7 @@ def test_FresnelSin_parity():
     )
 
 
-def test_Gamma_parity():
+def test_Gamma_parity() -> None:
     """Test parity for Gamma."""
     check_parity(
         "Gamma",
@@ -675,7 +564,7 @@ def test_Gamma_parity():
     )
 
 
-def test_Igamma_parity():
+def test_Igamma_parity() -> None:
     """Test parity for Igamma."""
     check_parity(
         "Igamma",
@@ -683,7 +572,7 @@ def test_Igamma_parity():
     )
 
 
-def test_IgammaGradA_parity():
+def test_IgammaGradA_parity() -> None:
     """Test parity for IgammaGradA."""
     check_parity(
         "IgammaGradA",
@@ -691,7 +580,7 @@ def test_IgammaGradA_parity():
     )
 
 
-def test_Igammac_parity():
+def test_Igammac_parity() -> None:
     """Test parity for Igammac."""
     check_parity(
         "Igammac",
@@ -699,7 +588,7 @@ def test_Igammac_parity():
     )
 
 
-def test_Lbeta_parity():
+def test_Lbeta_parity() -> None:
     """Test parity for Lbeta."""
     check_parity(
         "Lbeta",
@@ -707,7 +596,7 @@ def test_Lbeta_parity():
     )
 
 
-def test_Loggamma_parity():
+def test_Loggamma_parity() -> None:
     """Test parity for Loggamma."""
     check_parity(
         "Loggamma",
@@ -715,7 +604,7 @@ def test_Loggamma_parity():
     )
 
 
-def test_MfccsFromLogMelSpectrograms_parity():
+def test_MfccsFromLogMelSpectrograms_parity() -> None:
     """Test parity for MfccsFromLogMelSpectrograms."""
     check_parity(
         "MfccsFromLogMelSpectrograms",
@@ -723,7 +612,7 @@ def test_MfccsFromLogMelSpectrograms_parity():
     )
 
 
-def test_PadImages_parity():
+def test_PadImages_parity() -> None:
     """Test parity for PadImages."""
     check_parity(
         "PadImages",
@@ -731,7 +620,7 @@ def test_PadImages_parity():
     )
 
 
-def test_Polyadd_parity():
+def test_Polyadd_parity() -> None:
     """Test parity for Polyadd."""
     check_parity(
         "Polyadd",
@@ -739,7 +628,7 @@ def test_Polyadd_parity():
     )
 
 
-def test_Polydiv_parity():
+def test_Polydiv_parity() -> None:
     """Test parity for Polydiv."""
     check_parity(
         "Polydiv",
@@ -747,7 +636,7 @@ def test_Polydiv_parity():
     )
 
 
-def test_Polygamma_parity():
+def test_Polygamma_parity() -> None:
     """Test parity for Polygamma."""
     check_parity(
         "Polygamma",
@@ -755,7 +644,7 @@ def test_Polygamma_parity():
     )
 
 
-def test_Polymul_parity():
+def test_Polymul_parity() -> None:
     """Test parity for Polymul."""
     check_parity(
         "Polymul",
@@ -763,7 +652,7 @@ def test_Polymul_parity():
     )
 
 
-def test_Polysub_parity():
+def test_Polysub_parity() -> None:
     """Test parity for Polysub."""
     check_parity(
         "Polysub",
@@ -771,7 +660,7 @@ def test_Polysub_parity():
     )
 
 
-def test_PowerIteration_parity():
+def test_PowerIteration_parity() -> None:
     """Test parity for PowerIteration."""
     check_parity(
         "PowerIteration",
@@ -779,7 +668,7 @@ def test_PowerIteration_parity():
     )
 
 
-def test_RaggedAdd_parity():
+def test_RaggedAdd_parity() -> None:
     """Test parity for RaggedAdd."""
     check_parity(
         "RaggedAdd",
@@ -787,7 +676,7 @@ def test_RaggedAdd_parity():
     )
 
 
-def test_RaggedConstant_parity():
+def test_RaggedConstant_parity() -> None:
     """Test parity for RaggedConstant."""
     check_parity(
         "RaggedConstant",
@@ -795,7 +684,7 @@ def test_RaggedConstant_parity():
     )
 
 
-def test_ScatterAdd_parity():
+def test_ScatterAdd_parity() -> None:
     """Test parity for ScatterAdd."""
     check_parity(
         "ScatterAdd",
@@ -803,7 +692,7 @@ def test_ScatterAdd_parity():
     )
 
 
-def test_ScatterMul_parity():
+def test_ScatterMul_parity() -> None:
     """Test parity for ScatterMul."""
     check_parity(
         "ScatterMul",
@@ -811,7 +700,7 @@ def test_ScatterMul_parity():
     )
 
 
-def test_SparseAdd_parity():
+def test_SparseAdd_parity() -> None:
     """Test parity for SparseAdd."""
     check_parity(
         "SparseAdd",
@@ -819,7 +708,7 @@ def test_SparseAdd_parity():
     )
 
 
-def test_SpecialGamma_parity():
+def test_SpecialGamma_parity() -> None:
     """Test parity for SpecialGamma."""
     check_parity(
         "SpecialGamma",
@@ -827,7 +716,7 @@ def test_SpecialGamma_parity():
     )
 
 
-def test_TruncateDiv_parity():
+def test_TruncateDiv_parity() -> None:
     """Test parity for TruncateDiv."""
     check_parity(
         "TruncateDiv",
@@ -835,7 +724,7 @@ def test_TruncateDiv_parity():
     )
 
 
-def test_TruncateMod_parity():
+def test_TruncateMod_parity() -> None:
     """Test parity for TruncateMod."""
     check_parity(
         "TruncateMod",
@@ -843,7 +732,7 @@ def test_TruncateMod_parity():
     )
 
 
-def test_Xdivy_parity():
+def test_Xdivy_parity() -> None:
     """Test parity for Xdivy."""
     check_parity(
         "Xdivy",
@@ -851,7 +740,7 @@ def test_Xdivy_parity():
     )
 
 
-def test_Xlog1py_parity():
+def test_Xlog1py_parity() -> None:
     """Test parity for Xlog1py."""
     check_parity(
         "Xlog1py",

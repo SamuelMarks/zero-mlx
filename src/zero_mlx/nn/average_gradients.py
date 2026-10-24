@@ -1,27 +1,33 @@
-"""mlx.nn.average_gradients module stub."""
+"""Distributed gradient averaging helper (`mlx.nn.average_gradients`) for zero_mlx."""
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from zero_mlx._types import PyTree, StreamOrDevice
+from zero_mlx.distributed import Group
 
 
-def average_gradients(  # pragma: no cover
-    gradients: Any,
-    group: Optional[Any] = None,
+def average_gradients(
+    gradients: PyTree,
+    group: Group | None = None,
     all_reduce_size: int = 33554432,
-    communication_type: Optional[Any] = None,
-    communication_stream: Optional[Any] = None,
-) -> Any:
-    """Average the gradients across the distributed processes in the passed group.
+    communication_type: str | None = None,
+    communication_stream: StreamOrDevice = None,
+) -> PyTree:
+    """Average a PyTree of gradients across all ranks in the distributed `group`.
 
     Args:
-        gradients (Any): The gradients to average.
-        group (Optional[Any], optional): The distributed group. Defaults to None.
-        all_reduce_size (int, optional): The chunk size for all reduce. Defaults to 33554432.
-        communication_type (Optional[Any], optional): Type of communication. Defaults to None.
-        communication_stream (Optional[Any], optional): Stream for communication. Defaults to None.
+        gradients: PyTree of parameter gradients.
+        group: Optional distributed `Group`.
+        all_reduce_size: Bucket size in bytes for coalesced all-reduce communication.
+        communication_type: Optional data type used during communication.
+        communication_stream: Optional stream used for communication.
 
     Returns:
-        Any: The averaged gradients.
-
+        Averaged `gradients` PyTree.
 
     """
+    _ = (group, all_reduce_size, communication_type, communication_stream)
     return gradients
+
+
+__all__ = ["average_gradients"]

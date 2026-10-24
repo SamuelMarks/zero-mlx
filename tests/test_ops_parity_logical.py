@@ -1,101 +1,18 @@
-import pytest
+"""Compiler operation parity tests for `logical` operations."""
+
+from __future__ import annotations
+
 import numpy as np
 
-try:
-    import mlx.core as mx
-except ImportError:
-    mx = None
-
-import zero_mlx
-from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
+from tests.conftest import check_parity
 
 
-def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):
-    import numpy as np
-
-    if isinstance(z_res, (tuple, list)) and isinstance(m_res, (tuple, list)):
-        for z, m in zip(z_res, m_res):
-            assert_allclose_mlx(z, m, rtol, atol)
-    else:
-        # Extract underlying tensor data if it's a zero_mlx array
-        if hasattr(z_res, "_tensor"):
-            z_res = z_res._tensor.data
-        if hasattr(m_res, "_tensor"):
-            m_res = m_res._tensor.data
-        np.testing.assert_allclose(
-            np.array(z_res), np.array(m_res), rtol=rtol, atol=atol
-        )
-
-
-def check_parity(op_name, args_generator, kwargs_generator=None, rtol=1e-5, atol=1e-5):
-    if mx is None:
-        pytest.skip("MLX not available")
-    func_name = op_name.lower()
-    if not hasattr(zero_mlx, func_name) or not hasattr(mx, func_name):
-        pytest.skip(f"{func_name} not mapped in zero_mlx or mx")
-
-    if func_name == "fft":
-        z_func = zero_mlx.fft.fft
-        try:
-            m_func = mx.fft.fft
-            if not callable(m_func):
-                m_func = getattr(mx, "fft")
-        except AttributeError:
-            m_func = getattr(mx, "fft")
-    elif func_name == "rfft":
-        z_func = zero_mlx.fft.rfft
-        try:
-            m_func = mx.fft.rfft
-            if not callable(m_func):
-                m_func = getattr(mx, "rfft")
-        except AttributeError:
-            m_func = getattr(mx, "rfft")
-    else:
-        z_func = getattr(zero_mlx, func_name)
-        m_func = getattr(mx, func_name)
-
-    args = args_generator()
-    kwargs = kwargs_generator() if kwargs_generator else {}
-
-    _tracer.start_tracing("parity_test")
-
-    def unwrap(x):
-        if isinstance(x, np.generic):
-            return x.item()
-        return x
-
-    z_args = [
-        zero_mlx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args
-    ]
-    m_args = [mx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args]
-
-    try:
-        z_res = z_func(*z_args, **kwargs)
-        if hasattr(zero_mlx, "eval"):
-            zero_mlx.eval(z_res)
-        _tracer.stop_tracing()
-        m_res = m_func(*m_args, **kwargs)
-        assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)
-    except Exception as e:
-        try:
-            if callable(getattr(_tracer, "is_tracing", None)):
-                if _tracer.is_tracing():
-                    _tracer.stop_tracing()
-            elif getattr(_tracer, "is_tracing", False):
-                _tracer.stop_tracing()
-        except Exception:
-            pass
-        if False:
-            _tracer.stop_tracing()
-        raise e
-
-
-def test_All_parity():
+def test_All_parity() -> None:
     """Test parity for All."""
     check_parity("All", lambda: [np.random.choice([True, False], size=(2, 3))])
 
 
-def test_Allclose_parity():
+def test_Allclose_parity() -> None:
     """Test parity for Allclose."""
     check_parity(
         "Allclose",
@@ -106,12 +23,12 @@ def test_Allclose_parity():
     )
 
 
-def test_Any_parity():
+def test_Any_parity() -> None:
     """Test parity for Any."""
     check_parity("Any", lambda: [np.random.choice([True, False], size=(2, 3))])
 
 
-def test_BitwiseAnd_parity():
+def test_BitwiseAnd_parity() -> None:
     """Test parity for BitwiseAnd."""
     check_parity(
         "Bitwise_And",
@@ -122,14 +39,12 @@ def test_BitwiseAnd_parity():
     )
 
 
-def test_BitwiseNot_parity():
+def test_BitwiseNot_parity() -> None:
     """Test parity for BitwiseNot."""
-    check_parity(
-        "Bitwise_Not", lambda: [np.random.randint(0, 10, size=(2, 3)).astype(np.int32)]
-    )
+    check_parity("Bitwise_Not", lambda: [np.random.randint(0, 10, size=(2, 3)).astype(np.int32)])
 
 
-def test_BitwiseOr_parity():
+def test_BitwiseOr_parity() -> None:
     """Test parity for BitwiseOr."""
     check_parity(
         "Bitwise_Or",
@@ -140,7 +55,7 @@ def test_BitwiseOr_parity():
     )
 
 
-def test_BitwiseXor_parity():
+def test_BitwiseXor_parity() -> None:
     """Test parity for BitwiseXor."""
     check_parity(
         "Bitwise_Xor",
@@ -151,7 +66,7 @@ def test_BitwiseXor_parity():
     )
 
 
-def test_Equal_parity():
+def test_Equal_parity() -> None:
     """Test parity for Equal."""
     check_parity(
         "Equal",
@@ -162,12 +77,12 @@ def test_Equal_parity():
     )
 
 
-def test_Floor_parity():
+def test_Floor_parity() -> None:
     """Test parity for Floor."""
     check_parity("Floor", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_FloorDivide_parity():
+def test_FloorDivide_parity() -> None:
     """Test parity for FloorDivide."""
     check_parity(
         "Floor_Divide",
@@ -178,7 +93,7 @@ def test_FloorDivide_parity():
     )
 
 
-def test_Greater_parity():
+def test_Greater_parity() -> None:
     """Test parity for Greater."""
     check_parity(
         "Greater",
@@ -189,7 +104,7 @@ def test_Greater_parity():
     )
 
 
-def test_GreaterEqual_parity():
+def test_GreaterEqual_parity() -> None:
     """Test parity for GreaterEqual."""
     check_parity(
         "Greater_Equal",
@@ -200,7 +115,7 @@ def test_GreaterEqual_parity():
     )
 
 
-def test_Heaviside_parity():
+def test_Heaviside_parity() -> None:
     """Test parity for Heaviside."""
     check_parity(
         "Heaviside",
@@ -211,7 +126,7 @@ def test_Heaviside_parity():
     )
 
 
-def test_Isclose_parity():
+def test_Isclose_parity() -> None:
     """Test parity for Isclose."""
     check_parity(
         "Isclose",
@@ -222,22 +137,22 @@ def test_Isclose_parity():
     )
 
 
-def test_Isfinite_parity():
+def test_Isfinite_parity() -> None:
     """Test parity for Isfinite."""
     check_parity("Isfinite", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Isinf_parity():
+def test_Isinf_parity() -> None:
     """Test parity for Isinf."""
     check_parity("Isinf", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Isnan_parity():
+def test_Isnan_parity() -> None:
     """Test parity for Isnan."""
     check_parity("Isnan", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Less_parity():
+def test_Less_parity() -> None:
     """Test parity for Less."""
     check_parity(
         "Less",
@@ -248,7 +163,7 @@ def test_Less_parity():
     )
 
 
-def test_LessEqual_parity():
+def test_LessEqual_parity() -> None:
     """Test parity for LessEqual."""
     check_parity(
         "Less_Equal",
@@ -259,7 +174,7 @@ def test_LessEqual_parity():
     )
 
 
-def test_LogicalAnd_parity():
+def test_LogicalAnd_parity() -> None:
     """Test parity for LogicalAnd."""
     check_parity(
         "Logical_And",
@@ -270,12 +185,12 @@ def test_LogicalAnd_parity():
     )
 
 
-def test_LogicalNot_parity():
+def test_LogicalNot_parity() -> None:
     """Test parity for LogicalNot."""
     check_parity("Logical_Not", lambda: [np.random.choice([True, False], size=(2, 3))])
 
 
-def test_LogicalOr_parity():
+def test_LogicalOr_parity() -> None:
     """Test parity for LogicalOr."""
     check_parity(
         "Logical_Or",
@@ -286,7 +201,7 @@ def test_LogicalOr_parity():
     )
 
 
-def test_LogicalXor_parity():
+def test_LogicalXor_parity() -> None:
     """Test parity for LogicalXor."""
     check_parity(
         "Logical_Xor",
@@ -297,7 +212,7 @@ def test_LogicalXor_parity():
     )
 
 
-def test_NanToNum_parity():
+def test_NanToNum_parity() -> None:
     """Test parity for NanToNum."""
     check_parity(
         "Nan_To_Num",
@@ -306,7 +221,7 @@ def test_NanToNum_parity():
     )
 
 
-def test_NotEqual_parity():
+def test_NotEqual_parity() -> None:
     """Test parity for NotEqual."""
     check_parity(
         "Not_Equal",
@@ -317,12 +232,12 @@ def test_NotEqual_parity():
     )
 
 
-def test_Rand_parity():
+def test_Rand_parity() -> None:
     """Test parity for Rand."""
     check_parity("Rand", lambda: [], kwargs_generator=lambda: {"shape": (2, 3)})
 
 
-def test_Randint_parity():
+def test_Randint_parity() -> None:
     """Test parity for Randint."""
     check_parity(
         "Randint",
@@ -331,17 +246,17 @@ def test_Randint_parity():
     )
 
 
-def test_Randn_parity():
+def test_Randn_parity() -> None:
     """Test parity for Randn."""
     check_parity("Randn", lambda: [], kwargs_generator=lambda: {"shape": (2, 3)})
 
 
-def test_Sort_parity():
+def test_Sort_parity() -> None:
     """Test parity for Sort."""
     check_parity("Sort", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_TrueDivide_parity():
+def test_TrueDivide_parity() -> None:
     """Test parity for TrueDivide."""
     check_parity(
         "True_Divide",
@@ -352,7 +267,7 @@ def test_TrueDivide_parity():
     )
 
 
-def test_AffineGenerator_parity():
+def test_AffineGenerator_parity() -> None:
     """Test parity for AffineGenerator."""
     check_parity(
         "AffineGenerator",
@@ -360,7 +275,7 @@ def test_AffineGenerator_parity():
     )
 
 
-def test_AffineTransform_parity():
+def test_AffineTransform_parity() -> None:
     """Test parity for AffineTransform."""
     check_parity(
         "AffineTransform",
@@ -368,7 +283,7 @@ def test_AffineTransform_parity():
     )
 
 
-def test_AllGather_parity():
+def test_AllGather_parity() -> None:
     """Test parity for AllGather."""
     check_parity(
         "AllGather",
@@ -376,7 +291,7 @@ def test_AllGather_parity():
     )
 
 
-def test_AllReduce_parity():
+def test_AllReduce_parity() -> None:
     """Test parity for AllReduce."""
     check_parity(
         "AllReduce",
@@ -384,7 +299,7 @@ def test_AllReduce_parity():
     )
 
 
-def test_AllToAll_parity():
+def test_AllToAll_parity() -> None:
     """Test parity for AllToAll."""
     check_parity(
         "AllToAll",
@@ -392,7 +307,7 @@ def test_AllToAll_parity():
     )
 
 
-def test_AxisIndex_parity():
+def test_AxisIndex_parity() -> None:
     """Test parity for AxisIndex."""
     check_parity(
         "AxisIndex",
@@ -400,7 +315,7 @@ def test_AxisIndex_parity():
     )
 
 
-def test_Ball_parity():
+def test_Ball_parity() -> None:
     """Test parity for Ball."""
     check_parity(
         "Ball",
@@ -408,7 +323,7 @@ def test_Ball_parity():
     )
 
 
-def test_BandPart_parity():
+def test_BandPart_parity() -> None:
     """Test parity for BandPart."""
     check_parity(
         "BandPart",
@@ -416,7 +331,7 @@ def test_BandPart_parity():
     )
 
 
-def test_Chisquare_parity():
+def test_Chisquare_parity() -> None:
     """Test parity for Chisquare."""
     check_parity(
         "Chisquare",
@@ -424,7 +339,7 @@ def test_Chisquare_parity():
     )
 
 
-def test_Corrcoef_parity():
+def test_Corrcoef_parity() -> None:
     """Test parity for Corrcoef."""
     check_parity(
         "Corrcoef",
@@ -432,7 +347,7 @@ def test_Corrcoef_parity():
     )
 
 
-def test_Correlate_parity():
+def test_Correlate_parity() -> None:
     """Test parity for Correlate."""
     check_parity(
         "Correlate",
@@ -440,7 +355,7 @@ def test_Correlate_parity():
     )
 
 
-def test_CropAndResize_parity():
+def test_CropAndResize_parity() -> None:
     """Test parity for CropAndResize."""
     check_parity(
         "CropAndResize",
@@ -448,7 +363,7 @@ def test_CropAndResize_parity():
     )
 
 
-def test_DebugInfs_parity():
+def test_DebugInfs_parity() -> None:
     """Test parity for DebugInfs."""
     check_parity(
         "DebugInfs",
@@ -456,7 +371,7 @@ def test_DebugInfs_parity():
     )
 
 
-def test_DebugNans_parity():
+def test_DebugNans_parity() -> None:
     """Test parity for DebugNans."""
     check_parity(
         "DebugNans",
@@ -464,7 +379,7 @@ def test_DebugNans_parity():
     )
 
 
-def test_DivideNoNan_parity():
+def test_DivideNoNan_parity() -> None:
     """Test parity for DivideNoNan."""
     check_parity(
         "DivideNoNan",
@@ -472,7 +387,7 @@ def test_DivideNoNan_parity():
     )
 
 
-def test_EditDistance_parity():
+def test_EditDistance_parity() -> None:
     """Test parity for EditDistance."""
     check_parity(
         "EditDistance",
@@ -480,7 +395,7 @@ def test_EditDistance_parity():
     )
 
 
-def test_ElasticTransform_parity():
+def test_ElasticTransform_parity() -> None:
     """Test parity for ElasticTransform."""
     check_parity(
         "ElasticTransform",
@@ -488,7 +403,7 @@ def test_ElasticTransform_parity():
     )
 
 
-def test_Equalization_parity():
+def test_Equalization_parity() -> None:
     """Test parity for Equalization."""
     check_parity(
         "Equalization",
@@ -496,7 +411,7 @@ def test_Equalization_parity():
     )
 
 
-def test_Expand_parity():
+def test_Expand_parity() -> None:
     """Test parity for Expand."""
     check_parity(
         "Expand",
@@ -504,7 +419,7 @@ def test_Expand_parity():
     )
 
 
-def test_ForiLoop_parity():
+def test_ForiLoop_parity() -> None:
     """Test parity for ForiLoop."""
     check_parity(
         "ForiLoop",
@@ -512,7 +427,7 @@ def test_ForiLoop_parity():
     )
 
 
-def test_HsvToRgb_parity():
+def test_HsvToRgb_parity() -> None:
     """Test parity for HsvToRgb."""
     check_parity(
         "HsvToRgb",
@@ -520,7 +435,7 @@ def test_HsvToRgb_parity():
     )
 
 
-def test_Infeed_parity():
+def test_Infeed_parity() -> None:
     """Test parity for Infeed."""
     check_parity(
         "Infeed",
@@ -528,7 +443,7 @@ def test_Infeed_parity():
     )
 
 
-def test_IsNonDecreasing_parity():
+def test_IsNonDecreasing_parity() -> None:
     """Test parity for IsNonDecreasing."""
     check_parity(
         "IsNonDecreasing",
@@ -536,7 +451,7 @@ def test_IsNonDecreasing_parity():
     )
 
 
-def test_Kaiser_parity():
+def test_Kaiser_parity() -> None:
     """Test parity for Kaiser."""
     check_parity(
         "Kaiser",
@@ -544,7 +459,7 @@ def test_Kaiser_parity():
     )
 
 
-def test_KaiserWindow_parity():
+def test_KaiserWindow_parity() -> None:
     """Test parity for KaiserWindow."""
     check_parity(
         "KaiserWindow",
@@ -552,7 +467,7 @@ def test_KaiserWindow_parity():
     )
 
 
-def test_Logistic_parity():
+def test_Logistic_parity() -> None:
     """Test parity for Logistic."""
     check_parity(
         "Logistic",
@@ -560,7 +475,7 @@ def test_Logistic_parity():
     )
 
 
-def test_LuFactor_parity():
+def test_LuFactor_parity() -> None:
     """Test parity for LuFactor."""
     check_parity(
         "LuFactor",
@@ -568,7 +483,7 @@ def test_LuFactor_parity():
     )
 
 
-def test_MapCoordinates_parity():
+def test_MapCoordinates_parity() -> None:
     """Test parity for MapCoordinates."""
     check_parity(
         "MapCoordinates",
@@ -576,7 +491,7 @@ def test_MapCoordinates_parity():
     )
 
 
-def test_Moveaxis_parity():
+def test_Moveaxis_parity() -> None:
     """Test parity for Moveaxis."""
     check_parity(
         "Moveaxis",
@@ -584,7 +499,7 @@ def test_Moveaxis_parity():
     )
 
 
-def test_MultiplyNoNan_parity():
+def test_MultiplyNoNan_parity() -> None:
     """Test parity for MultiplyNoNan."""
     check_parity(
         "MultiplyNoNan",
@@ -592,7 +507,7 @@ def test_MultiplyNoNan_parity():
     )
 
 
-def test_Nanmedian_parity():
+def test_Nanmedian_parity() -> None:
     """Test parity for Nanmedian."""
     check_parity(
         "Nanmedian",
@@ -600,7 +515,7 @@ def test_Nanmedian_parity():
     )
 
 
-def test_Nanpercentile_parity():
+def test_Nanpercentile_parity() -> None:
     """Test parity for Nanpercentile."""
     check_parity(
         "Nanpercentile",
@@ -608,7 +523,7 @@ def test_Nanpercentile_parity():
     )
 
 
-def test_Nanquantile_parity():
+def test_Nanquantile_parity() -> None:
     """Test parity for Nanquantile."""
     check_parity(
         "Nanquantile",
@@ -616,7 +531,7 @@ def test_Nanquantile_parity():
     )
 
 
-def test_Orthogonal_parity():
+def test_Orthogonal_parity() -> None:
     """Test parity for Orthogonal."""
     check_parity(
         "Orthogonal",
@@ -624,7 +539,7 @@ def test_Orthogonal_parity():
     )
 
 
-def test_OverlapAndAdd_parity():
+def test_OverlapAndAdd_parity() -> None:
     """Test parity for OverlapAndAdd."""
     check_parity(
         "OverlapAndAdd",
@@ -632,7 +547,7 @@ def test_OverlapAndAdd_parity():
     )
 
 
-def test_PerspectiveTransform_parity():
+def test_PerspectiveTransform_parity() -> None:
     """Test parity for PerspectiveTransform."""
     check_parity(
         "PerspectiveTransform",
@@ -640,7 +555,7 @@ def test_PerspectiveTransform_parity():
     )
 
 
-def test_Poisson_parity():
+def test_Poisson_parity() -> None:
     """Test parity for Poisson."""
     check_parity(
         "Poisson",
@@ -648,7 +563,7 @@ def test_Poisson_parity():
     )
 
 
-def test_RaggedSegmentIdsToRowSplits_parity():
+def test_RaggedSegmentIdsToRowSplits_parity() -> None:
     """Test parity for RaggedSegmentIdsToRowSplits."""
     check_parity(
         "RaggedSegmentIdsToRowSplits",
@@ -656,7 +571,7 @@ def test_RaggedSegmentIdsToRowSplits_parity():
     )
 
 
-def test_RaggedTensorToDense_parity():
+def test_RaggedTensorToDense_parity() -> None:
     """Test parity for RaggedTensorToDense."""
     check_parity(
         "RaggedTensorToDense",
@@ -664,7 +579,7 @@ def test_RaggedTensorToDense_parity():
     )
 
 
-def test_RandAugment_parity():
+def test_RandAugment_parity() -> None:
     """Test parity for RandAugment."""
     check_parity(
         "RandAugment",
@@ -672,7 +587,7 @@ def test_RandAugment_parity():
     )
 
 
-def test_RandomColorJitter_parity():
+def test_RandomColorJitter_parity() -> None:
     """Test parity for RandomColorJitter."""
     check_parity(
         "RandomColorJitter",
@@ -680,7 +595,7 @@ def test_RandomColorJitter_parity():
     )
 
 
-def test_RandomCrop_parity():
+def test_RandomCrop_parity() -> None:
     """Test parity for RandomCrop."""
     check_parity(
         "RandomCrop",
@@ -688,7 +603,7 @@ def test_RandomCrop_parity():
     )
 
 
-def test_RandomElasticTransform_parity():
+def test_RandomElasticTransform_parity() -> None:
     """Test parity for RandomElasticTransform."""
     check_parity(
         "RandomElasticTransform",
@@ -696,7 +611,7 @@ def test_RandomElasticTransform_parity():
     )
 
 
-def test_RandomErasing_parity():
+def test_RandomErasing_parity() -> None:
     """Test parity for RandomErasing."""
     check_parity(
         "RandomErasing",
@@ -704,7 +619,7 @@ def test_RandomErasing_parity():
     )
 
 
-def test_RandomFlip_parity():
+def test_RandomFlip_parity() -> None:
     """Test parity for RandomFlip."""
     check_parity(
         "RandomFlip",
@@ -712,7 +627,7 @@ def test_RandomFlip_parity():
     )
 
 
-def test_RandomGammaGrad_parity():
+def test_RandomGammaGrad_parity() -> None:
     """Test parity for RandomGammaGrad."""
     check_parity(
         "RandomGammaGrad",
@@ -720,7 +635,7 @@ def test_RandomGammaGrad_parity():
     )
 
 
-def test_RandomGammaP_parity():
+def test_RandomGammaP_parity() -> None:
     """Test parity for RandomGammaP."""
     check_parity(
         "RandomGammaP",
@@ -728,7 +643,7 @@ def test_RandomGammaP_parity():
     )
 
 
-def test_RandomGaussianBlur_parity():
+def test_RandomGaussianBlur_parity() -> None:
     """Test parity for RandomGaussianBlur."""
     check_parity(
         "RandomGaussianBlur",
@@ -736,7 +651,7 @@ def test_RandomGaussianBlur_parity():
     )
 
 
-def test_RandomPerspective_parity():
+def test_RandomPerspective_parity() -> None:
     """Test parity for RandomPerspective."""
     check_parity(
         "RandomPerspective",
@@ -744,7 +659,7 @@ def test_RandomPerspective_parity():
     )
 
 
-def test_RandomRotation_parity():
+def test_RandomRotation_parity() -> None:
     """Test parity for RandomRotation."""
     check_parity(
         "RandomRotation",
@@ -752,7 +667,7 @@ def test_RandomRotation_parity():
     )
 
 
-def test_RandomSharpness_parity():
+def test_RandomSharpness_parity() -> None:
     """Test parity for RandomSharpness."""
     check_parity(
         "RandomSharpness",
@@ -760,7 +675,7 @@ def test_RandomSharpness_parity():
     )
 
 
-def test_RandomShear_parity():
+def test_RandomShear_parity() -> None:
     """Test parity for RandomShear."""
     check_parity(
         "RandomShear",
@@ -768,7 +683,7 @@ def test_RandomShear_parity():
     )
 
 
-def test_RandomTranslation_parity():
+def test_RandomTranslation_parity() -> None:
     """Test parity for RandomTranslation."""
     check_parity(
         "RandomTranslation",
@@ -776,7 +691,7 @@ def test_RandomTranslation_parity():
     )
 
 
-def test_RandomZoom_parity():
+def test_RandomZoom_parity() -> None:
     """Test parity for RandomZoom."""
     check_parity(
         "RandomZoom",
@@ -784,7 +699,7 @@ def test_RandomZoom_parity():
     )
 
 
-def test_ReciprocalNoNan_parity():
+def test_ReciprocalNoNan_parity() -> None:
     """Test parity for ReciprocalNoNan."""
     check_parity(
         "ReciprocalNoNan",
@@ -792,7 +707,7 @@ def test_ReciprocalNoNan_parity():
     )
 
 
-def test_ReducePrecision_parity():
+def test_ReducePrecision_parity() -> None:
     """Test parity for ReducePrecision."""
     check_parity(
         "ReducePrecision",
@@ -800,7 +715,7 @@ def test_ReducePrecision_parity():
     )
 
 
-def test_RngBitGenerator_parity():
+def test_RngBitGenerator_parity() -> None:
     """Test parity for RngBitGenerator."""
     check_parity(
         "RngBitGenerator",
@@ -808,7 +723,7 @@ def test_RngBitGenerator_parity():
     )
 
 
-def test_RngUniform_parity():
+def test_RngUniform_parity() -> None:
     """Test parity for RngUniform."""
     check_parity(
         "RngUniform",
@@ -816,7 +731,7 @@ def test_RngUniform_parity():
     )
 
 
-def test_SearchSorted_parity():
+def test_SearchSorted_parity() -> None:
     """Test parity for SearchSorted."""
     check_parity(
         "SearchSorted",
@@ -824,7 +739,7 @@ def test_SearchSorted_parity():
     )
 
 
-def test_Setxor1d_parity():
+def test_Setxor1d_parity() -> None:
     """Test parity for Setxor1d."""
     check_parity(
         "Setxor1d",
@@ -832,7 +747,7 @@ def test_Setxor1d_parity():
     )
 
 
-def test_ShardTensor_parity():
+def test_ShardTensor_parity() -> None:
     """Test parity for ShardTensor."""
     check_parity(
         "ShardTensor",
@@ -840,7 +755,7 @@ def test_ShardTensor_parity():
     )
 
 
-def test_SortKeyVal_parity():
+def test_SortKeyVal_parity() -> None:
     """Test parity for SortKeyVal."""
     check_parity(
         "SortKeyVal",
@@ -848,7 +763,7 @@ def test_SortKeyVal_parity():
     )
 
 
-def test_SparseExpandDims_parity():
+def test_SparseExpandDims_parity() -> None:
     """Test parity for SparseExpandDims."""
     check_parity(
         "SparseExpandDims",
@@ -856,7 +771,7 @@ def test_SparseExpandDims_parity():
     )
 
 
-def test_SparseReorder_parity():
+def test_SparseReorder_parity() -> None:
     """Test parity for SparseReorder."""
     check_parity(
         "SparseReorder",
@@ -864,7 +779,7 @@ def test_SparseReorder_parity():
     )
 
 
-def test_SparseToIndicator_parity():
+def test_SparseToIndicator_parity() -> None:
     """Test parity for SparseToIndicator."""
     check_parity(
         "SparseToIndicator",
@@ -872,7 +787,7 @@ def test_SparseToIndicator_parity():
     )
 
 
-def test_TakeAlongAxis_parity():
+def test_TakeAlongAxis_parity() -> None:
     """Test parity for TakeAlongAxis."""
     check_parity(
         "TakeAlongAxis",
@@ -880,7 +795,7 @@ def test_TakeAlongAxis_parity():
     )
 
 
-def test_TensorArrayRead_parity():
+def test_TensorArrayRead_parity() -> None:
     """Test parity for TensorArrayRead."""
     check_parity(
         "TensorArrayRead",
@@ -888,7 +803,7 @@ def test_TensorArrayRead_parity():
     )
 
 
-def test_TensorArrayStack_parity():
+def test_TensorArrayStack_parity() -> None:
     """Test parity for TensorArrayStack."""
     check_parity(
         "TensorArrayStack",
@@ -896,7 +811,7 @@ def test_TensorArrayStack_parity():
     )
 
 
-def test_TensorArrayWrite_parity():
+def test_TensorArrayWrite_parity() -> None:
     """Test parity for TensorArrayWrite."""
     check_parity(
         "TensorArrayWrite",
@@ -904,7 +819,7 @@ def test_TensorArrayWrite_parity():
     )
 
 
-def test_TensorScatterSub_parity():
+def test_TensorScatterSub_parity() -> None:
     """Test parity for TensorScatterSub."""
     check_parity(
         "TensorScatterSub",
@@ -912,7 +827,7 @@ def test_TensorScatterSub_parity():
     )
 
 
-def test_TensorScatterUpdate_parity():
+def test_TensorScatterUpdate_parity() -> None:
     """Test parity for TensorScatterUpdate."""
     check_parity(
         "TensorScatterUpdate",
@@ -920,7 +835,7 @@ def test_TensorScatterUpdate_parity():
     )
 
 
-def test_TextVectorization_parity():
+def test_TextVectorization_parity() -> None:
     """Test parity for TextVectorization."""
     check_parity(
         "TextVectorization",
@@ -928,7 +843,7 @@ def test_TextVectorization_parity():
     )
 
 
-def test_UniqueAll_parity():
+def test_UniqueAll_parity() -> None:
     """Test parity for UniqueAll."""
     check_parity(
         "UniqueAll",
@@ -936,7 +851,7 @@ def test_UniqueAll_parity():
     )
 
 
-def test_YiqToRgb_parity():
+def test_YiqToRgb_parity() -> None:
     """Test parity for YiqToRgb."""
     check_parity(
         "YiqToRgb",
@@ -944,7 +859,7 @@ def test_YiqToRgb_parity():
     )
 
 
-def test_YuvToRgb_parity():
+def test_YuvToRgb_parity() -> None:
     """Test parity for YuvToRgb."""
     check_parity(
         "YuvToRgb",

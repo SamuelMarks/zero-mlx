@@ -15,9 +15,51 @@ repos:
         types: [python]
         pass_filenames: false
 
+      - id: mypy
+        name: Mypy Strict Type Check
+        entry: mypy --strict src tests scripts
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: lint-typing
+        name: AST Typing & Reflection Linter
+        entry: python3 scripts/lint_typing.py
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: interrogate
+        name: Interrogate Doc Coverage
+        entry: interrogate -vv -f 100 -M -i -c pyproject.toml src scripts tests
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: check-docstrings
+        name: AST Docstring Completeness Check
+        entry: python3 scripts/check_docstrings.py src scripts tests
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: lint-pass
+        name: Check Tautological Assertions and Bare Pass
+        entry: python3 scripts/lint_pass.py --check-zero-assertions
+        language: system
+        types: [python]
+        pass_filenames: false
+
       - id: check-api-parity
-        name: Check API Parity against MLX
+        name: Check API Parity against MLX Snapshot
         entry: python3 scripts/check_api_parity.py
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: check-api-snapshot
+        name: Check API Snapshot Grounding (v0.0.4)
+        entry: python3 scripts/check_api_snapshot.py
         language: system
         types: [python]
         pass_filenames: false
@@ -30,8 +72,8 @@ repos:
         pass_filenames: false
 
       - id: pytest-coverage
-        name: Run Pytest Coverage
-        entry: env SWITCHEROO_EAGER_MODE=1 PYTHONPATH=src pytest --cov=src/zero_mlx --cov-report=term-missing
+        name: Run Pytest Coverage (100% Line & Branch)
+        entry: env SWITCHEROO_EAGER_MODE=1 PYTHONPATH=src pytest --cov=src/zero_mlx --cov=scripts --cov-branch --cov-fail-under=100 --cov-report=term-missing
         language: system
         types: [python]
         pass_filenames: false

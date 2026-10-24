@@ -1,96 +1,13 @@
-import pytest
+"""Compiler operation parity tests for `fft` operations."""
+
+from __future__ import annotations
+
 import numpy as np
 
-try:
-    import mlx.core as mx
-except ImportError:
-    mx = None
-
-import zero_mlx
-from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
+from tests.conftest import check_parity
 
 
-def assert_allclose_mlx(z_res, m_res, rtol=1e-5, atol=1e-5):
-    import numpy as np
-
-    if isinstance(z_res, (tuple, list)) and isinstance(m_res, (tuple, list)):
-        for z, m in zip(z_res, m_res):
-            assert_allclose_mlx(z, m, rtol, atol)
-    else:
-        # Extract underlying tensor data if it's a zero_mlx array
-        if hasattr(z_res, "_tensor"):
-            z_res = z_res._tensor.data
-        if hasattr(m_res, "_tensor"):
-            m_res = m_res._tensor.data
-        np.testing.assert_allclose(
-            np.array(z_res), np.array(m_res), rtol=rtol, atol=atol
-        )
-
-
-def check_parity(op_name, args_generator, kwargs_generator=None, rtol=1e-5, atol=1e-5):
-    if mx is None:
-        pytest.skip("MLX not available")
-    func_name = op_name.lower()
-    if not hasattr(zero_mlx, func_name) or not hasattr(mx, func_name):
-        pytest.skip(f"{func_name} not mapped in zero_mlx or mx")
-
-    if func_name == "fft":
-        z_func = zero_mlx.fft.fft
-        try:
-            m_func = mx.fft.fft
-            if not callable(m_func):
-                m_func = getattr(mx, "fft")
-        except AttributeError:
-            m_func = getattr(mx, "fft")
-    elif func_name == "rfft":
-        z_func = zero_mlx.fft.rfft
-        try:
-            m_func = mx.fft.rfft
-            if not callable(m_func):
-                m_func = getattr(mx, "rfft")
-        except AttributeError:
-            m_func = getattr(mx, "rfft")
-    else:
-        z_func = getattr(zero_mlx, func_name)
-        m_func = getattr(mx, func_name)
-
-    args = args_generator()
-    kwargs = kwargs_generator() if kwargs_generator else {}
-
-    _tracer.start_tracing("parity_test")
-
-    def unwrap(x):
-        if isinstance(x, np.generic):
-            return x.item()
-        return x
-
-    z_args = [
-        zero_mlx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args
-    ]
-    m_args = [mx.array(a) if isinstance(a, np.ndarray) else unwrap(a) for a in args]
-
-    try:
-        z_res = z_func(*z_args, **kwargs)
-        if hasattr(zero_mlx, "eval"):
-            zero_mlx.eval(z_res)
-        _tracer.stop_tracing()
-        m_res = m_func(*m_args, **kwargs)
-        assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)
-    except Exception as e:
-        try:
-            if callable(getattr(_tracer, "is_tracing", None)):
-                if _tracer.is_tracing():
-                    _tracer.stop_tracing()
-            elif getattr(_tracer, "is_tracing", False):
-                _tracer.stop_tracing()
-        except Exception:
-            pass
-        if False:
-            _tracer.stop_tracing()
-        raise e
-
-
-def test_Fft_parity():
+def test_Fft_parity() -> None:
     """Test parity for Fft."""
     check_parity(
         "Fft",
@@ -99,12 +16,12 @@ def test_Fft_parity():
     )
 
 
-def test_Rfft_parity():
+def test_Rfft_parity() -> None:
     """Test parity for Rfft."""
     check_parity("Rfft", lambda: [np.random.randn(2, 3).astype(np.float32)])
 
 
-def test_Dct_parity():
+def test_Dct_parity() -> None:
     """Test parity for Dct."""
     check_parity(
         "Dct",
@@ -112,7 +29,7 @@ def test_Dct_parity():
     )
 
 
-def test_Fft2d_parity():
+def test_Fft2d_parity() -> None:
     """Test parity for Fft2d."""
     check_parity(
         "Fft2d",
@@ -120,7 +37,7 @@ def test_Fft2d_parity():
     )
 
 
-def test_Fft3d_parity():
+def test_Fft3d_parity() -> None:
     """Test parity for Fft3d."""
     check_parity(
         "Fft3d",
@@ -128,7 +45,7 @@ def test_Fft3d_parity():
     )
 
 
-def test_Fftfreq_parity():
+def test_Fftfreq_parity() -> None:
     """Test parity for Fftfreq."""
     check_parity(
         "Fftfreq",
@@ -136,7 +53,7 @@ def test_Fftfreq_parity():
     )
 
 
-def test_Fftnd_parity():
+def test_Fftnd_parity() -> None:
     """Test parity for Fftnd."""
     check_parity(
         "Fftnd",
@@ -144,7 +61,7 @@ def test_Fftnd_parity():
     )
 
 
-def test_Fftshift_parity():
+def test_Fftshift_parity() -> None:
     """Test parity for Fftshift."""
     check_parity(
         "Fftshift",
@@ -152,7 +69,7 @@ def test_Fftshift_parity():
     )
 
 
-def test_Hfft_parity():
+def test_Hfft_parity() -> None:
     """Test parity for Hfft."""
     check_parity(
         "Hfft",
@@ -160,7 +77,7 @@ def test_Hfft_parity():
     )
 
 
-def test_Idct_parity():
+def test_Idct_parity() -> None:
     """Test parity for Idct."""
     check_parity(
         "Idct",
@@ -168,7 +85,7 @@ def test_Idct_parity():
     )
 
 
-def test_Ifft_parity():
+def test_Ifft_parity() -> None:
     """Test parity for Ifft."""
     check_parity(
         "Ifft",
@@ -176,7 +93,7 @@ def test_Ifft_parity():
     )
 
 
-def test_Ifft2d_parity():
+def test_Ifft2d_parity() -> None:
     """Test parity for Ifft2d."""
     check_parity(
         "Ifft2d",
@@ -184,7 +101,7 @@ def test_Ifft2d_parity():
     )
 
 
-def test_Ifft3d_parity():
+def test_Ifft3d_parity() -> None:
     """Test parity for Ifft3d."""
     check_parity(
         "Ifft3d",
@@ -192,7 +109,7 @@ def test_Ifft3d_parity():
     )
 
 
-def test_Ifftnd_parity():
+def test_Ifftnd_parity() -> None:
     """Test parity for Ifftnd."""
     check_parity(
         "Ifftnd",
@@ -200,7 +117,7 @@ def test_Ifftnd_parity():
     )
 
 
-def test_Ifftshift_parity():
+def test_Ifftshift_parity() -> None:
     """Test parity for Ifftshift."""
     check_parity(
         "Ifftshift",
@@ -208,7 +125,7 @@ def test_Ifftshift_parity():
     )
 
 
-def test_Ihfft_parity():
+def test_Ihfft_parity() -> None:
     """Test parity for Ihfft."""
     check_parity(
         "Ihfft",
@@ -216,7 +133,7 @@ def test_Ihfft_parity():
     )
 
 
-def test_InverseMdct_parity():
+def test_InverseMdct_parity() -> None:
     """Test parity for InverseMdct."""
     check_parity(
         "InverseMdct",
@@ -224,7 +141,7 @@ def test_InverseMdct_parity():
     )
 
 
-def test_Irfft_parity():
+def test_Irfft_parity() -> None:
     """Test parity for Irfft."""
     check_parity(
         "Irfft",
@@ -232,7 +149,7 @@ def test_Irfft_parity():
     )
 
 
-def test_Irfft2d_parity():
+def test_Irfft2d_parity() -> None:
     """Test parity for Irfft2d."""
     check_parity(
         "Irfft2d",
@@ -240,7 +157,7 @@ def test_Irfft2d_parity():
     )
 
 
-def test_Irfft3d_parity():
+def test_Irfft3d_parity() -> None:
     """Test parity for Irfft3d."""
     check_parity(
         "Irfft3d",
@@ -248,7 +165,7 @@ def test_Irfft3d_parity():
     )
 
 
-def test_Irfftnd_parity():
+def test_Irfftnd_parity() -> None:
     """Test parity for Irfftnd."""
     check_parity(
         "Irfftnd",
@@ -256,7 +173,7 @@ def test_Irfftnd_parity():
     )
 
 
-def test_Istft_parity():
+def test_Istft_parity() -> None:
     """Test parity for Istft."""
     check_parity(
         "Istft",
@@ -264,7 +181,7 @@ def test_Istft_parity():
     )
 
 
-def test_Mdct_parity():
+def test_Mdct_parity() -> None:
     """Test parity for Mdct."""
     check_parity(
         "Mdct",
@@ -272,7 +189,7 @@ def test_Mdct_parity():
     )
 
 
-def test_Rfft2d_parity():
+def test_Rfft2d_parity() -> None:
     """Test parity for Rfft2d."""
     check_parity(
         "Rfft2d",
@@ -280,7 +197,7 @@ def test_Rfft2d_parity():
     )
 
 
-def test_Rfft3d_parity():
+def test_Rfft3d_parity() -> None:
     """Test parity for Rfft3d."""
     check_parity(
         "Rfft3d",
@@ -288,7 +205,7 @@ def test_Rfft3d_parity():
     )
 
 
-def test_Rfftfreq_parity():
+def test_Rfftfreq_parity() -> None:
     """Test parity for Rfftfreq."""
     check_parity(
         "Rfftfreq",
@@ -296,7 +213,7 @@ def test_Rfftfreq_parity():
     )
 
 
-def test_Rfftnd_parity():
+def test_Rfftnd_parity() -> None:
     """Test parity for Rfftnd."""
     check_parity(
         "Rfftnd",
@@ -304,7 +221,7 @@ def test_Rfftnd_parity():
     )
 
 
-def test_Stft_parity():
+def test_Stft_parity() -> None:
     """Test parity for Stft."""
     check_parity(
         "Stft",

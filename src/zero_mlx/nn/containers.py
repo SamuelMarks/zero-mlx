@@ -1,39 +1,57 @@
-"""mlx.nn.containers module."""
+"""Container modules (`Sequential`) for `mlx.nn`."""
 
-from typing import Any, Callable, Iterable
+from __future__ import annotations
+
+from typing import Callable, Union
+
+from zero_mlx.array import array
 from zero_mlx.nn.base import Module
+
+LayerCallable = Union[Module, Callable[[array], array]]
 
 
 class Sequential(Module):
-    """A layer that calls the passed callables in order."""
+    """A container module that calls a sequence of layers/callables in order."""
 
-    def __init__(self, *modules: Callable) -> None:
-        """Initialize the Sequential container.
+    def __init__(self, *modules: LayerCallable) -> None:
+        """Initialize `Sequential` with the given layers or callables.
 
         Args:
-            *modules: The callables to be run in sequence.
+            *modules: Variable number of `Module` instances or callables.
 
         """
         super().__init__()
-        self.layers = list(modules)
-        for i, m in enumerate(modules):
-            setattr(self, str(i), m)
+        self.layers: list[LayerCallable] = list(modules)
 
-    def __call__(self, x: Any, *args: Any, **kwargs: Any) -> Any:
-        """Call the sequence of layers.
+    def __call__(
+        self,
+        x: array,
+        *args: array | int | float | str | bool,
+        **kwargs: array | int | float | str | bool,
+    ) -> array:
+        """Apply each layer in `self.layers` sequentially to `x`.
 
         Args:
-            x: The input.
-            *args: Additional arguments passed to the first layer.
-            **kwargs: Keyword arguments passed to the first layer.
+            x: Input `array` to the first layer.
+            *args: Additional positional arguments passed to the first layer.
+            **kwargs: Additional keyword arguments passed to the first layer.
 
         Returns:
-            The output of the sequence.
+            Final output `array` after passing through all layers.
 
         """
+        out: array = x
         for i, layer in enumerate(self.layers):
-            if i == 0:
-                x = layer(x, *args, **kwargs)
+            if isinstance(layer, Module):
+                res = (
+                    layer._call_forward(out, *args, **kwargs)
+                    if i == 0
+                    else layer._call_forward(out)
+                )
             else:
-                x = layer(x)
-        return x
+                res = layer(out)
+            out = res[0] if isinstance(res, tuple) else res
+        return out
+
+
+__all__ = ["LayerCallable", "Sequential"]

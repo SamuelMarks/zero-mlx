@@ -1,19 +1,35 @@
-"""mlx.core.random.state stub."""
+"""Global PRNG state wrapper (`mlx.core.random.state`) for zero_mlx."""
+
+from __future__ import annotations
+
+from zero_mlx.array import array
+from zero_mlx.dtypes import uint32
+
+_GLOBAL_SEED: int = 0
 
 
-class state:  # pragma: no cover
-    """Random state stub.
+def set_global_seed(seed_val: int) -> None:
+    """Update the global PRNG seed value.
 
-    This class provides a stub for the random state management in mlx.
+    Args:
+        seed_val: New integer seed value.
+
     """
+    global _GLOBAL_SEED
+    _GLOBAL_SEED = seed_val
 
-    def __new__(cls) -> None:  # pragma: no cover
-        """Initialize the random state stub.
 
-        Raises:
-            NotImplementedError: Always raised as this is a stub.
+def state(new_state: array | None = None) -> array:
+    """Get or set the global pseudo-random number generator key state.
 
-        """
-        from ml_switcheroo_compiler.random.state import get_global_generator
+    Args:
+        new_state: Optional new PRNG key `array` to set as the global state.
 
-        return get_global_generator()
+    Returns:
+        Current PRNG key `array` of shape `(2,)` and dtype `uint32`.
+
+    """
+    global _GLOBAL_SEED
+    if new_state is not None:
+        return new_state.astype(uint32)
+    return array([0, _GLOBAL_SEED & 0xFFFFFFFF], dtype=uint32)

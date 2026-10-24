@@ -1,17 +1,16 @@
-import pytest
+"""Regression test for `nn.Upsample` output spatial dimensions."""
+
+from __future__ import annotations
+
 import numpy as np
+
 from zero_mlx.array import array
 import zero_mlx.nn as z_nn
 
 
-def test_upsample_print():
+def test_upsample_print() -> None:
+    """Verify `nn.Upsample(scale_factor=2.0)` doubles the spatial dimensions of a 4D NHWC tensor."""
     m = z_nn.Upsample(scale_factor=2.0)
     x = array(np.random.randn(2, 2, 2, 3).astype(np.float32))
-
-    import ml_switcheroo_compiler.backends.registry as reg
-
-    backend = reg.get_active_backend()
-    data = backend.execute_op(
-        "ResizeNearest", x._tensor.data, size=(4, 4), align_corners=False
-    )
-    print("BACKEND DATA SHAPE", data.shape)
+    out = m(x)
+    assert out.shape == (2, 4, 4, 3)
