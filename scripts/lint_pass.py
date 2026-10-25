@@ -175,6 +175,14 @@ def check_test_file_ast(
                 errors.append(err)
         elif check_swallowed_exceptions and isinstance(node, ast.ExceptHandler):
             errors.extend(_check_except_handler(path, node))
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "skip"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "pytest"
+        ):
+            errors.append(f"FAILED: Prohibited 'pytest.skip()' found in {path}:{node.lineno}")
         elif check_zero_assertions and isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if node.name.startswith("test_") and not _has_assertion_or_verification(node):
                 errors.append(

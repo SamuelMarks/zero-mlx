@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from itertools import zip_longest
-import typing
 from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Union
 
 from zero_mlx._types import PyTree
 from zero_mlx.array import array
 
-Any = typing.Union
 LeafPredicate = Optional[Callable[[PyTree], bool]]
 
 
@@ -412,7 +410,6 @@ def get_array_buffer_size(*args: PyTree) -> int:
 
 
 __all__ = [
-    "Any",
     "Callable",
     "Dict",
     "List",

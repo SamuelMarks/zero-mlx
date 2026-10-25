@@ -104,6 +104,12 @@ def _check_ast_node(filepath: str, node: ast.AST) -> list[str]:
         violations.extend(_check_function_node(filepath, node))
     elif isinstance(node, ast.AnnAssign):
         violations.extend(_check_annotation(node.annotation, filepath))
+    elif isinstance(node, ast.Assign):
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id in BANNED_TYPE_NAMES:
+                violations.append(
+                    f"{filepath}:{node.lineno}: prohibited type alias assignment '{target.id}'"
+                )
     elif isinstance(node, ast.Call):
         if isinstance(node.func, ast.Name) and node.func.id in BANNED_REFLECTION_FUNCS:
             violations.append(

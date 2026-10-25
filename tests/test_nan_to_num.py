@@ -1,16 +1,14 @@
-"""Parity test for `nan_to_num` operation."""
+"""Unit test for `zero_mlx.nan_to_num` operation."""
 
 from __future__ import annotations
 
-import numpy as np
+import zero_mlx as mx
+from zero_mlx.array import array
 
-from tests.conftest import check_parity
 
-
-def test_NanToNum_parity() -> None:
-    """Verify `nan_to_num` parity between `zero_mlx` and `mlx.core`."""
-    check_parity(
-        "Nan_To_Num",
-        lambda: [np.array([np.nan, np.inf, -np.inf, 1.0], dtype=np.float32)],
-        kwargs_generator=lambda: {"nan": 0.0, "posinf": 1e30, "neginf": -1e30},
-    )
+def test_nan_to_num() -> None:
+    """Verify `nan_to_num` replaces NaN, positive infinity, and negative infinity values."""
+    x = array([float("nan"), float("inf"), float("-inf"), 1.0], dtype=mx.float32)
+    out = mx.nan_to_num(x, nan=0.0, posinf=1e30, neginf=-1e30)
+    expected = array([0.0, 1e30, -1e30, 1.0], dtype=mx.float32)
+    assert bool(mx.allclose(out, expected, rtol=1e-5, atol=1e-5).item()) is True

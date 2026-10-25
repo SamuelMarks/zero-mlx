@@ -2302,11 +2302,6 @@
     }
   },
   "mlx.utils": {
-    "Any": {
-      "type": "_SpecialForm",
-      "signature": "(*args, **kwds)",
-      "doc_str": "Special type indicating an unconstrained type."
-    },
     "Callable": {
       "type": "_CallableType",
       "signature": "(*args, **kwargs)",

@@ -52,12 +52,28 @@ def test_Deg2Rad_parity() -> None:
 
 def test_DynamicSlice_parity() -> None:
     """Test parity for DynamicSlice."""
-    check_parity("Dynamic_Slice", lambda: [])
+    check_parity(
+        "Dynamic_Slice",
+        lambda: [
+            np.arange(6, dtype=np.float32).reshape(2, 3),
+            np.array([0, 1], dtype=np.int32),
+            [0, 1],
+            [2, 2],
+        ],
+    )
 
 
 def test_DynamicUpdateSlice_parity() -> None:
     """Test parity for DynamicUpdateSlice."""
-    check_parity("Dynamic_Update_Slice", lambda: [])
+    check_parity(
+        "Dynamic_Update_Slice",
+        lambda: [
+            np.zeros((2, 3), dtype=np.float32),
+            np.ones((1, 2), dtype=np.float32),
+            np.array([0, 1], dtype=np.int32),
+            [0, 1],
+        ],
+    )
 
 
 def test_Fix_parity() -> None:
@@ -781,7 +797,7 @@ def test_Lu_parity() -> None:
     """Test parity for Lu."""
     check_parity(
         "Lu",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[4.0, 0.0], [0.0, 2.0]], dtype=np.float32)],
     )
 
 
@@ -878,14 +894,12 @@ def test_Pareto_parity() -> None:
 
 def test_Partition_parity() -> None:
     """Test parity for Partition."""
-    import mlx.core as mx
     import zero_mlx
 
     arr_np = np.array([3.0, 1.0, 4.0, 1.5, 2.0], dtype=np.float32)
     z_out = zero_mlx.partition(zero_mlx.array(arr_np), 2)
-    m_out = mx.partition(mx.array(arr_np), 2)
+    m_vals = np.partition(arr_np, 2)
     z_vals = np.array(z_out.tolist())
-    m_vals = np.array(m_out)
     assert z_vals[2] == pytest.approx(m_vals[2])
     assert np.all(z_vals[:2] <= z_vals[2])
     assert np.all(z_vals[2:] >= z_vals[2])
@@ -1548,17 +1562,37 @@ def test_Zeta_parity() -> None:
 
 def test_BlockMaskedMm_parity() -> None:
     """Test parity for BlockMaskedMm."""
-    check_parity("BlockMaskedMm", lambda: [np.random.randn(2, 3).astype(np.float32)])
+    check_parity(
+        "BlockMaskedMm",
+        lambda: [
+            np.ones((64, 64), dtype=np.float32),
+            np.ones((64, 64), dtype=np.float32),
+            64,
+        ],
+    )
 
 
 def test_GatherMm_parity() -> None:
     """Test parity for GatherMm."""
-    check_parity("GatherMm", lambda: [np.random.randn(2, 3).astype(np.float32)])
+    check_parity(
+        "GatherMm",
+        lambda: [
+            np.ones((2, 3), dtype=np.float32),
+            np.ones((3, 4), dtype=np.float32),
+        ],
+    )
 
 
 def test_SegmentedMm_parity() -> None:
     """Test parity for SegmentedMm."""
-    check_parity("SegmentedMm", lambda: [np.random.randn(2, 3).astype(np.float32)])
+    check_parity(
+        "SegmentedMm",
+        lambda: [
+            np.ones((4, 4), dtype=np.float32),
+            np.ones((4, 4), dtype=np.float32),
+            np.array([[0, 2], [2, 4]], dtype=np.uint32),
+        ],
+    )
 
 
 def test_Logcumsumexp_parity() -> None:
@@ -1568,7 +1602,15 @@ def test_Logcumsumexp_parity() -> None:
 
 def test_PutAlongAxis_parity() -> None:
     """Test parity for PutAlongAxis."""
-    check_parity("PutAlongAxis", lambda: [np.random.randn(2, 3).astype(np.float32)])
+    check_parity(
+        "PutAlongAxis",
+        lambda: [
+            np.ones((2, 3), dtype=np.float32),
+            np.array([[0], [1]], dtype=np.int32),
+            np.array([[9.0], [8.0]], dtype=np.float32),
+            1,
+        ],
+    )
 
 
 def test_GetItem_parity() -> None:

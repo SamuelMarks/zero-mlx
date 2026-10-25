@@ -36,13 +36,10 @@ def _pool1d(
         inp = mx.pad(inp, ((0, 0), (padding, padding), (0, 0)), constant_values=pad_val)
     l_in = inp.shape[1]
     out_l = (l_in - kernel_size) // stride + 1
-    windows: list[array] = []
-    for i in range(out_l):
-        start = i * stride
-        win = inp[:, start : start + kernel_size, :]
-        reduced = mx.max(win, axis=1) if mode == "max" else mx.mean(win, axis=1)
-        windows.append(reduced)
-    out = mx.stack(windows, axis=1)
+    span_l = (out_l - 1) * stride + 1
+    views = [inp[:, kl : span_l + kl : stride, :] for kl in range(kernel_size)]
+    stacked = mx.stack(views, axis=0)
+    out = mx.max(stacked, axis=0) if mode == "max" else mx.mean(stacked, axis=0)
     return mx.squeeze(out, axis=0) if unbatched else out
 
 
@@ -81,15 +78,15 @@ def _pool2d(
     h_in, w_in = inp.shape[1], inp.shape[2]
     out_h = (h_in - kh) // sh + 1
     out_w = (w_in - kw) // sw + 1
-    rows: list[array] = []
-    for i in range(out_h):
-        cols: list[array] = []
-        for j in range(out_w):
-            win = inp[:, i * sh : i * sh + kh, j * sw : j * sw + kw, :]
-            reduced = mx.max(win, axis=(1, 2)) if mode == "max" else mx.mean(win, axis=(1, 2))
-            cols.append(reduced)
-        rows.append(mx.stack(cols, axis=1))
-    out = mx.stack(rows, axis=1)
+    span_h = (out_h - 1) * sh + 1
+    span_w = (out_w - 1) * sw + 1
+    views = [
+        inp[:, dh : span_h + dh : sh, dw : span_w + dw : sw, :]
+        for dh in range(kh)
+        for dw in range(kw)
+    ]
+    stacked = mx.stack(views, axis=0)
+    out = mx.max(stacked, axis=0) if mode == "max" else mx.mean(stacked, axis=0)
     return mx.squeeze(out, axis=0) if unbatched else out
 
 
@@ -129,26 +126,17 @@ def _pool3d(
     out_d = (d_in - kd) // sd + 1
     out_h = (h_in - kh) // sh + 1
     out_w = (w_in - kw) // sw + 1
-    d_slices: list[array] = []
-    for di in range(out_d):
-        h_slices: list[array] = []
-        for hi in range(out_h):
-            w_slices: list[array] = []
-            for wi in range(out_w):
-                win = inp[
-                    :,
-                    di * sd : di * sd + kd,
-                    hi * sh : hi * sh + kh,
-                    wi * sw : wi * sw + kw,
-                    :,
-                ]
-                reduced = (
-                    mx.max(win, axis=(1, 2, 3)) if mode == "max" else mx.mean(win, axis=(1, 2, 3))
-                )
-                w_slices.append(reduced)
-            h_slices.append(mx.stack(w_slices, axis=1))
-        d_slices.append(mx.stack(h_slices, axis=1))
-    out = mx.stack(d_slices, axis=1)
+    span_d = (out_d - 1) * sd + 1
+    span_h = (out_h - 1) * sh + 1
+    span_w = (out_w - 1) * sw + 1
+    views = [
+        inp[:, dd : span_d + dd : sd, dh : span_h + dh : sh, dw : span_w + dw : sw, :]
+        for dd in range(kd)
+        for dh in range(kh)
+        for dw in range(kw)
+    ]
+    stacked = mx.stack(views, axis=0)
+    out = mx.max(stacked, axis=0) if mode == "max" else mx.mean(stacked, axis=0)
     return mx.squeeze(out, axis=0) if unbatched else out
 
 

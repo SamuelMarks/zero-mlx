@@ -142,10 +142,37 @@ def rope(
         Rotated `array`.
 
     """
-    _ = (freqs, stream)
+    _ = stream
     a_arr = _as_array(a)
     base_val: float = 10000.0 if base is None else base
     off_val: int = int(_as_array(offset).item().real) if not isinstance(offset, int) else offset
+    if freqs is not None and a_arr.ndim >= 2:
+        half_dims = dims // 2
+        seq_len = a_arr.shape[-2]
+        positions = (mx.arange(off_val, off_val + seq_len, dtype=float32) * scale).reshape(
+            (seq_len, 1)
+        )
+        inv_freqs = (1.0 / _as_array(freqs).astype(float32).reshape(-1))[:half_dims].reshape(
+            (1, half_dims)
+        )
+        angles = positions * inv_freqs
+        cos_a = mx.cos(angles)
+        sin_a = mx.sin(angles)
+        x_rot = a_arr[..., :dims]
+        x_pass = a_arr[..., dims:]
+        if traditional:
+            x1 = x_rot[..., 0::2]
+            x2 = x_rot[..., 1::2]
+            r1 = x1 * cos_a - x2 * sin_a
+            r2 = x1 * sin_a + x2 * cos_a
+            rotated = mx.reshape(mx.stack([r1, r2], axis=-1), x_rot.shape)
+        else:
+            x1 = x_rot[..., :half_dims]
+            x2 = x_rot[..., half_dims:dims]
+            rotated = mx.concatenate([x1 * cos_a - x2 * sin_a, x1 * sin_a + x2 * cos_a], axis=-1)
+        return (
+            mx.concatenate([rotated, x_pass], axis=-1) if x_pass.shape[-1] > 0 else rotated
+        ).astype(a_arr.dtype)
     rope_layer = RoPE(dims, traditional=traditional, base=base_val, scale=scale)
     return rope_layer(a_arr, offset=off_val)
 
@@ -167,7 +194,7 @@ def scaled_dot_product_attention(
         k: Key tensor.
         v: Value tensor.
         scale: Scaling factor applied to attention logits.
-        mask: Optional additive attention mask or `'causal'`.
+        mask: Optional additive attention mask, boolean mask, or `'causal'`.
         sinks: Optional attention sink logits.
         stream: Optional stream or device.
 
@@ -175,7 +202,7 @@ def scaled_dot_product_attention(
         Attention output `array`.
 
     """
-    _ = (sinks, stream)
+    _ = stream
     q_arr = _as_array(q)
     k_arr = _as_array(k)
     v_arr = _as_array(v)
@@ -183,10 +210,33 @@ def scaled_dot_product_attention(
         return array(0.0, dtype=q_arr.dtype)
     k_t = mx.swapaxes(k_arr, -1, -2) if k_arr.ndim >= 2 else k_arr
     scores = (q_arr @ k_t) * scale
-    scores = (
-        scores + _as_array(mask) if (mask is not None and not isinstance(mask, str)) else scores
-    )
-    weights = mx.softmax(scores, axis=-1)
+    if mask == "causal":
+        l_q = scores.shape[-2]
+        l_k = scores.shape[-1]
+        q_idx = mx.arange(l_q).reshape((l_q, 1)) + (l_k - l_q)
+        k_idx = mx.arange(l_k).reshape((1, l_k))
+        causal_mask = mx.where(
+            q_idx >= k_idx,
+            array(0.0, dtype=scores.dtype),
+            array(-1e9, dtype=scores.dtype),
+        )
+        scores = scores + causal_mask
+    elif mask is not None:
+        m_arr = _as_array(mask)
+        if m_arr.dtype == resolve_dtype(bool):
+            scores = mx.where(m_arr, scores, array(-1e9, dtype=scores.dtype))
+        else:
+            scores = scores + m_arr
+    if sinks is not None:
+        s_arr = _as_array(sinks).astype(scores.dtype)
+        s_expanded = mx.broadcast_to(
+            s_arr.reshape((*s_arr.shape, *(1 for _ in range(scores.ndim - s_arr.ndim)))),
+            (*scores.shape[:-1], 1),
+        )
+        scores_with_sink = mx.concatenate([scores, s_expanded], axis=-1)
+        weights = mx.softmax(scores_with_sink, axis=-1)[..., :-1]
+    else:
+        weights = mx.softmax(scores, axis=-1)
     return weights @ v_arr
 
 

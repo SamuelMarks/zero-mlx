@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import math
 
-import ml_switcheroo_compiler.ops as sops
-import ml_switcheroo_compiler.ops.shape.frontend as sf
-
 from zero_mlx.array import array
+from zero_mlx.convolutions import conv_transpose1d, conv_transpose2d, conv_transpose3d
 from zero_mlx.mlx_random import uniform
 from zero_mlx.nn.base import Module
 
@@ -75,17 +73,16 @@ class ConvTranspose1d(Module):
             Output `array` of shape `(N, L_out, C_out)`.
 
         """
-        x_ncl = sf.permute(x._tensor, dims=(0, 2, 1))
-        w_oi = sf.permute(self.weight._tensor, dims=(0, 2, 1))
-        out_ncl = sops.get_op("ConvTranspose")()(x_ncl, w_oi, self.stride, "VALID")
-        out = sf.permute(out_ncl, dims=(0, 2, 1))
-        if self.padding[0] > 0:
-            p0 = self.padding[0]
-            out_arr = array(out, dtype=x.dtype)[:, p0 : out.shape[1] - p0, :]
-            out = out_arr._tensor
-        if self.bias is not None:
-            out = sops.add(out, self.bias._tensor)
-        return array(out, dtype=x.dtype)
+        out = conv_transpose1d(
+            x,
+            self.weight,
+            stride=self.stride[0],
+            padding=self.padding[0],
+            dilation=self.dilation[0],
+            output_padding=self.output_padding[0],
+            groups=self.groups,
+        )
+        return out + self.bias if self.bias is not None else out
 
 
 class ConvTranspose2d(Module):
@@ -157,19 +154,16 @@ class ConvTranspose2d(Module):
             Output `array` of shape `(N, H_out, W_out, C_out)`.
 
         """
-        x_nchw = sf.permute(x._tensor, dims=(0, 3, 1, 2))
-        w_oihw = sf.permute(self.weight._tensor, dims=(0, 3, 1, 2))
-        out_nchw = sops.get_op("ConvTranspose")()(x_nchw, w_oihw, self.stride, "VALID")
-        out = sf.permute(out_nchw, dims=(0, 2, 3, 1))
-        if self.padding[0] > 0 or self.padding[1] > 0:
-            p0, p1 = self.padding
-            out_arr = array(out, dtype=x.dtype)[
-                :, p0 : out.shape[1] - p0, p1 : out.shape[2] - p1, :
-            ]
-            out = out_arr._tensor
-        if self.bias is not None:
-            out = sops.add(out, self.bias._tensor)
-        return array(out, dtype=x.dtype)
+        out = conv_transpose2d(
+            x,
+            self.weight,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            output_padding=self.output_padding,
+            groups=self.groups,
+        )
+        return out + self.bias if self.bias is not None else out
 
 
 class ConvTranspose3d(Module):
@@ -247,23 +241,16 @@ class ConvTranspose3d(Module):
             Output `array` of shape `(N, D_out, H_out, W_out, C_out)`.
 
         """
-        x_ncdhw = sf.permute(x._tensor, dims=(0, 4, 1, 2, 3))
-        w_oidhw = sf.permute(self.weight._tensor, dims=(0, 4, 1, 2, 3))
-        out_ncdhw = sops.get_op("ConvTranspose")()(x_ncdhw, w_oidhw, self.stride, "VALID")
-        out = sf.permute(out_ncdhw, dims=(0, 2, 3, 4, 1))
-        if self.padding[0] > 0 or self.padding[1] > 0 or self.padding[2] > 0:
-            p0, p1, p2 = self.padding
-            out_arr = array(out, dtype=x.dtype)[
-                :,
-                p0 : out.shape[1] - p0,
-                p1 : out.shape[2] - p1,
-                p2 : out.shape[3] - p2,
-                :,
-            ]
-            out = out_arr._tensor
-        if self.bias is not None:
-            out = sops.add(out, self.bias._tensor)
-        return array(out, dtype=x.dtype)
+        out = conv_transpose3d(
+            x,
+            self.weight,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            output_padding=self.output_padding,
+            groups=self.groups,
+        )
+        return out + self.bias if self.bias is not None else out
 
 
 __all__ = ["ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]

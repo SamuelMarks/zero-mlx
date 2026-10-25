@@ -15,7 +15,7 @@
 
 `zero-mlx` is a core frontend component of the larger **Abstract ML Machine Ecosystem**. The broader ecosystem is designed to solve the $N \times M$ translation problem in [Machine Learning](https://en.wikipedia.org/wiki/Machine_learning). Instead of writing bespoke translators from every ML framework ([JAX](https://github.com/google/jax), [PyTorch](https://pytorch.org/), [Keras](https://keras.io/), [MLX](https://github.com/ml-explore/mlx)) to every target hardware backend ([WASM](https://webassembly.org/), [WebGPU](https://www.w3.org/TR/webgpu/), [TensorRT](https://developer.nvidia.com/tensorrt)), we trace $N$ frontends into a strictly defined [Intermediate Representation](https://en.wikipedia.org/wiki/Intermediate_representation) (IR, via `ml-switcheroo-ir`), which is then consumed by $M$ backends.
 
-This achieves a complete [source-to-source](https://en.wikipedia.org/wiki/Source-to-source_compiler) and source-to-browser compilation pipeline utilizing **strictly zero external dependencies**, relying solely on the [Python Standard Library](https://docs.python.org/3/library/) and [`numpy`](https://numpy.org/) for eager evaluations.
+This achieves a complete [source-to-source](https://en.wikipedia.org/wiki/Source-to-source_compiler) and source-to-browser compilation pipeline utilizing **strictly zero external dependencies**, relying solely on the [Python Standard Library](https://docs.python.org/3/library/) and `ml-switcheroo-compiler` for eager evaluations.
 
 Specifically, `zero-mlx`:
 - **Mimics MLX Semantics:** It replicates the eager, [object-oriented](https://en.wikipedia.org/wiki/Object-oriented_programming), and stateful semantics of Apple's MLX framework.

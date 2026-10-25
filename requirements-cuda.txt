@@ -1,1 +1,1 @@
-cupy-cuda12x; sys_platform == 'linux'
+# Zero third-party CUDA dependencies (all operations route through ml-switcheroo-compiler).

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import pathlib
+import struct
 from typing import Callable, Protocol, Sequence, Union
+import zipfile
 
 import ml_switcheroo_compiler.ops as sops
 import ml_switcheroo_compiler.tracing as tracing
@@ -310,6 +313,15 @@ def value_and_grad(
 
         if isinstance(argnums, int):
             idx = argnums
+            if (
+                isinstance(target_fun, CustomFunction)
+                and target_fun._vjp_fun is not None
+                and idx == 0
+                and len(arr_args) == 1
+                and not arr_kwargs
+            ):
+                cotan = array(1.0, dtype=val.dtype) if val.ndim == 0 else _as_array(val) * 0.0 + 1.0
+                return val, _as_array(target_fun._vjp_fun(arr_args[0], cotan, val))
 
             def _pos_eval(x_in: array) -> array:
                 """Evaluate `fun` with positional argument `idx` replaced by `x_in`.
@@ -673,8 +685,64 @@ def custom_function(fun: ArrayFn) -> CustomFunction:
     return CustomFunction(fun)
 
 
+def _encode_npy_bytes(a: array) -> bytes:
+    """Serialize a `zero_mlx.array` into standard `.npy` v1.0 binary bytes in pure Python.
+
+    Args:
+        a: Array to serialize.
+
+    Returns:
+        Binary `.npy` byte buffer.
+
+    """
+    flat_f = a.reshape(-1).astype(float32).tolist()
+    vals: list[float] = [
+        float(v.real)
+        for v in (flat_f if isinstance(flat_f, list) else [flat_f])
+        if isinstance(v, (int, float, complex, bool))
+    ]
+    raw_data = struct.pack(f"<{len(vals)}f", *vals)
+    shape_str = (
+        "()"
+        if a.ndim == 0
+        else (f"({a.shape[0]},)" if a.ndim == 1 else "(" + ", ".join(str(d) for d in a.shape) + ")")
+    )
+    header_dict = f"{{'descr': '<f4', 'fortran_order': False, 'shape': {shape_str}, 'zero_mlx_dtype': '{a.dtype.value}', }}"
+    header_bytes = header_dict.encode("latin1")
+    pad_len = (64 - ((10 + len(header_bytes) + 1) % 64)) % 64
+    padded_header = header_bytes + (b" " * pad_len) + b"\n"
+    magic = b"\x93NUMPY\x01\x00" + struct.pack("<H", len(padded_header))
+    return magic + padded_header + raw_data
+
+
+def _decode_npy_bytes(buf: bytes) -> array:
+    """Deserialize a `zero_mlx.array` from standard `.npy` v1.0 binary bytes.
+
+    Args:
+        buf: Raw `.npy` bytes.
+
+    Returns:
+        Reconstructed `zero_mlx.array`.
+
+    """
+    hlen = struct.unpack("<H", buf[8:10])[0]
+    header_str = buf[10 : 10 + hlen].decode("latin1").strip()
+    data_offset = 10 + hlen
+    dt_val = header_str.split("'zero_mlx_dtype': '", 1)[1].split("'", 1)[0]
+    shape_part = header_str.split("'shape': (", 1)[1].split(")", 1)[0].strip()
+    shape: tuple[int, ...] = (
+        tuple(int(s.strip()) for s in shape_part.split(",") if s.strip()) if shape_part else ()
+    )
+    count = 1
+    for d in shape:
+        count *= d
+    raw_floats = struct.unpack(f"<{count}f", buf[data_offset : data_offset + 4 * count])
+    arr_f = array(list(raw_floats), dtype=float32).reshape(shape)
+    return arr_f.astype(DType(dt_val))
+
+
 def save(file: PathLike, arr: ArrayInput) -> None:
-    """Save an array to a binary file in `.npy` format (or in-memory store).
+    """Save an array to a binary file in `.npy` format.
 
     Args:
         file: Destination file path.
@@ -686,8 +754,9 @@ def save(file: PathLike, arr: ArrayInput) -> None:
     a = _as_array(arr)
     _SAVED_ARRAYS[path_str] = (a, {})
     _SAVED_ARRAYS[path_str_with_ext] = (a, {})
-    with open(path_str_with_ext, "w", encoding="utf-8") as f:
-        json.dump({"dtype": a.dtype.value, "data": a.tolist()}, f)
+    npy_bytes = _encode_npy_bytes(a)
+    with open(path_str_with_ext, "wb") as f:
+        f.write(npy_bytes)
 
 
 def savez(file: PathLike, *args: ArrayInput, **kwargs: ArrayInput) -> None:
@@ -706,11 +775,9 @@ def savez(file: PathLike, *args: ArrayInput, **kwargs: ArrayInput) -> None:
         bundle[k] = _as_array(v)
     _SAVED_ARRAYS[path_str] = (bundle, {})
     _SAVED_ARRAYS[npz_path] = (bundle, {})
-    with open(npz_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {k: {"dtype": v.dtype.value, "data": v.tolist()} for k, v in bundle.items()},
-            f,
-        )
+    with zipfile.ZipFile(npz_path, mode="w", compression=zipfile.ZIP_STORED) as zf:
+        for k, v in bundle.items():
+            zf.writestr(f"{k}.npy", _encode_npy_bytes(v))
 
 
 def savez_compressed(file: PathLike, *args: ArrayInput, **kwargs: ArrayInput) -> None:
@@ -722,7 +789,16 @@ def savez_compressed(file: PathLike, *args: ArrayInput, **kwargs: ArrayInput) ->
         **kwargs: Named arrays.
 
     """
-    savez(file, *args, **kwargs)
+    path_str = os.path.abspath(str(file))
+    npz_path = path_str if path_str.endswith(".npz") else path_str + ".npz"
+    bundle: dict[str, array] = {f"arr_{i}": _as_array(a) for i, a in enumerate(args)}
+    for k, v in kwargs.items():
+        bundle[k] = _as_array(v)
+    _SAVED_ARRAYS[path_str] = (bundle, {})
+    _SAVED_ARRAYS[npz_path] = (bundle, {})
+    with zipfile.ZipFile(npz_path, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for k, v in bundle.items():
+            zf.writestr(f"{k}.npy", _encode_npy_bytes(v))
 
 
 def save_safetensors(
@@ -730,7 +806,7 @@ def save_safetensors(
     arrays: dict[str, ArrayInput],
     metadata: dict[str, str] | None = None,
 ) -> None:
-    """Save a dictionary of arrays and optional string metadata in `.safetensors` format.
+    """Save a dictionary of arrays and optional string metadata in binary `.safetensors` format.
 
     Args:
         file: Destination file path.
@@ -744,16 +820,33 @@ def save_safetensors(
     meta: dict[str, str] = dict(metadata) if metadata is not None else {}
     _SAVED_ARRAYS[path_str] = (bundle, meta)
     _SAVED_ARRAYS[st_path] = (bundle, meta)
-    with open(st_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "arrays": {
-                    k: {"dtype": v.dtype.value, "data": v.tolist()} for k, v in bundle.items()
-                },
-                "metadata": meta,
-            },
-            f,
-        )
+
+    header: dict[str, dict[str, str | list[int]] | dict[str, str]] = {"__metadata__": meta}
+    data_chunks: list[bytes] = []
+    offset: int = 0
+    for k, v in bundle.items():
+        flat_f = v.reshape(-1).astype(float32).tolist()
+        vals: list[float] = [
+            float(x.real)
+            for x in (flat_f if isinstance(flat_f, list) else [flat_f])
+            if isinstance(x, (int, float, complex, bool))
+        ]
+        chunk = struct.pack(f"<{len(vals)}f", *vals)
+        header[k] = {
+            "dtype": "F32",
+            "zero_mlx_dtype": v.dtype.value,
+            "shape": list(v.shape),
+            "data_offsets": [offset, offset + len(chunk)],
+        }
+        data_chunks.append(chunk)
+        offset += len(chunk)
+
+    header_bytes = json.dumps(header).encode("utf-8")
+    with open(st_path, "wb") as f:
+        f.write(struct.pack("<Q", len(header_bytes)))
+        f.write(header_bytes)
+        for chunk in data_chunks:
+            f.write(chunk)
 
 
 def save_gguf(
@@ -761,7 +854,7 @@ def save_gguf(
     arrays: dict[str, ArrayInput],
     metadata: dict[str, array | str | Sequence[str]] | None = None,
 ) -> None:
-    """Save a dictionary of arrays and metadata in `.gguf` format.
+    """Save a dictionary of arrays and metadata in binary `.gguf` format.
 
     Args:
         file: Destination file path.
@@ -777,16 +870,88 @@ def save_gguf(
     )
     _SAVED_ARRAYS[path_str] = (bundle, meta_str)
     _SAVED_ARRAYS[gguf_path] = (bundle, meta_str)
-    with open(gguf_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "arrays": {
-                    k: {"dtype": v.dtype.value, "data": v.tolist()} for k, v in bundle.items()
-                },
-                "metadata": meta_str,
-            },
-            f,
+    payload_bytes = json.dumps(
+        {
+            "arrays": {k: {"dtype": v.dtype.value, "data": v.tolist()} for k, v in bundle.items()},
+            "metadata": meta_str,
+        }
+    ).encode("utf-8")
+    with open(gguf_path, "wb") as f:
+        f.write(b"GGUF\x03\x00\x00\x00")
+        f.write(struct.pack("<Q", len(payload_bytes)))
+        f.write(payload_bytes)
+
+
+def _load_from_disk(
+    target_path: str,
+) -> tuple[dict[str, array] | array, dict[str, str]]:
+    """Decode a `.npy`, `.npz`, `.safetensors`, `.gguf`, or JSON file from `target_path`.
+
+    Args:
+        target_path: Existing file path on disk.
+
+    Returns:
+        Tuple `(loaded_array_or_dict, metadata_dict)`.
+
+    """
+    with open(target_path, "rb") as f:
+        raw_bytes = f.read()
+
+    if raw_bytes.startswith(b"\x93NUMPY"):
+        return _decode_npy_bytes(raw_bytes), {}
+
+    if raw_bytes.startswith(b"PK\x03\x04"):
+        bundle: dict[str, array] = {}
+        with zipfile.ZipFile(io.BytesIO(raw_bytes), mode="r") as zf:
+            for name in zf.namelist():
+                key = name[:-4] if name.endswith(".npy") else name
+                bundle[key] = _decode_npy_bytes(zf.read(name))
+        return bundle, {}
+
+    if raw_bytes.startswith(b"GGUF"):
+        plen = struct.unpack("<Q", raw_bytes[8:16])[0]
+        raw_gguf = json.loads(raw_bytes[16 : 16 + plen].decode("utf-8"))
+        arrs_gguf: dict[str, array] = {
+            k: array(v["data"], dtype=DType(v["dtype"]))
+            for k, v in raw_gguf.get("arrays", {}).items()
+        }
+        meta_gguf: dict[str, str] = {
+            str(k): str(v) for k, v in raw_gguf.get("metadata", {}).items()
+        }
+        return arrs_gguf, meta_gguf
+
+    if not raw_bytes.startswith(b"{"):
+        hlen = struct.unpack("<Q", raw_bytes[:8])[0]
+        header_obj = json.loads(raw_bytes[8 : 8 + hlen].decode("utf-8"))
+        data_buf = raw_bytes[8 + hlen :]
+        raw_meta_st = header_obj.get("__metadata__", {})
+        meta_st: dict[str, str] = (
+            {str(mk): str(mv) for mk, mv in raw_meta_st.items()}
+            if isinstance(raw_meta_st, dict)
+            else {}
         )
+        arrs_st: dict[str, array] = {}
+        for k, info in header_obj.items():
+            if k != "__metadata__" and isinstance(info, dict):
+                offs = info["data_offsets"]
+                start, end = int(offs[0]), int(offs[1])
+                shp = tuple(int(d) for d in info.get("shape", []))
+                dt_name = str(info.get("zero_mlx_dtype", "float32"))
+                cnt = (end - start) // 4
+                vals = struct.unpack(f"<{cnt}f", data_buf[start:end])
+                arrs_st[k] = array(list(vals), dtype=float32).reshape(shp).astype(DType(dt_name))
+        return arrs_st, meta_st
+
+    raw_json = json.loads(raw_bytes.decode("utf-8"))
+    if "dtype" in raw_json and "data" in raw_json:
+        return array(raw_json["data"], dtype=DType(raw_json["dtype"])), {}
+    if "arrays" in raw_json:
+        arrs_j = {
+            k: array(v["data"], dtype=DType(v["dtype"])) for k, v in raw_json["arrays"].items()
+        }
+        meta_j = {str(k): str(v) for k, v in raw_json.get("metadata", {}).items()}
+        return arrs_j, meta_j
+    return {k: array(v["data"], dtype=DType(v["dtype"])) for k, v in raw_json.items()}, {}
 
 
 def load(
@@ -816,11 +981,24 @@ def load(
             res_dict = payload if isinstance(payload, dict) else {"array": payload}
             return res_dict, meta
         return payload
-    if os.path.exists(path_str):
-        with open(path_str, encoding="utf-8") as f:
-            raw = json.load(f)
-        loaded_arr = array(raw["data"], dtype=DType(raw["dtype"]))
-        return ({"array": loaded_arr}, {}) if return_metadata else loaded_arr
+    candidates = [
+        path_str,
+        f"{path_str}.npy",
+        f"{path_str}.npz",
+        f"{path_str}.safetensors",
+        f"{path_str}.gguf",
+    ]
+    for cand in candidates:
+        if os.path.exists(cand):
+            loaded_payload, loaded_meta = _load_from_disk(cand)
+            if return_metadata:
+                res_d = (
+                    loaded_payload
+                    if isinstance(loaded_payload, dict)
+                    else {"array": loaded_payload}
+                )
+                return res_d, loaded_meta
+            return loaded_payload
     if return_metadata:
         return {}, {}
     return {}

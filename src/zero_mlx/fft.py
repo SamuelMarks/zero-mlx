@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 from typing import Sequence
 
-import ml_switcheroo_compiler.ops as sops
 import ml_switcheroo_compiler.ops.signal as sig
 
 from zero_mlx._types import ArrayInput, AxesLike, StreamOrDevice
@@ -400,6 +399,66 @@ def ifftshift(
     return array(sig.ifftshift(arr._tensor, axes=axes), dtype=arr.dtype)
 
 
+def _pad_stft_signal(sig_2d: array, pad_len: int, pad_mode: str) -> array:
+    """Pad a 2D `(B, L)` signal on both ends by `pad_len` according to `pad_mode`.
+
+    Args:
+        sig_2d: Input signal of shape `(B, L)`.
+        pad_len: Number of samples to pad on each side.
+        pad_mode: Padding mode (`'reflect'`, `'constant'`, or `'edge'`).
+
+    Returns:
+        Padded 2D `array` of shape `(B, L + 2 * pad_len)`.
+
+    """
+    import zero_mlx.ops as _ops
+
+    batch, sig_len = sig_2d.shape
+    if pad_len == 0 or sig_len == 0:
+        return sig_2d
+    if pad_mode == "reflect" and sig_len > 1:
+        period = 2 * (sig_len - 1)
+        indices: list[int] = []
+        for idx in range(-pad_len, sig_len + pad_len):
+            mod_idx = idx % period
+            refl_idx = period - mod_idx if mod_idx >= sig_len else mod_idx
+            indices.append(refl_idx)
+        return _ops.take(sig_2d, array(indices), axis=1)
+    mode_lit = "edge" if (pad_mode in ("edge", "reflect") and sig_len >= 1) else "constant"
+    _ = batch
+    return _ops.pad(sig_2d, ((0, 0), (pad_len, pad_len)), mode=mode_lit)
+
+
+def _prepare_stft_window(
+    window: ArrayInput | None,
+    w_len: int,
+    n_fft: int,
+) -> array:
+    """Construct and center-pad a 1D STFT window of length `n_fft`.
+
+    Args:
+        window: Optional window array of length `w_len`.
+        w_len: Active window length.
+        n_fft: Total FFT frame size.
+
+    Returns:
+        1D `float32` `array` of shape `(n_fft,)`.
+
+    """
+    import zero_mlx.ops as _ops
+
+    win_arr: array = (
+        _as_array(window).astype(float32).reshape(-1)
+        if window is not None
+        else _ops.ones((w_len,), dtype=float32)
+    )
+    if win_arr.size < n_fft:
+        left_pad = (n_fft - win_arr.size) // 2
+        right_pad = n_fft - win_arr.size - left_pad
+        return _ops.pad(win_arr, ((left_pad, right_pad),), mode="constant")
+    return win_arr[:n_fft]
+
+
 def stft(
     x: ArrayInput,
     n_fft: int = 2048,
@@ -431,31 +490,50 @@ def stft(
         Complex STFT spectrogram `array`.
 
     """
-    _ = (pad_mode, stream)
-    arr = _as_array(x)
+    import zero_mlx.ops as _ops
+
+    arr = _as_array(x).astype(float32)
     w_len: int = win_length if win_length is not None else n_fft
     hop: int = hop_length if hop_length is not None else max(1, w_len // 4)
     is_onesided: bool = True if onesided is None else onesided
 
-    sig_len: int = arr.shape[-1] if arr.ndim > 0 else 1
-    sig_len = (sig_len + n_fft) if center else sig_len
-    n_frames: int = max(1, 1 + max(0, sig_len - n_fft) // hop)
-    freq_bins: int = (n_fft // 2 + 1) if is_onesided else n_fft
+    orig_ndim = arr.ndim
+    lead_shape = arr.shape[:-1] if orig_ndim > 1 else ()
+    sig_len = arr.shape[-1] if orig_ndim > 0 else 1
+    batch_size = int(math.prod(lead_shape)) if lead_shape else 1
+    sig_2d = arr.reshape((batch_size, sig_len))
 
-    win_arr: array = (
-        _as_array(window) if window is not None else array([1.0] * w_len, dtype=float32)
-    )
+    pad_len = (n_fft // 2) if center else 0
+    padded_2d = _pad_stft_signal(sig_2d, pad_len, pad_mode) if pad_len > 0 else sig_2d
+    total_len = padded_2d.shape[-1]
+    if total_len < n_fft:
+        padded_2d = _ops.pad(padded_2d, ((0, 0), (0, n_fft - total_len)), mode="constant")
+        total_len = n_fft
+
+    n_frames: int = max(1, 1 + (total_len - n_fft) // hop)
+    win_padded = _prepare_stft_window(window, w_len, n_fft)
     scale: float = (
         1.0 / math.sqrt(float(n_fft))
         if norm == "ortho"
         else (1.0 / float(n_fft) if norm == "forward" else 1.0)
     )
-    _ = (win_arr, scale)
 
-    out_shape: tuple[int, ...] = (
-        (*arr.shape[:-1], freq_bins, n_frames) if arr.ndim > 1 else (freq_bins, n_frames)
+    frames_list: list[array] = [
+        padded_2d[:, f_idx * hop : f_idx * hop + n_fft] * win_padded for f_idx in range(n_frames)
+    ]
+    frames_stacked = _ops.stack(frames_list, axis=2)
+    spec_2d = (
+        rfft(frames_stacked, n=n_fft, axis=1, stream=stream)
+        if is_onesided
+        else fft(frames_stacked, n=n_fft, axis=1, stream=stream)
     )
-    return array(sops.zeros(out_shape), dtype=complex64)
+    if scale != 1.0:
+        spec_2d = spec_2d * scale
+    freq_bins = spec_2d.shape[1]
+    out_shape: tuple[int, ...] = (
+        (*lead_shape, freq_bins, n_frames) if orig_ndim > 1 else (freq_bins, n_frames)
+    )
+    return spec_2d.reshape(out_shape).astype(complex64)
 
 
 def istft(
@@ -489,7 +567,8 @@ def istft(
         Reconstructed time-domain signal `array` of dtype `float32`.
 
     """
-    _ = (window, norm, stream)
+    import zero_mlx.ops as _ops
+
     spec = _as_array(stft_matrix)
     is_onesided: bool = True if onesided is None else onesided
     freq_bins: int = spec.shape[-2] if spec.ndim >= 2 else 1
@@ -499,17 +578,66 @@ def istft(
         if n_fft is not None
         else ((freq_bins - 1) * 2 if is_onesided and freq_bins > 1 else freq_bins)
     )
+    fft_size = max(1, fft_size)
     w_len: int = win_length if win_length is not None else fft_size
     hop: int = hop_length if hop_length is not None else max(1, w_len // 4)
 
+    orig_ndim = spec.ndim
+    lead_shape = spec.shape[:-2] if orig_ndim > 2 else ()
+    batch_size = int(math.prod(lead_shape)) if lead_shape else 1
+    spec_3d = spec.reshape((batch_size, freq_bins, n_frames))
+
+    inv_scale: float = (
+        math.sqrt(float(fft_size))
+        if norm == "ortho"
+        else (float(fft_size) if norm == "forward" else 1.0)
+    )
+    scaled_spec = spec_3d * inv_scale if inv_scale != 1.0 else spec_3d
+    time_frames = (
+        irfft(scaled_spec, n=fft_size, axis=1, stream=stream)
+        if is_onesided
+        else ifft(scaled_spec, n=fft_size, axis=1, stream=stream).real
+    )
+    win_padded = _prepare_stft_window(window, w_len, fft_size)
+    win_sq = win_padded * win_padded
+
+    raw_len = fft_size + hop * max(0, n_frames - 1)
+    y_acc = _ops.zeros((batch_size, raw_len), dtype=float32)
+    w_acc = _ops.zeros((raw_len,), dtype=float32)
+    for f_idx in range(n_frames):
+        start = f_idx * hop
+        pad_right = raw_len - start - fft_size
+        frame_w = time_frames[:, :, f_idx] * win_padded
+        padded_frame = (
+            _ops.pad(frame_w, ((0, 0), (start, pad_right)), mode="constant")
+            if (start > 0 or pad_right > 0)
+            else frame_w
+        )
+        padded_wsq = (
+            _ops.pad(win_sq, ((start, pad_right),), mode="constant")
+            if (start > 0 or pad_right > 0)
+            else win_sq
+        )
+        y_acc = y_acc + padded_frame
+        w_acc = w_acc + padded_wsq
+
+    y_norm = y_acc / _ops.maximum(w_acc, 1e-8)
+    pad_trim = (fft_size // 2) if (center and raw_len > fft_size) else 0
+    if pad_trim > 0:
+        y_norm = y_norm[:, pad_trim : raw_len - pad_trim]
+
+    curr_len = y_norm.shape[-1]
     if length is not None:
+        if length <= curr_len:
+            y_norm = y_norm[:, :length]
+        else:
+            y_norm = _ops.pad(y_norm, ((0, 0), (0, length - curr_len)), mode="constant")
         out_len = length
     else:
-        raw_len = fft_size + hop * max(0, n_frames - 1)
-        out_len = max(1, raw_len - fft_size if center and raw_len > fft_size else raw_len)
+        out_len = max(1, curr_len)
 
-    out_shape: tuple[int, ...] = (*spec.shape[:-2], out_len) if spec.ndim > 2 else (out_len,)
-    return array(sops.zeros(out_shape), dtype=float32)
+    out_shape: tuple[int, ...] = (*lead_shape, out_len) if orig_ndim > 2 else (out_len,)
+    return y_norm.reshape(out_shape).astype(float32)
 
 
 __all__ = [

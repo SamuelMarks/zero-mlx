@@ -7,8 +7,9 @@ import os
 from types import TracebackType
 from typing import IO, Callable, Protocol, Sequence
 
-from zero_mlx._types import ArrayInput
+from zero_mlx._types import ArrayInput, NestedSequence, Scalar
 from zero_mlx.array import array
+from zero_mlx.dtypes import DType
 
 
 class ExportableFunction(Protocol):
@@ -73,6 +74,7 @@ class FunctionExporter:
         self.shapeless: bool = shapeless
         self.metadata: dict[str, str] = dict(metadata) if metadata is not None else {}
         self.traces: list[tuple[tuple[array, ...], dict[str, array]]] = []
+        self._trace_outputs: list[list[dict[str, str | list[int] | NestedSequence | Scalar]]] = []
         self._closed: bool = False
         _ = (
             _EXPORT_REGISTRY.setdefault(os.path.abspath(file), (self.fun, self.metadata))
@@ -96,15 +98,28 @@ class FunctionExporter:
         arr_args = tuple(a if isinstance(a, array) else array(a) for a in args)
         arr_kwargs = {k: (v if isinstance(v, array) else array(v)) for k, v in kwargs.items()}
         self.traces.append((arr_args, arr_kwargs))
-        _ = self.fun(*arr_args, **arr_kwargs) if self.fun is not None else None
+        if self.fun is not None:
+            res = self.fun(*arr_args, **arr_kwargs)
+            res_tup = res if isinstance(res, tuple) else (res,)
+            self._trace_outputs.append(
+                [
+                    {
+                        "dtype": (r if isinstance(r, array) else array(r)).dtype.value,
+                        "shape": list((r if isinstance(r, array) else array(r)).shape),
+                        "data": (r if isinstance(r, array) else array(r)).reshape(-1).tolist(),
+                    }
+                    for r in res_tup
+                ]
+            )
         self._flush()
 
     def _flush(self) -> None:
-        """Write serialized function metadata and trace count to `self.file`."""
+        """Write serialized function metadata, trace count, and traced outputs to `self.file`."""
         payload = {
             "shapeless": self.shapeless,
             "metadata": self.metadata,
             "num_traces": len(self.traces),
+            "trace_outputs": self._trace_outputs,
         }
         with open(self.file, "w", encoding="utf-8") as f:
             json.dump(payload, f)
@@ -216,10 +231,12 @@ def import_function(
         raise FileNotFoundError(f"Exported function file not found: {file}")
 
     meta: dict[str, str] = {}
+    disk_traces: list[list[dict[str, str | list[int] | list[float]]]] = []
     with open(abs_path, encoding="utf-8") as f:
         data = json.load(f)
         raw_meta: dict[str, str] = data.get("metadata", {})
         meta = {str(k): str(v) for k, v in raw_meta.items()}
+        disk_traces = data.get("trace_outputs", [])
 
     registered = _EXPORT_REGISTRY.get(abs_path)
     orig_fn = registered[0] if registered is not None else None
@@ -242,6 +259,14 @@ def import_function(
             if isinstance(res, tuple):
                 return tuple(r if isinstance(r, array) else array(r) for r in res)
             return (res if isinstance(res, array) else array(res),)
+        if disk_traces:
+            first_trace = disk_traces[0]
+            return tuple(
+                array(item["data"], dtype=DType(str(item["dtype"]))).reshape(
+                    tuple(int(d) for d in item.get("shape", []))
+                )
+                for item in first_trace
+            )
         return arr_args
 
     if return_metadata:

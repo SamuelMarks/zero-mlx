@@ -473,7 +473,6 @@ Requirement: Minimum one test per API.
 - [x] `tree_unflatten`
 
 ## `mlx.utils`
-- [x] `Any`
 - [x] `Callable`
 - [x] `Dict`
 - [x] `List`

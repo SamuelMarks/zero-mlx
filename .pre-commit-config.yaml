@@ -73,7 +73,7 @@ repos:
 
       - id: pytest-coverage
         name: Run Pytest Coverage (100% Line & Branch)
-        entry: env SWITCHEROO_EAGER_MODE=1 PYTHONPATH=src pytest --cov=src/zero_mlx --cov=scripts --cov-branch --cov-fail-under=100 --cov-report=term-missing
+        entry: env SWITCHEROO_EAGER_MODE=1 PYTHONPATH=src pytest --cov=src/zero_mlx --cov=scripts --cov-branch --cov-fail-under=100 --cov-report=term-missing --cov-report=json
         language: system
         types: [python]
         pass_filenames: false
@@ -96,5 +96,5 @@ repos:
         entry: python3 scripts/check_3rdparty_imports.py
         language: system
         types: [python]
-        exclude: ^(tests|scripts)/
+        exclude: ^tests/(conftest\.py|test_ops_parity_.*\.py)$
         pass_filenames: true

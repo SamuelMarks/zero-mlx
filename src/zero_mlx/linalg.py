@@ -74,18 +74,53 @@ def matrix_norm(
         Matrix norm `array`.
 
     Raises:
-        ValueError: If `a` has fewer than 2 dimensions.
+        ValueError: If `a` has fewer than 2 dimensions or `ord` is invalid.
 
     """
-    _ = ord
     arr = _as_array(a)
-    if arr.ndim < 2:
-        raise ValueError("matrix_norm requires at least a 2D array")
+    if arr.ndim < 2 or len(axis) != 2:
+        raise ValueError("matrix_norm requires at least a 2D array and a 2-tuple axis")
     import zero_mlx.ops as _ops
 
-    return _ops.sqrt(
-        _ops.sum(_ops.square(_ops.abs(arr)), axis=axis, keepdims=keepdims, stream=stream)
-    )
+    if ord is None or ord == "fro":
+        return _ops.sqrt(
+            _ops.sum(_ops.square(_ops.abs(arr)), axis=axis, keepdims=keepdims, stream=stream)
+        )
+    ax0 = axis[0] % arr.ndim
+    ax1 = axis[1] % arr.ndim
+    if ord == 1:
+        col_sum = _ops.sum(_ops.abs(arr), axis=ax0, keepdims=True, stream=stream)
+        res = _ops.max(col_sum, axis=ax1, keepdims=True, stream=stream)
+        return res if keepdims else _ops.squeeze(res, axis=(ax0, ax1), stream=stream)
+    if ord == -1:
+        col_sum = _ops.sum(_ops.abs(arr), axis=ax0, keepdims=True, stream=stream)
+        res = _ops.min(col_sum, axis=ax1, keepdims=True, stream=stream)
+        return res if keepdims else _ops.squeeze(res, axis=(ax0, ax1), stream=stream)
+    if ord == float("inf"):
+        row_sum = _ops.sum(_ops.abs(arr), axis=ax1, keepdims=True, stream=stream)
+        res = _ops.max(row_sum, axis=ax0, keepdims=True, stream=stream)
+        return res if keepdims else _ops.squeeze(res, axis=(ax0, ax1), stream=stream)
+    if ord == float("-inf"):
+        row_sum = _ops.sum(_ops.abs(arr), axis=ax1, keepdims=True, stream=stream)
+        res = _ops.min(row_sum, axis=ax0, keepdims=True, stream=stream)
+        return res if keepdims else _ops.squeeze(res, axis=(ax0, ax1), stream=stream)
+    if ord in ("nuc", 2, -2):
+        other_axes = [i for i in range(arr.ndim) if i not in (ax0, ax1)]
+        perm = (*other_axes, ax0, ax1)
+        moved = _ops.transpose(arr, axes=perm, stream=stream)
+        s_vals = svd(moved, compute_uv=False, stream=stream)
+        s_arr = s_vals if isinstance(s_vals, array) else s_vals[1]
+        if ord == "nuc":
+            reduced = _ops.sum(s_arr, axis=-1, keepdims=False, stream=stream)
+        elif ord == 2:
+            reduced = _ops.max(s_arr, axis=-1, keepdims=False, stream=stream)
+        else:
+            reduced = _ops.min(s_arr, axis=-1, keepdims=False, stream=stream)
+        if not keepdims:
+            return reduced
+        out_shape = [1 if i in (ax0, ax1) else arr.shape[i] for i in range(arr.ndim)]
+        return reduced.reshape(tuple(out_shape))
+    raise ValueError(f"Invalid norm order '{ord}' for matrix_norm")
 
 
 def qr(a: ArrayInput, *, stream: StreamOrDevice = None) -> tuple[array, array]:
@@ -415,6 +450,9 @@ def lu_solve(
     Returns:
         Solution `array`.
 
+    Raises:
+        ValueError: If `lu` has fewer than 2 dimensions or is not square.
+
     """
     _ = stream
     b_t, _ = _to_tensor(b)
@@ -423,7 +461,9 @@ def lu_solve(
         piv_t, _ = _to_tensor(lu_and_piv[1])
     else:
         lu_t, _ = _to_tensor(lu_and_piv)
-        piv_t = sops.arange(0, lu_t.shape[-1])
+        piv_t = sops.arange(0, lu_t.shape[-1] if len(lu_t.shape) >= 1 else 0)
+    if len(lu_t.shape) < 2 or lu_t.shape[-1] != lu_t.shape[-2]:
+        raise ValueError("lu_solve requires a square LU matrix of at least 2 dimensions")
     return array(dec.lu_solve((lu_t, piv_t), b_t))
 
 
@@ -497,7 +537,8 @@ def det(a: ArrayInput, *, stream: StreamOrDevice = None) -> array:
         raise ValueError("det/slogdet requires square matrices")
     if "complex" in arr.dtype.value:
         raise ValueError("complex not supported")
-    return array(dec.det(arr._tensor), dtype=float32)
+    out_dt = arr.dtype if "float" in arr.dtype.value else float32
+    return array(dec.det(arr._tensor), dtype=out_dt)
 
 
 def slogdet(a: ArrayInput, *, stream: StreamOrDevice = None) -> tuple[array, array]:
@@ -522,8 +563,9 @@ def slogdet(a: ArrayInput, *, stream: StreamOrDevice = None) -> tuple[array, arr
         raise ValueError("det/slogdet requires square matrices")
     if "complex" in arr.dtype.value:
         raise ValueError("complex not supported")
+    out_dt = arr.dtype if "float" in arr.dtype.value else float32
     res = dec.slogdet(arr._tensor)
-    return (array(res[0], dtype=float32), array(res[1], dtype=float32))
+    return (array(res[0], dtype=out_dt), array(res[1], dtype=out_dt))
 
 
 __all__ = [

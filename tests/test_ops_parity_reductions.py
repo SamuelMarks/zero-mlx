@@ -198,12 +198,11 @@ def test_ArgSort_parity() -> None:
 
 def test_Argpartition_parity() -> None:
     """Test parity for Argpartition."""
-    import mlx.core as mx
     import zero_mlx
 
     arr_np = np.array([3.0, 1.0, 4.0, 1.5, 2.0], dtype=np.float32)
     z_idx = zero_mlx.argpartition(zero_mlx.array(arr_np), 2)
-    m_idx = mx.argpartition(mx.array(arr_np), 2)
+    m_idx = np.argpartition(arr_np, 2)
     z_part = arr_np[np.array(z_idx.tolist(), dtype=np.int64)]
     m_part = arr_np[np.array(m_idx, dtype=np.int64)]
     assert z_part[2] == pytest.approx(m_part[2])

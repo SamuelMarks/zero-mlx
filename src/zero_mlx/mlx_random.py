@@ -73,6 +73,22 @@ def _get_key_tensor(key_in: array | PRNGKey | int | None = None) -> sops.Tensor:
     return key(int(key_in))._tensor
 
 
+def _mix32(val: int) -> int:
+    """Apply a 32-bit SplitMix/Murmur3 avalanche hash to an integer.
+
+    Args:
+        val: Input integer.
+
+    Returns:
+        Avalanched 32-bit unsigned integer.
+
+    """
+    x = val & 0xFFFFFFFF
+    x = ((x ^ (x >> 16)) * 0x85EBCA6B) & 0xFFFFFFFF
+    x = ((x ^ (x >> 13)) * 0xC2B2AE35) & 0xFFFFFFFF
+    return (x ^ (x >> 16)) & 0xFFFFFFFF
+
+
 def seed(seed: int) -> None:
     """Seed the global random number generator.
 
@@ -93,7 +109,9 @@ def key(seed: int) -> array:
         PRNG key `array` of shape `(2,)` and dtype `uint32`.
 
     """
-    return array([0, seed & 0xFFFFFFFF], dtype=uint32)
+    hi = (seed >> 32) & 0xFFFFFFFF
+    lo = seed & 0xFFFFFFFF
+    return array([hi, lo], dtype=uint32)
 
 
 def split(
@@ -101,7 +119,7 @@ def split(
     num: int = 2,
     stream: StreamOrDevice = None,
 ) -> array:
-    """Split a PRNG key into `num` new keys.
+    """Split a PRNG key into `num` deterministic, uncorrelated subkeys.
 
     Args:
         key: Input PRNG key `array` or `PRNGKey`.
@@ -114,8 +132,16 @@ def split(
     """
     _ = stream
     key_arr = key.key if isinstance(key, PRNGKey) else key
-    base_val = int(key_arr.reshape(-1)[0].item().real) if key_arr.size > 0 else 0
-    rows = [[(base_val + i) & 0xFFFFFFFF, (base_val + i + 1) & 0xFFFFFFFF] for i in range(num)]
+    flat = key_arr.reshape(-1)
+    k0 = int(flat[0].item().real) if flat.size > 0 else 0
+    k1 = int(flat[1].item().real) if flat.size > 1 else 0
+    rows = [
+        [
+            _mix32(k0 ^ (i * 0x9E3779B9)),
+            _mix32(k1 ^ ((i + 1) * 0x7F4A7C15)),
+        ]
+        for i in range(num)
+    ]
     return array(rows, dtype=uint32)
 
 
@@ -141,24 +167,30 @@ def uniform(
         `array` of uniformly distributed samples.
 
     """
+    from ml_switcheroo_compiler.core.shape import broadcast_shapes
+
     _ = stream
-    shp: tuple[int, ...] = _normalize_shape(shape)
+    req_shp: tuple[int, ...] = _normalize_shape(shape)
+    low_arr = low if isinstance(low, array) else array(low, dtype=float32)
+    high_arr = high if isinstance(high, array) else array(high, dtype=float32)
+    bounds_shp = tuple(int(d) for d in broadcast_shapes(low_arr.shape, high_arr.shape))
+    shp: tuple[int, ...] = (
+        tuple(int(d) for d in broadcast_shapes(req_shp, bounds_shp)) if req_shp else bounds_shp
+    )
     key_t = _get_key_tensor(key)
     target_dt: DType = resolve_dtype(dtype, default=float32)
-    low_f = float(
-        (low if isinstance(low, array) else array(low, dtype=float32)).reshape(-1)[0].item().real
+    u01 = array(
+        mrand.uniform(
+            key_t,
+            shp,
+            dtype=to_switcheroo_dtype(float32),
+            minval=0.0,
+            maxval=1.0,
+        ),
+        dtype=float32,
     )
-    high_f = float(
-        (high if isinstance(high, array) else array(high, dtype=float32)).reshape(-1)[0].item().real
-    )
-    res = mrand.uniform(
-        key_t,
-        shp,
-        dtype=to_switcheroo_dtype(target_dt),
-        minval=low_f,
-        maxval=high_f,
-    )
-    return array(res, dtype=target_dt)
+    res = low_arr.astype(float32) + u01 * (high_arr.astype(float32) - low_arr.astype(float32))
+    return res.astype(target_dt)
 
 
 def normal(
@@ -184,8 +216,10 @@ def normal(
 
     """
     target_dt: DType = resolve_dtype(dtype, default=float32)
-    u1 = uniform(1e-6, 1.0 - 1e-6, shape=shape, dtype=float32, key=key, stream=stream)
-    u2 = uniform(1e-6, 1.0 - 1e-6, shape=shape, dtype=float32, key=key, stream=stream)
+    base_key: array = state() if key is None else (key.key if isinstance(key, PRNGKey) else key)
+    subkeys = split(base_key, num=2, stream=stream)
+    u1 = uniform(1e-6, 1.0 - 1e-6, shape=shape, dtype=float32, key=subkeys[0], stream=stream)
+    u2 = uniform(1e-6, 1.0 - 1e-6, shape=shape, dtype=float32, key=subkeys[1], stream=stream)
     z = mx_ops.sqrt(-2.0 * mx_ops.log(u1)) * mx_ops.cos(2.0 * math.pi * u2)
     out = z * array(scale, dtype=float32) + array(loc, dtype=float32)
     return out.astype(target_dt)
@@ -214,15 +248,11 @@ def randint(
 
     """
     target_dt: DType = resolve_dtype(dtype, default=int32)
-    low_f = float(
-        (low if isinstance(low, array) else array(low, dtype=float32)).reshape(-1)[0].item().real
-    )
-    high_f = float(
-        (high if isinstance(high, array) else array(high, dtype=float32)).reshape(-1)[0].item().real
-    )
-    u = uniform(
-        min(low_f, high_f), max(low_f, high_f), shape=shape, dtype=float32, key=key, stream=stream
-    )
+    low_arr = (low if isinstance(low, array) else array(low, dtype=float32)).astype(float32)
+    high_arr = (high if isinstance(high, array) else array(high, dtype=float32)).astype(float32)
+    lo_b = mx_ops.minimum(low_arr, high_arr)
+    hi_b = mx_ops.maximum(low_arr, high_arr)
+    u = uniform(lo_b, hi_b, shape=shape, dtype=float32, key=key, stream=stream)
     return mx_ops.floor(u).astype(target_dt)
 
 
@@ -280,20 +310,34 @@ def categorical(
         ValueError: If both `shape` and `num_samples` are specified.
 
     """
-    _ = stream
     if shape is not None and num_samples is not None:
         raise ValueError("At most one of shape or num_samples can be specified")
     _ = _get_key_tensor(key)
-    logits_arr = logits if isinstance(logits, array) else array(logits, dtype=float32)
+    logits_arr = (logits if isinstance(logits, array) else array(logits, dtype=float32)).astype(
+        float32
+    )
+    if logits_arr.ndim == 0 or logits_arr.size == 0:
+        out_empty = () if shape is None else _normalize_shape(shape)
+        return array(sops.zeros(out_empty, dtype=to_switcheroo_dtype(uint32)), dtype=uint32)
+
+    norm_ax = axis % logits_arr.ndim
+    moved = logits_arr.moveaxis(norm_ax, -1) if norm_ax != logits_arr.ndim - 1 else logits_arr
+    num_classes = moved.shape[-1]
+
     if shape is not None:
         out_shape: tuple[int, ...] = _normalize_shape(shape)
-    else:
-        dims: list[int] = list(logits_arr.shape)
-        _ = dims.pop(axis) if dims else None
-        if num_samples is not None:
-            dims.append(num_samples)
-        out_shape = tuple(dims)
-    return array(sops.zeros(out_shape, dtype=to_switcheroo_dtype(uint32)), dtype=uint32)
+        g_noise = gumbel((*out_shape, num_classes), dtype=float32, key=key, stream=stream)
+        return mx_ops.argmax(moved + g_noise, axis=-1, stream=stream).astype(uint32)
+
+    if num_samples is not None:
+        g_noise = gumbel(
+            (*moved.shape[:-1], num_samples, num_classes), dtype=float32, key=key, stream=stream
+        )
+        perturbed = mx_ops.expand_dims(moved, axis=-2) + g_noise
+        return mx_ops.argmax(perturbed, axis=-1, stream=stream).astype(uint32)
+
+    g_noise = gumbel(moved.shape, dtype=float32, key=key, stream=stream)
+    return mx_ops.argmax(moved + g_noise, axis=-1, stream=stream).astype(uint32)
 
 
 def gumbel(
@@ -447,9 +491,19 @@ def truncated_normal(
         if shape is None
         else _normalize_shape(shape)
     )
+    sqrt2 = math.sqrt(2.0)
+    cdf_low = 0.5 * (1.0 + mx_ops.erf(lower_arr / sqrt2, stream=stream))
+    cdf_high = 0.5 * (1.0 + mx_ops.erf(upper_arr / sqrt2, stream=stream))
     u = uniform(0.0, 1.0, shape=shp, dtype=float32, key=key, stream=stream)
-    samples = lower_arr + u * mx_ops.maximum(upper_arr - lower_arr, 0.0)
-    res_checked = mx_ops.where(lower_arr >= upper_arr, lower_arr, samples)
+    p = cdf_low + u * mx_ops.maximum(cdf_high - cdf_low, 0.0, stream=stream)
+    p_clipped = mx_ops.clip(2.0 * p - 1.0, -0.999999, 0.999999, stream=stream)
+    samples = mx_ops.clip(
+        sqrt2 * mx_ops.erfinv(p_clipped, stream=stream),
+        lower_arr,
+        upper_arr,
+        stream=stream,
+    )
+    res_checked = mx_ops.where(lower_arr >= upper_arr, lower_arr, samples, stream=stream)
     return res_checked.astype(target_dt)
 
 

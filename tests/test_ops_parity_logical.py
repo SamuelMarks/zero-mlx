@@ -479,7 +479,7 @@ def test_LuFactor_parity() -> None:
     """Test parity for LuFactor."""
     check_parity(
         "LuFactor",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[4.0, 0.0], [0.0, 2.0]], dtype=np.float32)],
     )
 
 
@@ -791,7 +791,11 @@ def test_TakeAlongAxis_parity() -> None:
     """Test parity for TakeAlongAxis."""
     check_parity(
         "TakeAlongAxis",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [
+            np.arange(6, dtype=np.float32).reshape(2, 3),
+            np.array([[0, 2], [1, 0]], dtype=np.int32),
+            1,
+        ],
     )
 
 

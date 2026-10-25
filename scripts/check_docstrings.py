@@ -81,10 +81,7 @@ def _check_function_docstring(
             f"{filepath}:{node.lineno}: placeholder docstring '{first_line}' in '{node.name}'"
         )
 
-    is_test_fn: bool = node.name.startswith("test_") or os.path.basename(filepath).startswith(
-        "test_"
-    )
-    if is_test_fn:
+    if node.name.startswith("test_"):
         return violations
 
     params: list[str] = []

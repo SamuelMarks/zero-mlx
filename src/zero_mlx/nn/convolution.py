@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import math
 
-import ml_switcheroo_compiler.ops as sops
-import ml_switcheroo_compiler.ops.shape.frontend as sf
-
 from zero_mlx.array import array
+from zero_mlx.convolutions import conv1d, conv2d, conv3d
 from zero_mlx.mlx_random import uniform
 from zero_mlx.nn.base import Module
 
@@ -70,19 +68,15 @@ class Conv1d(Module):
             Convolved `array` of shape `(N, L_out, C_out)`.
 
         """
-        w_t = sf.permute(self.weight._tensor, dims=(1, 2, 0))
-        p0 = self.padding[0]
-        out = sops.nn.conv.conv1d(
-            x._tensor,
-            w_t,
-            strides=self.stride,
-            padding=[(p0, p0)],
-            lhs_dilation=self.dilation,
-            rhs_dilation=1,
+        out = conv1d(
+            x,
+            self.weight,
+            stride=self.stride[0],
+            padding=self.padding[0],
+            dilation=self.dilation[0],
+            groups=self.groups,
         )
-        if self.bias is not None:
-            out = sops.add(out, self.bias._tensor)
-        return array(out, dtype=x.dtype)
+        return out + self.bias if self.bias is not None else out
 
 
 class Conv2d(Module):
@@ -147,19 +141,15 @@ class Conv2d(Module):
             Convolved `array` of shape `(N, H_out, W_out, C_out)`.
 
         """
-        w_t = sf.permute(self.weight._tensor, dims=(1, 2, 3, 0))
-        p0, p1 = self.padding
-        out = sops.nn.conv.conv2d(
-            x._tensor,
-            w_t,
-            strides=self.stride,
-            padding=[(p0, p0), (p1, p1)],
-            lhs_dilation=self.dilation,
-            rhs_dilation=1,
+        out = conv2d(
+            x,
+            self.weight,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=self.groups,
         )
-        if self.bias is not None:
-            out = sops.add(out, self.bias._tensor)
-        return array(out, dtype=x.dtype)
+        return out + self.bias if self.bias is not None else out
 
 
 class Conv3d(Module):
@@ -230,19 +220,15 @@ class Conv3d(Module):
             Convolved `array` of shape `(N, D_out, H_out, W_out, C_out)`.
 
         """
-        w_t = sf.permute(self.weight._tensor, dims=(1, 2, 3, 4, 0))
-        p0, p1, p2 = self.padding
-        out = sops.nn.conv.conv3d(
-            x._tensor,
-            w_t,
-            strides=self.stride,
-            padding=[(p0, p0), (p1, p1), (p2, p2)],
-            lhs_dilation=self.dilation,
-            rhs_dilation=1,
+        out = conv3d(
+            x,
+            self.weight,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=self.groups,
         )
-        if self.bias is not None:
-            out = sops.add(out, self.bias._tensor)
-        return array(out, dtype=x.dtype)
+        return out + self.bias if self.bias is not None else out
 
 
 __all__ = ["Conv1d", "Conv2d", "Conv3d"]

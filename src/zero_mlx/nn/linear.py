@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 from zero_mlx.array import array
-from zero_mlx.convolutions import qqmm
+from zero_mlx.convolutions import qqmm, quantize, quantized_matmul
 from zero_mlx.distributed import Group
 from zero_mlx.mlx_random import uniform
 from zero_mlx.nn.base import Module
@@ -203,19 +203,53 @@ class QuantizedLinear(Module):
         """
         super().__init__()
         scale: float = math.sqrt(1.0 / float(input_dims))
-        self.weight: array = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
-        self.scales: array = uniform(
-            low=0.0, high=1.0, shape=(output_dims, max(1, input_dims // group_size))
-        )
-        self.biases: array = uniform(
-            low=-scale, high=scale, shape=(output_dims, max(1, input_dims // group_size))
-        )
+        w_init = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
+        q_res = quantize(w_init, group_size=group_size, bits=bits, mode=mode)
+        self.weight: array = q_res[0]
+        self.scales: array = q_res[1]
+        self.biases: array | None = q_res[2] if len(q_res) == 3 else None
         self.bias: array | None = (
             uniform(low=-scale, high=scale, shape=(output_dims,)) if bias else None
         )
         self.group_size: int = group_size
         self.bits: int = bits
         self.mode: str = mode
+
+    @classmethod
+    def from_linear(
+        cls,
+        linear_layer: Linear,
+        group_size: int = 64,
+        bits: int = 4,
+        mode: str = "affine",
+    ) -> QuantizedLinear:
+        """Create a `QuantizedLinear` layer by quantizing an existing `Linear` layer's weights.
+
+        Args:
+            linear_layer: Source `Linear` module.
+            group_size: Quantization group size.
+            bits: Bits per quantized weight.
+            mode: Quantization mode.
+
+        Returns:
+            Quantized `QuantizedLinear` instance preserving `linear_layer`'s weights and bias.
+
+        """
+        out_dims, in_dims = linear_layer.weight.shape
+        ql = cls(
+            in_dims,
+            out_dims,
+            bias=linear_layer.bias is not None,
+            group_size=group_size,
+            bits=bits,
+            mode=mode,
+        )
+        q_res = quantize(linear_layer.weight, group_size=group_size, bits=bits, mode=mode)
+        ql.weight = q_res[0]
+        ql.scales = q_res[1]
+        ql.biases = q_res[2] if len(q_res) == 3 else None
+        ql.bias = linear_layer.bias
+        return ql
 
     def __call__(self, x: array) -> array:
         """Compute quantized linear projection on `x`.
@@ -227,9 +261,16 @@ class QuantizedLinear(Module):
             Output `array`.
 
         """
-        s = mx.repeat(self.scales, self.group_size, axis=-1)[..., : self.weight.shape[-1]]
-        w_deq = self.weight * s
-        out = mx.matmul(x, w_deq.T)
+        out = quantized_matmul(
+            x,
+            self.weight,
+            self.scales,
+            biases=self.biases,
+            transpose=True,
+            group_size=self.group_size,
+            bits=self.bits,
+            mode=self.mode,
+        )
         if self.bias is not None:
             out = out + self.bias
         return out
@@ -264,10 +305,11 @@ class QuantizedAllToShardedLinear(Module):
         self.group: Group | None = group
         self.mode: str = mode
         scale: float = math.sqrt(1.0 / float(input_dims))
-        self.weight: array = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
-        self.scales: array = uniform(
-            low=0.0, high=1.0, shape=(output_dims, max(1, input_dims // group_size))
-        )
+        w_init = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
+        q_res = quantize(w_init, group_size=group_size, bits=bits, mode=mode)
+        self.weight: array = q_res[0]
+        self.scales: array = q_res[1]
+        self.biases: array | None = q_res[2] if len(q_res) == 3 else None
         self.bias: array | None = (
             uniform(low=-scale, high=scale, shape=(output_dims,)) if bias else None
         )
@@ -284,9 +326,16 @@ class QuantizedAllToShardedLinear(Module):
             Output `array`.
 
         """
-        s = mx.repeat(self.scales, self.group_size, axis=-1)[..., : self.weight.shape[-1]]
-        w_deq = self.weight * s
-        out = mx.matmul(x, w_deq.T)
+        out = quantized_matmul(
+            x,
+            self.weight,
+            self.scales,
+            biases=self.biases,
+            transpose=True,
+            group_size=self.group_size,
+            bits=self.bits,
+            mode=self.mode,
+        )
         if self.bias is not None:
             out = out + self.bias
         return out
@@ -321,10 +370,11 @@ class QuantizedShardedToAllLinear(Module):
         self.group: Group | None = group
         self.mode: str = mode
         scale: float = math.sqrt(1.0 / float(input_dims))
-        self.weight: array = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
-        self.scales: array = uniform(
-            low=0.0, high=1.0, shape=(output_dims, max(1, input_dims // group_size))
-        )
+        w_init = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
+        q_res = quantize(w_init, group_size=group_size, bits=bits, mode=mode)
+        self.weight: array = q_res[0]
+        self.scales: array = q_res[1]
+        self.biases: array | None = q_res[2] if len(q_res) == 3 else None
         self.bias: array | None = (
             uniform(low=-scale, high=scale, shape=(output_dims,)) if bias else None
         )
@@ -341,9 +391,16 @@ class QuantizedShardedToAllLinear(Module):
             Output `array`.
 
         """
-        s = mx.repeat(self.scales, self.group_size, axis=-1)[..., : self.weight.shape[-1]]
-        w_deq = self.weight * s
-        out = mx.matmul(x, w_deq.T)
+        out = quantized_matmul(
+            x,
+            self.weight,
+            self.scales,
+            biases=self.biases,
+            transpose=True,
+            group_size=self.group_size,
+            bits=self.bits,
+            mode=self.mode,
+        )
         if self.bias is not None:
             out = out + self.bias
         return out
@@ -377,12 +434,43 @@ class QQLinear(Module):
         self.bits: int = 4 if bits is None else bits
         self.mode: str = mode
         scale: float = math.sqrt(1.0 / float(input_dims))
-        self.weight: array = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
-        self.scales: array = uniform(
-            low=0.0,
-            high=1.0,
-            shape=(output_dims, max(1, input_dims // self.group_size)),
+        w_init = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
+        q_res = quantize(
+            w_init,
+            group_size=self.group_size,
+            bits=self.bits,
+            mode="nvfp4" if mode == "affine" else mode,
         )
+        self.weight: array = q_res[0]
+        self.scales: array = q_res[1]
+
+    @classmethod
+    def from_linear(
+        cls,
+        linear_layer: Linear,
+        group_size: int = 32,
+        bits: int = 4,
+        mode: str = "nvfp4",
+    ) -> QQLinear:
+        """Create a `QQLinear` layer by quantizing an existing `Linear` layer's weights.
+
+        Args:
+            linear_layer: Source `Linear` module.
+            group_size: Quantization group size.
+            bits: Bits per quantized weight.
+            mode: Double-quantization mode.
+
+        Returns:
+            Quantized `QQLinear` instance preserving `linear_layer`'s weights.
+
+        """
+        out_dims, in_dims = linear_layer.weight.shape
+        q_mode = "nvfp4" if mode == "affine" else mode
+        qql = cls(in_dims, out_dims, group_size=group_size, bits=bits, mode=q_mode)
+        q_res = quantize(linear_layer.weight, group_size=group_size, bits=bits, mode=q_mode)
+        qql.weight = q_res[0]
+        qql.scales = q_res[1]
+        return qql
 
     def __call__(self, x: array) -> array:
         """Apply double-quantized matrix multiplication `qqmm(x, weight)`.

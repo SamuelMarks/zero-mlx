@@ -3430,10 +3430,12 @@ def pad(
     _ = stream
     arr = _as_array(a)
     val_scalar = _as_array(constant_values).item()
-    return array(
-        pt.pad(arr._tensor, pad_width, mode=mode, constant_values=val_scalar),
-        dtype=arr.dtype,
+    padded = (
+        pt.pad(arr._tensor, pad_width, mode=mode, constant_values=val_scalar)
+        if mode == "constant"
+        else pt.pad(arr._tensor, pad_width, mode=mode)
     )
+    return array(padded, dtype=arr.dtype)
 
 
 def roll(

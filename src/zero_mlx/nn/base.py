@@ -156,9 +156,14 @@ class Module:
         for k, v in self._state_dict().items():
             if isinstance(v, Module):
                 mods[k] = v
-            elif isinstance(v, list):
+            elif isinstance(v, (list, tuple)):
                 for idx, item in enumerate(v):
-                    _ = mods.setdefault(f"{k}.{idx}", item) if isinstance(item, Module) else None
+                    if isinstance(item, Module):
+                        mods[f"{k}.{idx}"] = item
+            elif isinstance(v, dict):
+                for sub_k, item in v.items():
+                    if isinstance(item, Module):
+                        mods[f"{k}.{sub_k}"] = item
         return mods
 
     @property
@@ -298,11 +303,17 @@ class Module:
         Returns:
             `self` after updating parameters.
 
+        Raises:
+            ValueError: If `strict` is True and a key does not exist on the module.
+
         """
-        _ = strict
         state = self._state_dict()
         mods = self._modules
         for k, v in parameters.items():
+            if strict and k not in state and k not in mods:
+                raise ValueError(
+                    f"Module '{type(self).__name__}' has no parameter or submodule '{k}'"
+                )
             if isinstance(v, dict) and k in mods:
                 mods[k].update(v, strict=strict)
             else:
@@ -461,10 +472,13 @@ class Module:
         Returns:
             Output `array` or tuple of `array` objects.
 
+        Raises:
+            NotImplementedError: If the module subclass does not implement `__call__`.
+
         """
         if isinstance(self, CallableModuleProtocol):
             return self(*args, **kwargs)
-        return array(0.0)
+        raise NotImplementedError(f"Module '{type(self).__name__}' does not implement __call__")
 
 
 class Identity(Module):

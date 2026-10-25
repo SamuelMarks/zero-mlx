@@ -10,8 +10,12 @@ from tests.conftest import check_parity
 def test_ConvGeneralDilated_parity() -> None:
     """Test parity for ConvGeneralDilated."""
     check_parity(
-        "Conv_General_Dilated", lambda: []
-    )  # Skip complex tensor generation for now, just stub
+        "Conv_General_Dilated",
+        lambda: [
+            np.ones((1, 4, 4, 2), dtype=np.float32),
+            np.ones((3, 2, 2, 2), dtype=np.float32),
+        ],
+    )
 
 
 def test_Norm_parity() -> None:
@@ -216,7 +220,16 @@ def test_Gru_parity() -> None:
 
 def test_Rope_parity() -> None:
     """Test parity for Rope."""
-    check_parity("Rope", lambda: [np.random.randn(2, 3).astype(np.float32)])
+    check_parity(
+        "Rope",
+        lambda: [np.ones((1, 2, 4, 8), dtype=np.float32), 8],
+        kwargs_generator=lambda: {
+            "traditional": False,
+            "base": 10000.0,
+            "scale": 1.0,
+            "offset": 0,
+        },
+    )
 
 
 def test_CudaKernel_parity() -> None:

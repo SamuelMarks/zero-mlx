@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from zero_mlx.array import array
+from zero_mlx.convolutions import dequantize, quantize, quantized_matmul
 from zero_mlx.mlx_random import uniform
 from zero_mlx.nn.base import Module
 import zero_mlx.ops as mx
@@ -80,13 +81,44 @@ class QuantizedEmbedding(Module):
         self.bits: int = bits
         self.mode: str = mode
         scale: float = math.sqrt(1.0 / float(dims))
-        self.weight: array = uniform(low=-scale, high=scale, shape=(num_embeddings, dims))
-        self.scales: array = uniform(
-            low=0.0, high=1.0, shape=(num_embeddings, max(1, dims // group_size))
+        w_init = uniform(low=-scale, high=scale, shape=(num_embeddings, dims))
+        q_res = quantize(w_init, group_size=group_size, bits=bits, mode=mode)
+        self.weight: array = q_res[0]
+        self.scales: array = q_res[1]
+        self.biases: array | None = q_res[2] if len(q_res) == 3 else None
+
+    @classmethod
+    def from_embedding(
+        cls,
+        embedding_layer: Embedding,
+        group_size: int = 64,
+        bits: int = 4,
+        mode: str = "affine",
+    ) -> QuantizedEmbedding:
+        """Create a `QuantizedEmbedding` by quantizing an existing `Embedding` layer's weights.
+
+        Args:
+            embedding_layer: Source `Embedding` module.
+            group_size: Quantization group size.
+            bits: Bits per quantized weight.
+            mode: Quantization mode.
+
+        Returns:
+            Quantized `QuantizedEmbedding` instance preserving `embedding_layer`'s weights.
+
+        """
+        qe = cls(
+            embedding_layer.num_embeddings,
+            embedding_layer.dims,
+            group_size=group_size,
+            bits=bits,
+            mode=mode,
         )
-        self.biases: array = uniform(
-            low=-scale, high=scale, shape=(num_embeddings, max(1, dims // group_size))
-        )
+        q_res = quantize(embedding_layer.weight, group_size=group_size, bits=bits, mode=mode)
+        qe.weight = q_res[0]
+        qe.scales = q_res[1]
+        qe.biases = q_res[2] if len(q_res) == 3 else None
+        return qe
 
     def __call__(self, x: array) -> array:
         """Look up and dequantize embeddings for integer indices `x`.
@@ -100,10 +132,16 @@ class QuantizedEmbedding(Module):
         """
         w = self.weight[x]
         s = self.scales[x]
-        b = self.biases[x]
-        s_rep = mx.repeat(s, self.group_size, axis=-1)[..., : w.shape[-1]]
-        b_rep = mx.repeat(b, self.group_size, axis=-1)[..., : w.shape[-1]]
-        return w * s_rep + b_rep
+        b = self.biases[x] if self.biases is not None else None
+        deq = dequantize(
+            w,
+            s,
+            biases=b,
+            group_size=self.group_size,
+            bits=self.bits,
+            mode=self.mode,
+        )
+        return deq[..., : self.dims]
 
     def as_linear(self, x: array) -> array:
         """Project `x` using the dequantized transposed embedding matrix.
@@ -115,10 +153,16 @@ class QuantizedEmbedding(Module):
             Logit `array` of shape `(..., num_embeddings)`.
 
         """
-        s_rep = mx.repeat(self.scales, self.group_size, axis=-1)[..., : self.weight.shape[-1]]
-        b_rep = mx.repeat(self.biases, self.group_size, axis=-1)[..., : self.weight.shape[-1]]
-        w_deq = self.weight * s_rep + b_rep
-        return mx.matmul(x, w_deq.T)
+        return quantized_matmul(
+            x,
+            self.weight,
+            self.scales,
+            biases=self.biases,
+            transpose=True,
+            group_size=self.group_size,
+            bits=self.bits,
+            mode=self.mode,
+        )
 
 
 __all__ = ["Embedding", "QuantizedEmbedding"]

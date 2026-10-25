@@ -1004,16 +1004,19 @@ class array:
         from zero_mlx.new_ops import eval
 
         eval(self)
-        raw = self._tensor.numpy().tolist()
+        data_obj = self._tensor.data
+        raw: Scalar | list[Scalar | NestedSequence] = (
+            data_obj.tolist() if isinstance(data_obj, ArrayProtocol) else self._tensor.item()
+        )
         if isinstance(raw, list):
             return raw
         if self.dtype == DType.bool_:
             return bool(raw)
         if self.dtype.value.startswith(("int", "uint")):
-            return int(raw)
+            return int(raw.real)
         if self.dtype.value.startswith("complex"):
             return complex(raw)
-        return float(raw)
+        return float(raw.real)
 
     def item(self) -> Scalar:
         """Extract the Python scalar from a single-element array.

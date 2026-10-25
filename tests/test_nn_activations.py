@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
+import math
 from typing import Callable
 
-import mlx.core as mx
-import mlx.nn as m_nn
-import numpy as np
-
+import zero_mlx as mx
 from zero_mlx._types import ArrayInput
 from zero_mlx.array import array
 import zero_mlx.nn as z_nn
@@ -21,7 +19,7 @@ def _test_func_shape(
     x_shape: tuple[int, ...],
     expected_shape: tuple[int, ...],
 ) -> None:
-    """Invoke `func` on a random array of `x_shape` and assert its output shape and finite numerical values.
+    """Invoke `func` on a deterministic array of `x_shape` and assert its output shape and finite numerical values.
 
     Args:
         func: Activation function or `Module` to test.
@@ -29,15 +27,18 @@ def _test_func_shape(
         expected_shape: Expected output array shape.
 
     """
-    x_np = np.random.randn(*x_shape).astype(np.float32)
-    x = array(x_np)
+    x = mx.linspace(-1.5, 1.5, math.prod(x_shape), dtype=mx.float32).reshape(x_shape)
     raw_out: array | tuple[array, ...] = (
         func._call_forward(x) if isinstance(func, Module) else func(x)
     )
     out: array = raw_out[0] if isinstance(raw_out, tuple) else raw_out
     assert out.shape == expected_shape
-    assert np.all(np.isfinite(np.array(out.tolist())))
-    _ = (mx, m_nn)
+    assert bool(mx.all(mx.isfinite(out)).item()) is True
+    raw_out2: array | tuple[array, ...] = (
+        func._call_forward(x) if isinstance(func, Module) else func(x)
+    )
+    out2: array = raw_out2[0] if isinstance(raw_out2, tuple) else raw_out2
+    assert bool(mx.allclose(out, out2, rtol=1e-5, atol=1e-5).item()) is True
 
 
 def test_celu() -> None:
@@ -92,7 +93,7 @@ def test_mish() -> None:
 
 def test_prelu() -> None:
     """Test `prelu` and `PReLU`."""
-    w = array(np.random.randn(3).astype(np.float32))
+    w = array([0.1, 0.2, 0.3], dtype=mx.float32)
     _test_func_shape(lambda x: z_nn.prelu(x, w), (2, 3), (2, 3))
     _test_func_shape(z_nn.PReLU(3), (2, 3), (2, 3))
 

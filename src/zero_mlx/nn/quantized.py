@@ -47,36 +47,41 @@ def quantize(
 
     for k, sub in list(model.children().items()):
         should_quantize: bool = True
+        sub_g_size: int = g_size
+        sub_bits: int = b_bits
+        sub_mode: str = mode
         if class_predicate is not None:
             pred_res = class_predicate(k, sub)
-            should_quantize = bool(pred_res)
+            if isinstance(pred_res, dict):
+                should_quantize = True
+                sub_g_size = int(pred_res.get("group_size", g_size))
+                sub_bits = int(pred_res.get("bits", b_bits))
+                sub_mode = str(pred_res.get("mode", mode))
+            else:
+                should_quantize = bool(pred_res)
         if should_quantize:
             if isinstance(sub, Linear):
                 if quantize_input:
-                    q_mod: Module = QQLinear(
-                        sub.weight.shape[1],
-                        sub.weight.shape[0],
-                        group_size=g_size,
-                        bits=b_bits,
-                        mode=mode,
+                    q_mod: Module = QQLinear.from_linear(
+                        sub,
+                        group_size=sub_g_size,
+                        bits=sub_bits,
+                        mode=sub_mode,
                     )
                 else:
-                    q_mod = QuantizedLinear(
-                        sub.weight.shape[1],
-                        sub.weight.shape[0],
-                        bias=sub.bias is not None,
-                        group_size=g_size,
-                        bits=b_bits,
-                        mode=mode,
+                    q_mod = QuantizedLinear.from_linear(
+                        sub,
+                        group_size=sub_g_size,
+                        bits=sub_bits,
+                        mode=sub_mode,
                     )
                 model[k] = q_mod
             elif isinstance(sub, Embedding):
-                q_emb = QuantizedEmbedding(
-                    sub.num_embeddings,
-                    sub.dims,
-                    group_size=g_size,
-                    bits=b_bits,
-                    mode=mode,
+                q_emb = QuantizedEmbedding.from_embedding(
+                    sub,
+                    group_size=sub_g_size,
+                    bits=sub_bits,
+                    mode=sub_mode,
                 )
                 model[k] = q_emb
             else:

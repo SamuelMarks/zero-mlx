@@ -75,7 +75,12 @@ def test_Cholesky_parity() -> None:
     """Test parity for Cholesky."""
     check_parity(
         "Cholesky",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [
+            np.array(
+                [[4.0, 1.0, 0.0], [1.0, 4.0, 1.0], [0.0, 1.0, 4.0]],
+                dtype=np.float32,
+            )
+        ],
     )
 
 
@@ -99,7 +104,10 @@ def test_Cross_parity() -> None:
     """Test parity for Cross."""
     check_parity(
         "Cross",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [
+            np.array([1.0, 2.0, 3.0], dtype=np.float32),
+            np.array([4.0, 5.0, 6.0], dtype=np.float32),
+        ],
     )
 
 
@@ -115,7 +123,7 @@ def test_Det_parity() -> None:
     """Test parity for Det."""
     check_parity(
         "Det",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[4.0, 1.0], [1.0, 3.0]], dtype=np.float32)],
     )
 
 
@@ -163,7 +171,7 @@ def test_Eigh_parity() -> None:
     """Test parity for Eigh."""
     check_parity(
         "Eigh",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
     )
 
 
@@ -179,7 +187,7 @@ def test_Eigvalsh_parity() -> None:
     """Test parity for Eigvalsh."""
     check_parity(
         "Eigvalsh",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[2.0, 1.0], [1.0, 4.0]], dtype=np.float32)],
     )
 
 
@@ -213,7 +221,7 @@ def test_Inv_parity() -> None:
     """Test parity for Inv."""
     check_parity(
         "Inv",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[4.0, 1.0], [1.0, 3.0]], dtype=np.float32)],
     )
 
 
@@ -317,7 +325,7 @@ def test_Pinv_parity() -> None:
     """Test parity for Pinv."""
     check_parity(
         "Pinv",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
     )
 
 
@@ -325,7 +333,7 @@ def test_Qr_parity() -> None:
     """Test parity for Qr."""
     check_parity(
         "Qr",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
     )
 
 
@@ -373,7 +381,7 @@ def test_Slogdet_parity() -> None:
     """Test parity for Slogdet."""
     check_parity(
         "Slogdet",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[4.0, 1.0], [1.0, 3.0]], dtype=np.float32)],
     )
 
 
@@ -381,7 +389,10 @@ def test_Solve_parity() -> None:
     """Test parity for Solve."""
     check_parity(
         "Solve",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [
+            np.array([[4.0, 1.0], [1.0, 3.0]], dtype=np.float32),
+            np.array([1.0, 2.0], dtype=np.float32),
+        ],
     )
 
 
@@ -501,7 +512,7 @@ def test_Svd_parity() -> None:
     """Test parity for Svd."""
     check_parity(
         "Svd",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[4.0, 0.0], [0.0, 2.0]], dtype=np.float32)],
     )
 
 
@@ -560,7 +571,7 @@ def test_TriInv_parity() -> None:
     """Test parity for TriInv."""
     check_parity(
         "TriInv",
-        lambda: [np.random.randn(2, 3).astype(np.float32)],
+        lambda: [np.array([[2.0, 0.0], [1.0, 4.0]], dtype=np.float32)],
     )
 
 

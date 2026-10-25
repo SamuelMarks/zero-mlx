@@ -5,11 +5,10 @@ from __future__ import annotations
 import copy
 import io
 import pathlib
-import numpy as np
 import pytest
 
 import zero_mlx as mx
-from zero_mlx._types import DLPackCapsule
+from zero_mlx._types import DLPackCapsule, NestedSequence, Scalar
 from zero_mlx.array import array
 from zero_mlx.array_like import ArrayLike
 import zero_mlx.convolutions as z_conv
@@ -176,7 +175,15 @@ def test_device_and_metal_and_dlpack() -> None:
         """Custom DLPack convertible test class."""
 
         def __dlpack__(self, stream: int | None = None) -> DLPackCapsule:
-            """Return capsule."""
+            """Return capsule.
+
+            Args:
+                stream: Optional stream index.
+
+            Returns:
+                Wrapped `DLPackCapsule`.
+
+            """
             _ = stream
             return DLPackCapsule([3.0, 4.0], mx.float32)
 
@@ -274,19 +281,43 @@ def test_array_operators_and_methods() -> None:
             """Convert to array."""
             return array([1.0, 2.0])
 
+    class _DummyExternalArray:
+        """Custom `ArrayProtocol` implementation for testing external array conversion."""
+
+        def __init__(self, data: list[Scalar | NestedSequence], dtype: str) -> None:
+            """Initialize dummy external array.
+
+            Args:
+                data: Underlying list of scalars.
+                dtype: String dtype name.
+
+            """
+            self._data: list[Scalar | NestedSequence] = data
+            self._dtype: str = dtype
+
+        @property
+        def dtype(self) -> str:
+            """Return string dtype."""
+            return self._dtype
+
+        def tolist(self) -> list[Scalar | NestedSequence]:
+            """Return list representation."""
+            return self._data
+
     a_conv = array(CustomMlxArray())
     assert a_conv.tolist() == [1.0, 2.0]
     assert (a_conv + CustomMlxArray()).tolist() == [2.0, 4.0]
     assert mx.maximum(a_conv, [0.5, 3.0]).tolist() == [1.0, 3.0]
     assert (array([True, False]) + 1).tolist() == [2, 1]
-    assert array(np.array([1.0, 2.0], dtype=np.float64)).dtype == mx.float32
-    assert array(np.array([1.0 + 2.0j], dtype=np.complex128)).dtype == mx.complex64
+    assert array(_DummyExternalArray([1.0, 2.0], "float64")).dtype == mx.float32
+    assert array(_DummyExternalArray([1.0 + 2.0j], "complex128")).dtype == mx.complex64
+    assert array(_DummyExternalArray([1, 2], "int16")).dtype == mx.int16
     assert array([[1.0]]).item() == 1.0
     a_bytes = array(b"\x01\x02")
     assert a_bytes.tolist() == [1, 2]
     a_big_int = array(3000000000)
     assert a_big_int.dtype == mx.int64
-    a_nested_arr = array([array([1.0, 2.0]), array([3.0, 4.0])])
+    a_nested_arr = array([array([1.0, 2.0]), _DummyExternalArray([3.0, 4.0], "float32")])
     assert a_nested_arr.shape == (2, 2)
 
     with pytest.raises(ValueError):
@@ -488,7 +519,12 @@ def test_array_operators_and_methods() -> None:
 
 
 def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> None:
-    """Test `mlx_random`, `random_state`, `distributed`, `fast`, `export`, `utils`, and `new_ops`."""
+    """Test `mlx_random`, `random_state`, `distributed`, `fast`, `export`, `utils`, and `new_ops`.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     z_rand.seed(123)
     st = z_rstate.state()
     assert st.shape == (2,)
@@ -505,6 +541,7 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     with pytest.raises(ValueError):
         z_rand.bernoulli(1)
     assert z_rand.categorical(array([[1.0, 2.0, 3.0]])).shape == (1,)
+    assert z_rand.categorical(array(1.0)).shape == ()
     assert z_rand.categorical(array([[1.0, 2.0, 3.0]]), num_samples=4).shape == (1, 4)
     assert z_rand.categorical(array([1.0, 2.0]), shape=(2, 2)).shape == (2, 2)
     with pytest.raises(ValueError):
@@ -542,9 +579,22 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert z_fast.rms_norm(x_f, w_f).shape == (2, 4)
     assert z_fast.rms_norm(array(1.0), None).item() == 0.0
     assert z_fast.rope(mx.ones((1, 2, 4, 8)), dims=8, offset=array(1)).shape == (1, 2, 4, 8)
+    assert z_fast.rope(
+        mx.ones((1, 2, 4, 8)), dims=6, traditional=True, freqs=mx.ones((3,))
+    ).shape == (1, 2, 4, 8)
+    assert z_fast.rope(
+        mx.ones((1, 2, 4, 8)), dims=8, traditional=False, freqs=mx.ones((4,))
+    ).shape == (1, 2, 4, 8)
     q = mx.ones((1, 2, 4, 8))
+    assert z_fast.scaled_dot_product_attention(q, q, q).shape == (1, 2, 4, 8)
     assert z_fast.scaled_dot_product_attention(
         q, q, q, scale=0.5, mask=mx.zeros((1, 2, 4, 4))
+    ).shape == (1, 2, 4, 8)
+    assert z_fast.scaled_dot_product_attention(
+        q, q, q, scale=0.5, mask=mx.ones((1, 2, 4, 4), dtype=mx.bool_)
+    ).shape == (1, 2, 4, 8)
+    assert z_fast.scaled_dot_product_attention(
+        q, q, q, scale=0.5, mask="causal", sinks=mx.zeros((1, 2))
     ).shape == (1, 2, 4, 8)
     assert z_fast.scaled_dot_product_attention(array(1.0), array(1.0), array(1.0)).item() == 0.0
     mk = z_fast.metal_kernel("k", ["a"], ["b"], "source")
@@ -557,7 +607,16 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     fn_path = str(tmp_path / "func.mlxfn")
 
     def sample_fn(*args: array, **kw: array) -> array:
-        """Sample exportable function."""
+        """Sample exportable function.
+
+        Args:
+            *args: Positional array arguments.
+            **kw: Keyword array arguments.
+
+        Returns:
+            Sum `array`.
+
+        """
         a = args[0]
         return a + kw.get("b", array(1.0))
 
@@ -572,7 +631,16 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert out_tup[0].tolist() == [4.0, 6.0]
 
     def tuple_fn(*args: array, **kw: array) -> tuple[array, ...]:
-        """Tuple returning exportable function."""
+        """Tuple returning exportable function.
+
+        Args:
+            *args: Positional array arguments.
+            **kw: Keyword array arguments.
+
+        Returns:
+            Tuple of output arrays.
+
+        """
         _ = kw
         return (args[0] * 2.0, args[0] + 1.0)
 
@@ -581,11 +649,14 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
         exp(array([2.0]))
     with pytest.raises(RuntimeError):
         exp(array([2.0]))
+    z_export._EXPORT_REGISTRY.pop(str(tmp_path / "func2.mlxfn"), None)
     imp2 = z_export.import_function(fn_path2)
     assert not isinstance(imp2, tuple)
     assert len(imp2(array([2.0]))) == 2
 
     unreg_path = str(tmp_path / "unreg.mlxfn")
+    with z_export.exporter(unreg_path, None) as exp_none:
+        exp_none(array([1.0]))
     pathlib.Path(unreg_path).write_text(
         '{"shapeless": false, "metadata": {"k": "v"}}', encoding="utf-8"
     )
@@ -622,7 +693,16 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert isinstance(c_res, array) and c_res.tolist() == [2.0]
 
     def sq_fn(*args: array, **kwargs: array) -> array:
-        """Square sum function."""
+        """Square sum function.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Scalar objective `array`.
+
+        """
         x_in = args[0]
         y_in = kwargs.get("y", array(0.0))
         return mx.sum(x_in * x_in) + mx.sum(y_in * 3.0)
@@ -630,10 +710,19 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     g_fn = mx.grad(sq_fn)
     g_val = g_fn(array([2.0, 3.0]))
     assert isinstance(g_val, array)
-    np.testing.assert_allclose(g_val.tolist(), [4.0, 6.0], rtol=1e-2)
+    assert bool(mx.allclose(g_val, array([4.0, 6.0]), rtol=1e-2, atol=1e-2).item()) is True
 
     def _sq_sc(*args: array, **kwargs: array) -> array:
-        """Scalar square function."""
+        """Scalar square function.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Squared scalar `array`.
+
+        """
         _ = kwargs
         return args[0] * args[0]
 
@@ -642,7 +731,16 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert float(g_sc.item().real) == pytest.approx(6.0, rel=1e-2)
 
     def _prod_fn(*args: array, **kwargs: array) -> array:
-        """Product sum function."""
+        """Product sum function.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Sum of elementwise product `array`.
+
+        """
         _ = kwargs
         return mx.sum(args[0] * args[1])
 
@@ -652,11 +750,27 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert isinstance(g_kw, dict) and "y" in g_kw
 
     def _vjp_fn(*primals: array) -> list[array]:
-        """Two-output primal function."""
+        """Two-output primal function.
+
+        Args:
+            *primals: Primal array inputs.
+
+        Returns:
+            List of two scaled arrays.
+
+        """
         return [primals[0] * 2.0, primals[0] * 3.0]
 
     def _jvp_fn(*primals: array) -> array:
-        """Single-output primal function."""
+        """Single-output primal function.
+
+        Args:
+            *primals: Primal array inputs.
+
+        Returns:
+            Scaled `array`.
+
+        """
         return primals[0] * 2.0
 
     outs_vjp, grads_vjp = mx.vjp(
@@ -667,12 +781,30 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert len(outs_jvp) == 1 and len(tang_jvp) == 1
 
     def _add_vmap(*args: array, **kwargs: array) -> array:
-        """Add two arrays for vmap."""
+        """Add two arrays for vmap.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Elementwise sum `array`.
+
+        """
         _ = kwargs
         return args[0] + args[1]
 
     def _mul2_vmap(*args: array, **kwargs: array) -> array:
-        """Multiply array by 2 for vmap."""
+        """Multiply array by 2 for vmap.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Doubled `array`.
+
+        """
         _ = kwargs
         return args[0] * 2.0
 
@@ -683,26 +815,54 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
 
     npy_file = tmp_path / "arr.npy"
     mx.save(npy_file, array([1.0, 2.0]))
+    mx.save(tmp_path / "scalar.npy", array(3.0))
     loaded_npy = mx.load(npy_file)
     assert isinstance(loaded_npy, array) and loaded_npy.tolist() == [1.0, 2.0]
     z_new_ops._SAVED_ARRAYS.clear()
     loaded_disk = mx.load(npy_file)
     assert isinstance(loaded_disk, array) and loaded_disk.tolist() == [1.0, 2.0]
+    loaded_disk_meta = mx.load(tmp_path / "scalar.npy", return_metadata=True)
+    assert isinstance(loaded_disk_meta, tuple)
     assert mx.load(tmp_path / "missing_file.npy") == {}
     assert mx.load(tmp_path / "missing_file.npy", return_metadata=True) == ({}, {})
 
     npz_file = tmp_path / "bundle"
-    mx.savez(npz_file, array([1.0]), named=array([2.0]))
-    mx.savez_compressed(npz_file, array([1.0]))
+    mx.savez(npz_file, array([1.0]), named=array([[2.0, 3.0]]))
     load_res = mx.load(npz_file, return_metadata=True)
     assert isinstance(load_res, tuple)
     loaded_npz, meta_npz = load_res
     assert isinstance(loaded_npz, dict) and isinstance(meta_npz, dict)
+    z_new_ops._SAVED_ARRAYS.clear()
+    loaded_npz_disk = mx.load(npz_file, return_metadata=True)
+    assert isinstance(loaded_npz_disk, tuple) and "named" in loaded_npz_disk[0]
+    mx.savez_compressed(npz_file, array([1.0]), named=array([2.0]))
+    z_new_ops._SAVED_ARRAYS.clear()
+    assert isinstance(mx.load(npz_file), dict)
 
     st_file = tmp_path / "weights"
-    mx.save_safetensors(st_file, {"w": array([1.0])}, metadata={"f": "mlx"})
+    mx.save_safetensors(st_file, {"w": array([1.0, 2.0])}, metadata={"f": "mlx"})
+    z_new_ops._SAVED_ARRAYS.clear()
+    st_loaded, st_meta = mx.load(st_file, return_metadata=True)
+    assert isinstance(st_loaded, dict) and st_meta == {"f": "mlx"}
+
     gguf_file = tmp_path / "weights_gguf"
     mx.save_gguf(gguf_file, {"w": array([1.0])}, metadata={"arch": "llama"})
+    z_new_ops._SAVED_ARRAYS.clear()
+    gguf_loaded, gguf_meta = mx.load(gguf_file, return_metadata=True)
+    assert isinstance(gguf_loaded, dict) and gguf_meta == {"arch": "llama"}
+
+    legacy_j1 = tmp_path / "leg1.json"
+    legacy_j1.write_text('{"dtype": "float32", "data": [1.0, 2.0]}', encoding="utf-8")
+    assert isinstance(mx.load(legacy_j1), array)
+    legacy_j2 = tmp_path / "leg2.json"
+    legacy_j2.write_text(
+        '{"arrays": {"w": {"dtype": "float32", "data": [1.0]}}, "metadata": {"m": "1"}}',
+        encoding="utf-8",
+    )
+    assert isinstance(mx.load(legacy_j2), dict)
+    legacy_j3 = tmp_path / "leg3.json"
+    legacy_j3.write_text('{"w": {"dtype": "float32", "data": [1.0]}}', encoding="utf-8")
+    assert isinstance(mx.load(legacy_j3), dict)
 
 
 def test_convolutions_and_linalg_and_fft() -> None:
@@ -710,24 +870,65 @@ def test_convolutions_and_linalg_and_fft() -> None:
     x1 = mx.ones((1, 4, 2))
     w1 = mx.ones((3, 2, 2))
     assert z_conv.conv1d(x1, w1).shape[0] == 1
+    assert z_conv.conv1d(mx.ones((1, 4, 4)), mx.ones((4, 2, 2)), groups=2).shape == (1, 3, 4)
     assert z_conv.conv_transpose1d(x1, w1).shape[0] == 1
     assert (
-        z_conv.conv_general(x1, w1, stride=[1], padding=(0, 0), kernel_dilation=[1]).shape[0] == 1
+        z_conv.conv_transpose1d(
+            mx.ones((1, 4, 2)),
+            mx.ones((2, 2, 1)),
+            padding=1,
+            dilation=2,
+            output_padding=1,
+            groups=2,
+        ).shape[0]
+        == 1
+    )
+    assert (
+        z_conv.conv_general(
+            x1, w1, stride=[1], padding=(0, 0), kernel_dilation=[1], input_dilation=[2], flip=True
+        ).shape[0]
+        == 1
     )
 
     x2 = mx.ones((1, 4, 4, 2))
     w2 = mx.ones((3, 2, 2, 2))
     assert z_conv.conv2d(x2, w2).shape[0] == 1
+    assert z_conv.conv2d(mx.ones((1, 4, 4, 4)), mx.ones((4, 2, 2, 2)), groups=2).shape[0] == 1
     assert z_conv.conv_transpose2d(x2, w2).shape[0] == 1
+    assert (
+        z_conv.conv_transpose2d(
+            mx.ones((1, 4, 4, 2)),
+            mx.ones((2, 2, 2, 1)),
+            padding=1,
+            dilation=2,
+            output_padding=1,
+            groups=2,
+        ).shape[0]
+        == 1
+    )
     assert z_conv.conv_general(x2, w2).shape[0] == 1
     assert z_conv.conv_general(x2, w2, padding=(1, 1)).shape[0] == 1
     assert z_conv.conv_general(x2, w2, padding=((1, 1), (1, 1))).shape[0] == 1
+    assert z_conv.conv_general(x2, w2, padding=[1]).shape[0] == 1
 
     x3 = mx.ones((1, 3, 3, 3, 2))
     w3 = mx.ones((2, 2, 2, 2, 2))
     assert z_conv.conv3d(x3, w3).shape[0] == 1
+    assert z_conv.conv3d(mx.ones((1, 3, 3, 3, 4)), mx.ones((4, 2, 2, 2, 2)), groups=2).shape[0] == 1
     assert z_conv.conv_transpose3d(x3, w3).shape[0] == 1
+    assert (
+        z_conv.conv_transpose3d(
+            mx.ones((1, 3, 3, 3, 2)),
+            mx.ones((2, 2, 2, 2, 1)),
+            padding=1,
+            dilation=2,
+            output_padding=1,
+            groups=2,
+        ).shape[0]
+        == 1
+    )
     assert z_conv.conv_general(x3, w3).shape[0] == 1
+    assert z_conv.conv_general(x3, w3, stride=[1], kernel_dilation=[1]).shape[0] == 1
 
     assert z_conv.convolve(array([1.0, 2.0, 3.0]), array([1.0, 1.0]), mode="full").tolist() == [
         1.0,
@@ -757,10 +958,14 @@ def test_convolutions_and_linalg_and_fft() -> None:
     w_q_in = mx.ones((4, 64))
     q_aff = z_conv.quantize(w_q_in, group_size=64, bits=4, mode="affine")
     assert len(q_aff) == 3
-    q_nv = z_conv.quantize(w_q_in, group_size=32, bits=4, mode="nvfp4")
+    q_nv = z_conv.quantize(w_q_in, group_size=32, bits=4, mode="nvfp4", global_scale=array(1.0))
     assert len(q_nv) == 2
-    deq = z_conv.dequantize(q_aff[0], q_aff[1], q_aff[2])
-    assert deq.shape == q_aff[0].shape
+    assert len(z_conv.quantize(array(1.0), mode="affine")) == 3
+    assert len(z_conv.quantize(mx.ones((2, 5)), group_size=4, bits=6, mode="affine")) == 3
+    deq = z_conv.dequantize(q_aff[0], q_aff[1], q_aff[2], global_scale=array(1.0))
+    assert deq.shape == w_q_in.shape
+    assert z_conv.dequantize(array(1.0), array(1.0)).ndim == 0
+    assert z_conv.dequantize(w_q_in, mx.ones((4, 1))).shape == w_q_in.shape
     qmm = z_conv.quantized_matmul(mx.ones((2, 64)), q_aff[0], q_aff[1], q_aff[2])
     assert qmm.shape[0] == 2
     gqmm = z_conv.gather_qmm(
@@ -772,14 +977,28 @@ def test_convolutions_and_linalg_and_fft() -> None:
         rhs_indices=array([0, 1]),
     )
     assert gqmm.shape[0] == 2
-    assert z_conv.qqmm(mx.ones((2, 4)), mx.ones((3, 4))).shape == (2, 3)
+    assert z_conv.qqmm(
+        mx.ones((2, 4)), mx.ones((3, 4)), global_scale_x=array(1.0), global_scale_w=array(1.0)
+    ).shape == (2, 3)
+    assert z_conv.qqmm(
+        mx.ones((2, 64)), q_nv[0], scales=q_nv[1], group_size=32, bits=4, mode="nvfp4"
+    ).shape == (2, 4)
     assert z_conv.gather_qqmm(
-        mx.ones((2, 4)), mx.ones((3, 4)), lhs_indices=array([0]), rhs_indices=array([0, 1])
+        mx.ones((2, 4)),
+        mx.ones((3, 4)),
+        scales=mx.ones((3, 1)),
+        lhs_indices=array([0]),
+        rhs_indices=array([0, 1]),
     ).shape == (1, 2)
 
     m = array([[4.0, 1.0], [1.0, 3.0]])
     assert z_linalg.norm(m).ndim == 0
     assert z_linalg.matrix_norm(m).ndim == 0
+    for ord_val in (1, -1, 2, -2, float("inf"), float("-inf"), "nuc"):
+        assert z_linalg.matrix_norm(m, ord=ord_val).ndim == 0
+        assert z_linalg.matrix_norm(m, ord=ord_val, keepdims=True).shape == (1, 1)
+    with pytest.raises(ValueError):
+        z_linalg.matrix_norm(m, ord="bad")
     with pytest.raises(ValueError):
         z_linalg.matrix_norm(array([1.0, 2.0]))
     q_mat, r_mat = z_linalg.qr(m)
@@ -822,6 +1041,8 @@ def test_convolutions_and_linalg_and_fft() -> None:
     assert lu_f.shape == (2, 2) and piv_f.shape == (2,)
     assert z_linalg.lu_solve(lu_f, array([1.0, 2.0])).shape == (2,)
     assert z_linalg.lu_solve((lu_f, piv_f), array([1.0, 2.0])).shape == (2,)
+    with pytest.raises(ValueError):
+        z_linalg.lu_solve(array([1.0, 2.0]), array([1.0, 2.0]))
     assert z_linalg.solve(m, array([1.0, 2.0])).shape == (2,)
     assert z_linalg.solve_triangular(m, array([1.0, 2.0])).shape == (2,)
     assert z_linalg.det(m).ndim == 0
@@ -855,14 +1076,34 @@ def test_convolutions_and_linalg_and_fft() -> None:
     assert z_fft.ifftshift(sig1).shape == (4,)
     spec = z_fft.stft(mx.ones((16,)), n_fft=8, hop_length=4, norm="ortho")
     assert spec.shape[0] == 5
-    rec = z_fft.istft(spec, n_fft=8, hop_length=4)
+    spec_short = z_fft.stft(
+        array([1.0]),
+        n_fft=4,
+        hop_length=2,
+        win_length=2,
+        window=mx.ones((2,)),
+        center=False,
+        onesided=False,
+        norm="forward",
+    )
+    assert spec_short.shape[0] == 4
+    assert z_fft.stft(array([1.0]), n_fft=4, pad_mode="edge").shape[0] == 3
+    assert z_fft._pad_stft_signal(mx.ones((1, 4)), 0, "reflect").shape == (1, 4)
+    rec = z_fft.istft(spec, n_fft=8, hop_length=4, norm="ortho")
     assert rec.ndim == 1
-    rec_len = z_fft.istft(mx.ones((2, 5, 4)), length=12)
-    assert rec_len.shape == (2, 12)
+    rec_len = z_fft.istft(mx.ones((2, 5, 4)), length=2, norm="forward")
+    assert rec_len.shape == (2, 2)
+    rec_long = z_fft.istft(mx.ones((5, 1)), length=32, center=False, onesided=False)
+    assert rec_long.shape == (32,)
 
 
 def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
-    """Test remaining functions and edge cases in `ops.py` and `nn/*`."""
+    """Test remaining functions and edge cases in `ops.py` and `nn/*`.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     a = array([1.0, 2.0, 3.0])
     assert mx.asarray(a, copy=False) is a
     assert mx.asarray(a, dtype=mx.float32, copy=True).tolist() == [1.0, 2.0, 3.0]
@@ -881,7 +1122,16 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
     assert z_nn.gelu(a, "precise").shape == (3,)
 
     def _chk_id(*args: array, **kwargs: array) -> array:
-        """Identity function for checkpoint."""
+        """Identity function for checkpoint.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            First positional `array`.
+
+        """
         _ = kwargs
         return args[0]
 
@@ -1114,7 +1364,15 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
             self.seq = z_nn.Sequential(z_nn.Linear(4, 4))
 
         def __call__(self, x: array) -> array:
-            """Forward pass."""
+            """Forward pass.
+
+            Args:
+                x: Input tensor.
+
+            Returns:
+                Linear projection output `array`.
+
+            """
             return self.lin(x)
 
     sm = SubMod()
@@ -1140,7 +1398,7 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
     sm.load_weights({"lin.weight": sm.lin.weight})
     sm.load_weights([("lin.weight", sm.lin.weight)])
 
-    z_nn.quantize(sm, class_predicate=lambda k, m: True)
+    z_nn.quantize(sm, class_predicate=lambda k, m: {"group_size": 32, "bits": 4, "mode": "affine"})
     assert isinstance(sm.lin, z_nn.QuantizedLinear)
     assert isinstance(sm.emb, z_nn.QuantizedEmbedding)
     sm2 = SubMod()
@@ -1158,14 +1416,32 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
     assert z_nn.average_gradients({"w": array([1.0])}) == {"w": array([1.0])}
 
     def _loss1(*args: array | z_nn.Module, **kwargs: array) -> array:
-        """Loss taking input array."""
+        """Loss taking input array.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Scalar loss `array`.
+
+        """
         _ = kwargs
         if isinstance(args[0], array):
             return mx.sum(sm(args[0]))
         raise TypeError("Expected array")
 
     def _loss2(*args: array | z_nn.Module, **kwargs: array) -> array:
-        """Loss taking (model, x)."""
+        """Loss taking (model, x).
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Scalar loss `array`.
+
+        """
         _ = kwargs
         if isinstance(args[0], z_nn.Module) and len(args) > 1 and isinstance(args[1], array):
             res = args[0]._call_forward(args[1])
@@ -1173,7 +1449,16 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
         raise TypeError("Expected (Module, array)")
 
     def _chk_sm(*args: array, **kwargs: array) -> array:
-        """Checkpoint wrapper around sm."""
+        """Checkpoint wrapper around sm.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Module output `array`.
+
+        """
         _ = kwargs
         return sm(args[0])
 
@@ -1204,6 +1489,14 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
     assert z_nn.MaxPool3d(2, padding=1)(mx.ones((1, 4, 4, 4, 2))).shape == (1, 3, 3, 3, 2)
     assert z_nn.Upsample(size=4)(mx.ones((1, 2, 2, 2))).shape == (1, 4, 4, 2)
     assert z_nn.Upsample(scale_factor=(2.0, 2.0))(mx.ones((1, 2, 2, 2))).shape == (1, 4, 4, 2)
+    assert z_nn.Upsample(scale_factor=2.0, mode="linear", align_corners=True)(
+        mx.ones((1, 2, 2, 2))
+    ).shape == (1, 4, 4, 2)
+    assert z_nn.Upsample(scale_factor=2.0, mode="cubic", align_corners=False)(
+        mx.ones((1, 2, 2, 2))
+    ).shape == (1, 4, 4, 2)
+    assert z_nn.Upsample(size=3, mode="linear")(mx.ones((1, 1, 2))).shape == (1, 3, 2)
+    assert z_nn.Upsample(size=2, mode="linear")(mx.ones((1, 2, 2))).shape == (1, 2, 2)
     assert z_nn.Upsample(scale_factor=None, size=None)(mx.ones((1, 2, 2, 2))).shape == (1, 2, 2, 2)
 
     alibi = z_nn.ALiBi()

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import math
 from typing import Callable
 
-import numpy as np
-
+import zero_mlx as mx
 from zero_mlx.array import array
 import zero_mlx.nn as z_nn
 
@@ -15,7 +15,7 @@ def _test_module_shape(
     x_shape: tuple[int, ...],
     expected_shape: tuple[int, ...],
 ) -> None:
-    """Run normalization module `m` on a random input of `x_shape` and assert `expected_shape`.
+    """Run normalization module `m` on a deterministic input of `x_shape` and assert `expected_shape`.
 
     Args:
         m: Normalization `Module` to test.
@@ -23,9 +23,10 @@ def _test_module_shape(
         expected_shape: Expected output tensor shape.
 
     """
-    x = array(np.random.randn(*x_shape).astype(np.float32))
+    x = mx.linspace(-2.0, 2.0, math.prod(x_shape), dtype=mx.float32).reshape(x_shape)
     out = m(x)
     assert out.shape == expected_shape
+    assert bool(mx.all(mx.isfinite(out)).item()) is True
 
 
 def test_batchnorm() -> None:

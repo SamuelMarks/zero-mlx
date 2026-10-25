@@ -31,7 +31,12 @@ def _write_lines(path: pathlib.Path, lines: list[str]) -> None:
 
 
 def test_check_3rdparty_imports(tmp_path: pathlib.Path) -> None:
-    """Test `scripts/check_3rdparty_imports.py` across allowed, stdlib, and forbidden imports."""
+    """Test `scripts/check_3rdparty_imports.py` across allowed, stdlib, and forbidden imports.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     assert c3p.is_stdlib("") is True
     assert c3p.is_stdlib("os") is True
     assert c3p.is_stdlib("sys") is True
@@ -49,6 +54,7 @@ def test_check_3rdparty_imports(tmp_path: pathlib.Path) -> None:
         [
             '"""Good module."""',
             "import os",
+            "import zero_jax",
             "from . import sibling",
             "from pydantic import BaseModel",
             "import importlib",
@@ -64,6 +70,17 @@ def test_check_3rdparty_imports(tmp_path: pathlib.Path) -> None:
     assert c3p.check_file(str(good_file)) is True
     assert c3p.main([str(good_file)]) == 0
 
+    good_test_file = tmp_path / "test_good.py"
+    _write_lines(
+        good_test_file,
+        [
+            '"""Good test module."""',
+            "import pytest",
+            "import scripts.lint_pass",
+        ],
+    )
+    assert c3p.check_file(str(good_test_file)) is True
+
     bad_syntax = tmp_path / "bad_syntax.py"
     _write_lines(bad_syntax, ["def broken("])
     assert c3p.check_file(str(bad_syntax)) is False
@@ -76,6 +93,7 @@ def test_check_3rdparty_imports(tmp_path: pathlib.Path) -> None:
             "import requests",
             "from numpy import array",
             "from ml_switcheroo_compiler.backends.numpy.eager import np",
+            "t.numpy()",
             "__import__(x)",
             "__import__()",
             "import importlib",
@@ -93,7 +111,12 @@ def test_check_3rdparty_imports(tmp_path: pathlib.Path) -> None:
 
 
 def test_lint_typing(tmp_path: pathlib.Path) -> None:
-    """Test `scripts/lint_typing.py` across clean and violating files."""
+    """Test `scripts/lint_typing.py` across clean and violating files.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     assert ltype.scan_directory(str(tmp_path / "missing_dir")) == []
 
     clean_file = tmp_path / "clean.py"
@@ -136,6 +159,7 @@ def test_lint_typing(tmp_path: pathlib.Path) -> None:
             "import typing",
             f"x: Any = 1  # {p_nc}",
             "y: typing.Any = 2",
+            "Any = int",
             "def untyped(a, b: object):",
             '    getattr(a, "x")',
             "    typing.cast(int, a)",
@@ -149,7 +173,12 @@ def test_lint_typing(tmp_path: pathlib.Path) -> None:
 
 
 def test_check_docstrings(tmp_path: pathlib.Path) -> None:
-    """Test `scripts/check_docstrings.py` across documented and undocumented files."""
+    """Test `scripts/check_docstrings.py` across documented and undocumented files.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     assert cdoc.scan_path(str(tmp_path / "nonexistent")) == []
 
     good_file = tmp_path / "good_doc.py"
@@ -232,7 +261,12 @@ def test_check_docstrings(tmp_path: pathlib.Path) -> None:
 
 
 def test_lint_pass(tmp_path: pathlib.Path) -> None:
-    """Test `scripts/lint_pass.py` across valid and vacuous test files."""
+    """Test `scripts/lint_pass.py` across valid and vacuous test files.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     assert lpass.main(["--tests-dir", str(tmp_path / "missing")]) == 0
 
     good_test = tmp_path / "test_good.py"
@@ -306,6 +340,8 @@ def test_lint_pass(tmp_path: pathlib.Path) -> None:
             "        x = 2",
             "    except ValueError:",
             "        pass",
+            "def test_skipped() -> None:",
+            '    pytest.skip("skipped")',
         ],
     )
     errs = lpass.check_test_file_ast(str(bad_test))
@@ -315,7 +351,12 @@ def test_lint_pass(tmp_path: pathlib.Path) -> None:
 
 
 def test_generate_snapshot_and_parity(tmp_path: pathlib.Path) -> None:
-    """Test `generate_snapshot.py`, `check_api_parity.py`, and `check_api_snapshot.py`."""
+    """Test `generate_snapshot.py`, `check_api_parity.py`, and `check_api_snapshot.py`.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     refs = gsnap.collect_ghost_snapshot(include_nonpublic=False)
     assert isinstance(refs, dict)
 
@@ -396,7 +437,12 @@ def test_generate_snapshot_and_parity(tmp_path: pathlib.Path) -> None:
 
 
 def test_compiler_completeness_and_matrix_and_badges(tmp_path: pathlib.Path) -> None:
-    """Test `check_compiler_test_completeness.py`, `generate_api_matrix.py`, and `update_badges.py`."""
+    """Test `check_compiler_test_completeness.py`, `generate_api_matrix.py`, and `update_badges.py`.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+
+    """
     assert cctc.main([]) == 0
     tmp_track = tmp_path / "TRACK.md"
     with pytest.raises(SystemExit):

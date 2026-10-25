@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from zero_mlx.array import array
@@ -39,8 +38,8 @@ def test_module() -> None:
     assert "sub_param" in sub_dict
 
     m.update({"param": array([4, 5, 6]), "sub": {"sub_param": array([7, 8])}})
-    np.testing.assert_allclose(m.param.tolist(), [4, 5, 6])
-    np.testing.assert_allclose(m.sub.sub_param.tolist(), [7, 8])
+    assert m.param.tolist() == [4, 5, 6]
+    assert m.sub.sub_param.tolist() == [7, 8]
 
     m.eval()
     assert m.training is False
@@ -74,9 +73,15 @@ def test_module() -> None:
         _ = bm.nonexistent_attr
     with pytest.raises(KeyError):
         _ = bm["nonexistent_key"]
-    assert z_nn.Module()._call_forward(array([1.0])).item() == 0.0
+    with pytest.raises(NotImplementedError):
+        z_nn.Module()._call_forward(array([1.0]))
+    with pytest.raises(ValueError):
+        bm.update({"unknown_param": array([1.0])}, strict=True)
+    bm.update({"unknown_param": array([1.0])}, strict=False)
     bm.list_attr = [z_nn.Identity(), array([1.0])]
+    bm.dict_attr = {"id": z_nn.Identity(), "arr": array([1.0])}
     assert "list_attr.0" in bm._modules
+    assert "dict_attr.id" in bm._modules
 
 
 def test_identity() -> None:
@@ -84,7 +89,7 @@ def test_identity() -> None:
     id_layer = z_nn.Identity(1, 2, a=3)
     x = array([1, 2, 3])
     out = id_layer(x, 4, b=5)
-    np.testing.assert_allclose(out.tolist(), [1, 2, 3])
+    assert out.tolist() == [1, 2, 3]
 
 
 def test_sequential() -> None:
@@ -95,4 +100,4 @@ def test_sequential() -> None:
 
     x = array([1, 2, 3])
     out = seq(x, something=True)
-    np.testing.assert_allclose(out.tolist(), [2, 4, 6])
+    assert out.tolist() == [2, 4, 6]

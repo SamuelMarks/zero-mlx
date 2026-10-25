@@ -7,7 +7,75 @@ from typing import Sequence
 import ml_switcheroo_compiler.ops as sops
 
 from zero_mlx.array import array
+from zero_mlx.dtypes import float32, int32
 from zero_mlx.nn.base import Module
+import zero_mlx.ops as mx
+
+
+def _interp_1d_axis(
+    x: array,
+    n_out: int,
+    axis: int,
+    mode: str,
+    align_corners: bool,
+) -> array:
+    """Interpolate `x` along spatial dimension `axis` to length `n_out`.
+
+    Args:
+        x: Input `array`.
+        n_out: Target size along `axis`.
+        axis: Spatial dimension index (`1 <= axis < x.ndim - 1`).
+        mode: `'linear'` or `'cubic'`.
+        align_corners: Whether to align corner pixel centers.
+
+    Returns:
+        Interpolated `array`.
+
+    """
+    n_in = x.shape[axis]
+    if n_in == n_out:
+        return x
+    if n_in == 1:
+        return mx.repeat(x, n_out, axis=axis)
+
+    idx_out = mx.arange(n_out, dtype=float32)
+    src_pos = (
+        idx_out * (float(n_in - 1) / float(n_out - 1))
+        if (align_corners and n_out > 1)
+        else ((idx_out + 0.5) * (float(n_in) / float(n_out)) - 0.5)
+    )
+    bcast_shape = [n_out if i == axis else 1 for i in range(x.ndim)]
+
+    if mode == "linear":
+        clamped = mx.clip(src_pos, 0.0, float(n_in - 1))
+        i0 = mx.clip(mx.floor(clamped).astype(int32), 0, n_in - 1)
+        i1 = mx.clip(i0 + 1, 0, n_in - 1)
+        w1 = (clamped - i0.astype(float32)).reshape(tuple(bcast_shape))
+        v0 = mx.take(x, i0, axis=axis)
+        v1 = mx.take(x, i1, axis=axis)
+        return (v0 * (1.0 - w1) + v1 * w1).astype(x.dtype)
+
+    base = mx.floor(src_pos)
+    t = (src_pos - base).reshape(tuple(bcast_shape))
+    t2 = t * t
+    t3 = t2 * t
+    a: float = -0.75
+    w_m1 = a * t3 - (2.0 * a) * t2 + a * t
+    w_0 = (a + 2.0) * t3 - (a + 3.0) * t2 + 1.0
+    w_1 = -(a + 2.0) * t3 + (2.0 * a + 3.0) * t2 - a * t
+    w_2 = -a * t3 + a * t2
+
+    im1 = mx.clip((base - 1.0).astype(int32), 0, n_in - 1)
+    i0 = mx.clip(base.astype(int32), 0, n_in - 1)
+    i1 = mx.clip((base + 1.0).astype(int32), 0, n_in - 1)
+    i2 = mx.clip((base + 2.0).astype(int32), 0, n_in - 1)
+    res = (
+        mx.take(x, im1, axis=axis) * w_m1
+        + mx.take(x, i0, axis=axis) * w_0
+        + mx.take(x, i1, axis=axis) * w_1
+        + mx.take(x, i2, axis=axis) * w_2
+    )
+    return res.astype(x.dtype)
 
 
 class Upsample(Module):
@@ -80,8 +148,20 @@ class Upsample(Module):
         else:
             target_size = spatial_shape
 
-        out = sops.resize_nearest(x._tensor, size=target_size, align_corners=self.align_corners)
-        return array(out, dtype=x.dtype)
+        if self.mode == "nearest":
+            out = sops.resize_nearest(x._tensor, size=target_size, align_corners=self.align_corners)
+            return array(out, dtype=x.dtype)
+
+        res = x
+        for sp_idx, n_out in enumerate(target_size):
+            res = _interp_1d_axis(
+                res,
+                n_out,
+                axis=sp_idx + 1,
+                mode=self.mode,
+                align_corners=self.align_corners,
+            )
+        return res
 
 
 __all__ = ["Upsample"]

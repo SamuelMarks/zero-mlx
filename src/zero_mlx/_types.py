@@ -80,7 +80,7 @@ class DLPackCapsule:
 
 
 class ExternalDTypeProtocol(Protocol):
-    """Protocol for external data-type descriptors (such as `numpy.dtype`) exposing `.name`."""
+    """Protocol for external data-type descriptors exposing `.name`."""
 
     @property
     def name(self) -> str:
@@ -89,7 +89,7 @@ class ExternalDTypeProtocol(Protocol):
 
 @runtime_checkable
 class ArrayProtocol(Protocol):
-    """Protocol for external array-like objects (such as `numpy.ndarray`) exposing `.tolist()` and `.dtype`."""
+    """Protocol for external array-like objects exposing `.tolist()` and `.dtype`."""
 
     @property
     def dtype(self) -> str | DType | ExternalDTypeProtocol:

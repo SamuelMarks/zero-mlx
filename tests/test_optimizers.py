@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
+import zero_mlx as mx
 from zero_mlx._types import PyTree
 from zero_mlx.array import array
 from zero_mlx.nn.base import Module
@@ -208,13 +208,13 @@ def test_clip_grad_norm() -> None:
     assert pytest.approx(float(total_norm.item().real), rel=1e-4) == 5.0
     w_clipped = clipped["w"]
     assert isinstance(w_clipped, array)
-    np.testing.assert_allclose(w_clipped.tolist(), [1.5, 2.0], rtol=1e-4)
+    assert bool(mx.allclose(w_clipped, array([1.5, 2.0]), rtol=1e-4, atol=1e-4).item()) is True
 
     unchanged, norm2 = optimizers.clip_grad_norm(grads, max_norm=10.0)
     assert isinstance(unchanged, dict)
     w_unchanged = unchanged["w"]
     assert isinstance(w_unchanged, array)
-    np.testing.assert_allclose(w_unchanged.tolist(), [3.0, 4.0], rtol=1e-4)
+    assert bool(mx.allclose(w_unchanged, array([3.0, 4.0]), rtol=1e-4, atol=1e-4).item()) is True
     assert pytest.approx(float(norm2.item().real), rel=1e-4) == 5.0
 
 

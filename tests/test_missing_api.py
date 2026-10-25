@@ -11,7 +11,16 @@ def test_checkpoint_parity() -> None:
     """Test `mx.checkpoint` function wrapper."""
 
     def f(*args: array, **kwargs: array) -> array:
-        """Double input."""
+        """Double input.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Doubled `array`.
+
+        """
         _ = kwargs
         return args[0] * 2
 
@@ -34,25 +43,61 @@ def test_custom_function_parity() -> None:
 
     @mx.custom_function
     def my_f(*args: array, **kwargs: array) -> array:
-        """Double input."""
+        """Double input.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Doubled `array`.
+
+        """
         _ = kwargs
         return args[0] * 2
 
     @my_f.vjp
     def my_f_vjp(*args: array, **kwargs: array) -> array:
-        """Custom VJP rule."""
+        """Custom VJP rule.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            VJP gradient `array`.
+
+        """
         _ = kwargs
         return args[0] * 2
 
     @my_f.jvp
     def my_f_jvp(*args: array, **kwargs: array) -> array:
-        """Custom JVP rule."""
+        """Custom JVP rule.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            JVP tangent `array`.
+
+        """
         _ = kwargs
         return args[0] * 2
 
     @my_f.vmap
     def my_f_vmap(*args: array, **kwargs: array) -> array:
-        """Custom vmap rule."""
+        """Custom vmap rule.
+
+        Args:
+            *args: Positional array arguments.
+            **kwargs: Keyword array arguments.
+
+        Returns:
+            Vectorized `array`.
+
+        """
         _ = kwargs
         return args[0] * 2
 

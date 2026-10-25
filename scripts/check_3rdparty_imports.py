@@ -19,6 +19,12 @@ ALLOWED_3RD_PARTY: set[str] = {
     "zero_mlx",
 }
 
+ALLOWED_TEST_IMPORTS: set[str] = {
+    "pytest",
+    "scripts",
+    "tests",
+}
+
 FALLBACK_STDLIB: set[str] = {
     "__future__",
     "abc",
@@ -149,6 +155,21 @@ def _is_dynamic_import_call(func: ast.expr) -> bool:
     return False
 
 
+def _is_test_file(filepath: str) -> bool:
+    """Return True if `filepath` is inside a `tests` directory or starts with `test_`.
+
+    Args:
+        filepath: Path of the file being checked.
+
+    Returns:
+        True if `filepath` is a test file, False otherwise.
+
+    """
+    norm: str = filepath.replace("\\", "/")
+    parts: list[str] = norm.split("/")
+    return "tests" in parts or parts[-1].startswith("test_")
+
+
 def _check_module_allowed(module_name: str, filepath: str, lineno: int, errors: list[str]) -> None:
     """Verify a single imported module name against the allowed set and stdlib.
 
@@ -163,6 +184,10 @@ def _check_module_allowed(module_name: str, filepath: str, lineno: int, errors: 
     if "backends.numpy" in module_name:
         errors.append(f"{filepath}:{lineno}: Forbidden 3rd-party backend import '{module_name}'")
         return
+    if base_name.startswith("zero_"):
+        return
+    if _is_test_file(filepath) and base_name in ALLOWED_TEST_IMPORTS:
+        return
     if base_name not in ALLOWED_3RD_PARTY and not is_stdlib(base_name):
         errors.append(
             f"{filepath}:{lineno}: Forbidden 3rd-party import '{base_name}' (from '{module_name}')"
@@ -170,13 +195,13 @@ def _check_module_allowed(module_name: str, filepath: str, lineno: int, errors: 
 
 
 def check_file(filepath: str) -> bool:
-    """Check a single Python file for forbidden third-party imports.
+    """Check a single Python file for forbidden third-party imports and `.numpy()` calls.
 
     Args:
         filepath: Path to the Python source file to inspect.
 
     Returns:
-        True if the file contains only allowed imports, False otherwise.
+        True if the file contains only allowed imports and calls, False otherwise.
 
     """
     with open(filepath, encoding="utf-8") as f:
@@ -194,6 +219,12 @@ def check_file(filepath: str) -> bool:
         elif isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:
                 _check_module_allowed(node.module, filepath, node.lineno, errors)
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "numpy"
+        ):
+            errors.append(f"{filepath}:{node.lineno}: Forbidden '.numpy()' backend bridge call")
         elif isinstance(node, ast.Call) and _is_dynamic_import_call(node.func):
             module_val = _extract_dynamic_arg(node)
             if module_val is not None:

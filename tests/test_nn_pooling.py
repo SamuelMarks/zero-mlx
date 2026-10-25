@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import math
 from typing import Callable
 
-import numpy as np
+import pytest
 
+import zero_mlx as mx
 from zero_mlx.array import array
 import zero_mlx.nn as z_nn
 
@@ -23,9 +25,11 @@ def _test_module_shape(
         expected_shape: Expected output tensor shape.
 
     """
-    x = array(np.random.randn(*x_shape).astype(np.float32))
+    x = mx.linspace(0.0, 4.0, math.prod(x_shape), dtype=mx.float32).reshape(x_shape)
     out = m(x)
     assert out.shape == expected_shape
+    assert bool(mx.all(mx.isfinite(out)).item()) is True
+    assert float(mx.min(out).item().real) >= -1.0 and float(mx.max(out).item().real) <= 5.0
 
 
 def test_maxpool1d() -> None:
@@ -78,8 +82,6 @@ def test_avgpool3d() -> None:
 
 def test_upsample() -> None:
     """Test `Upsample` with `scale_factor=2.0` and validation errors."""
-    import pytest
-
     m = z_nn.Upsample(scale_factor=2.0)
     _test_module_shape(m, (2, 2, 2, 3), (2, 4, 4, 3))
     with pytest.raises(ValueError):
@@ -87,6 +89,6 @@ def test_upsample() -> None:
     with pytest.raises(ValueError):
         m(array([1.0, 2.0]))
     with pytest.raises(ValueError):
-        z_nn.Upsample(size=(4, 4, 4))(array(np.ones((2, 2, 2, 3), dtype=np.float32)))
+        z_nn.Upsample(size=(4, 4, 4))(mx.ones((2, 2, 2, 3), dtype=mx.float32))
     with pytest.raises(ValueError):
-        z_nn.Upsample(scale_factor=(2.0, 2.0, 2.0))(array(np.ones((2, 2, 2, 3), dtype=np.float32)))
+        z_nn.Upsample(scale_factor=(2.0, 2.0, 2.0))(mx.ones((2, 2, 2, 3), dtype=mx.float32))

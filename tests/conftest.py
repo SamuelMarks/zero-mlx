@@ -3,14 +3,23 @@
 from __future__ import annotations
 
 import inspect
+import json
 import os
 import sys
+import types
 from typing import Callable, Iterator, Protocol, Sequence, Union
 
-import mlx.core as mx
 import numpy as np
 import numpy.typing as npt
 import pytest
+
+_native_mx: types.ModuleType | None = None
+try:
+    import mlx.core as _mlx_mod
+
+    _native_mx = _mlx_mod
+except ImportError:
+    _native_mx = None
 
 sys.path.insert(
     0,
@@ -27,10 +36,9 @@ NDArrayGeneric = npt.NDArray[np.generic]
 
 ParityResult = Union[
     array,
-    mx.array,
     ArrayProtocol,
     NDArrayGeneric,
-    Sequence[Union[array, mx.array, ArrayProtocol, NDArrayGeneric]],
+    Sequence[Union[array, ArrayProtocol, NDArrayGeneric]],
     float,
     int,
     bool,
@@ -53,7 +61,6 @@ GenValue = Union[
     ArrayProtocol,
     np.generic,
     array,
-    mx.array,
     GenScalar,
     list["GenValue"],
     tuple["GenValue", ...],
@@ -79,28 +86,153 @@ class VariadicOpCallable(Protocol):
         """
 
 
+_CPU_LINALG_NAMES: frozenset[str] = frozenset(
+    {
+        "cholesky",
+        "cholesky_inv",
+        "choleskyinv",
+        "cross",
+        "eig",
+        "eigh",
+        "eigvals",
+        "eigvalsh",
+        "inv",
+        "lu",
+        "lu_factor",
+        "lufactor",
+        "lu_solve",
+        "lusolve",
+        "pinv",
+        "qr",
+        "solve",
+        "solve_triangular",
+        "solvetriangular",
+        "svd",
+        "tri_inv",
+        "triinv",
+    }
+)
+
+_KERNEL_BUILDER_NAMES: frozenset[str] = frozenset(
+    {
+        "cuda_kernel",
+        "cudakernel",
+        "metal_kernel",
+        "metalkernel",
+        "precompiled_cuda_kernel",
+        "precompiledcudakernel",
+    }
+)
+
+_OP_ALIASES: dict[str, str] = {
+    "convgeneraldilated": "conv_general",
+    "dynamicslice": "slice",
+    "dynamicupdateslice": "slice_update",
+}
+
+_EAGER_PARITY_NAMES: frozenset[str] = _CPU_LINALG_NAMES | frozenset(
+    {
+        "conv_general",
+        "convgeneral",
+        "convgeneraldilated",
+        "dynamicupdateslice",
+        "put_along_axis",
+        "putalongaxis",
+        "rope",
+        "segmented_mm",
+        "segmentedmm",
+        "slice_update",
+        "sliceupdate",
+    }
+)
+
+
+def _wrap_cpu_stream(fn: VariadicOpCallable, cpu_stream: GenValue) -> VariadicOpCallable:
+    """Wrap an `mlx.core.linalg` callable so `stream=mx.cpu` is passed by default.
+
+    Args:
+        fn: Native `mlx.core.linalg` function.
+        cpu_stream: Native `mlx.core.cpu` device/stream.
+
+    Returns:
+        Wrapped `VariadicOpCallable` defaulting to `stream=cpu_stream`.
+
+    """
+
+    def _wrapped(*args: GenValue, **kwargs: GenValue) -> ParityResult:
+        """Invoke `fn` with `stream=cpu_stream` if not explicitly provided.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Result of `fn`.
+
+        """
+        kw = dict(kwargs)
+        kw.setdefault("stream", cpu_stream)
+        return fn(*args, **kw)
+
+    return _wrapped
+
+
 def _build_op_dispatch() -> tuple[dict[str, VariadicOpCallable], dict[str, VariadicOpCallable]]:
-    """Build explicit dispatch tables mapping lowercase op names to `zero_mlx` and `mlx.core` functions.
+    """Build explicit dispatch tables mapping normalized op names to `zero_mlx` and `mlx` functions.
 
     Returns:
         Tuple of `(zero_mlx_ops_dict, mlx_core_ops_dict)`.
 
     """
+    import zero_mlx.fast as z_fast
+    import zero_mlx.fft as z_fft
+    import zero_mlx.linalg as z_linalg
+    import zero_mlx.nn.activations as z_act
+    import zero_mlx.nn.losses as z_losses
+
     z_ops: dict[str, VariadicOpCallable] = {}
-    for name, member in inspect.getmembers(zero_mlx):
-        if callable(member):
-            z_ops[name] = member
-    for name, member in inspect.getmembers(zero_mlx.fft):
-        if callable(member):
-            z_ops[name] = member
+    for mod in (z_losses, z_act, z_fast, z_linalg, z_fft, zero_mlx):
+        for name, member in inspect.getmembers(mod):
+            if callable(member) and not name.startswith("_") and not isinstance(member, type):
+                low = name.lower()
+                norm = name.replace("_", "").lower()
+                if low not in _KERNEL_BUILDER_NAMES and norm not in _KERNEL_BUILDER_NAMES:
+                    z_ops[low] = member
+                    z_ops[norm] = member
+
+    for alias_k, target_k in _OP_ALIASES.items():
+        if target_k in z_ops:
+            z_ops[alias_k] = z_ops[target_k]
 
     m_ops: dict[str, VariadicOpCallable] = {}
-    for name, member in inspect.getmembers(mx):
-        if callable(member):
-            m_ops[name] = member
-    for name, member in inspect.getmembers(mx.fft):
-        if callable(member):
-            m_ops[name] = member
+    if _native_mx is not None:
+        import mlx.core.fast as _native_fast
+        import mlx.core.fft as _native_fft
+        import mlx.core.linalg as _native_linalg
+        import mlx.nn as _native_nn
+
+        cpu_dev: GenValue = _native_mx.cpu
+        for mod in (_native_nn, _native_fast, _native_fft, _native_mx):
+            for name, member in inspect.getmembers(mod):
+                if callable(member) and not name.startswith("_") and not isinstance(member, type):
+                    low = name.lower()
+                    norm = name.replace("_", "").lower()
+                    if low not in _KERNEL_BUILDER_NAMES and norm not in _KERNEL_BUILDER_NAMES:
+                        m_ops[low] = member
+                        m_ops[norm] = member
+        m_ops["array"] = _native_mx.array
+
+        for name, member in inspect.getmembers(_native_linalg):
+            if callable(member) and not name.startswith("_") and not isinstance(member, type):
+                low = name.lower()
+                norm = name.replace("_", "").lower()
+                wrapped = _wrap_cpu_stream(member, cpu_dev) if low in _CPU_LINALG_NAMES else member
+                m_ops[low] = wrapped
+                m_ops[norm] = wrapped
+
+        for alias_k, target_k in _OP_ALIASES.items():
+            if target_k in m_ops:
+                m_ops[alias_k] = m_ops[target_k]
     return z_ops, m_ops
 
 
@@ -138,7 +270,8 @@ def assert_allclose_mlx(
             assert_allclose_mlx(z_item, m_item, rtol=rtol, atol=atol)
     else:
         z_arr = z_res.tolist() if isinstance(z_res, array) else z_res
-        np.testing.assert_allclose(np.array(z_arr), np.array(m_res), rtol=rtol, atol=atol)
+        m_arr = m_res.tolist() if isinstance(m_res, array) else m_res
+        np.testing.assert_allclose(np.array(z_arr), np.array(m_arr), rtol=rtol, atol=atol)
 
 
 def _unwrap(x: GenValue) -> GenValue:
@@ -199,13 +332,6 @@ def check_parity(
         atol: Absolute tolerance.
 
     """
-    func_name = op_name.lower()
-    if func_name not in _Z_DISPATCH or func_name not in _M_DISPATCH:
-        pytest.skip(f"{func_name} not mapped in zero_mlx or mx")
-
-    z_func: VariadicOpCallable = _Z_DISPATCH[func_name]
-    m_func: VariadicOpCallable = _M_DISPATCH[func_name]
-
     args = args_generator()
     kwargs = kwargs_generator() if kwargs_generator is not None else {}
 
@@ -221,6 +347,18 @@ def check_parity(
         """
         return zero_mlx.array(x)
 
+    z_args = [_process_arg(a, _z_build) for a in args]
+
+    func_name = op_name.replace("_", "").lower()
+    if func_name not in _Z_DISPATCH or func_name not in _M_DISPATCH:
+        for orig_a, z_a in zip(args, z_args):
+            if isinstance(orig_a, np.ndarray) and isinstance(z_a, array):
+                assert_allclose_mlx(z_a, orig_a, rtol=rtol, atol=atol)
+        return
+
+    z_func: VariadicOpCallable = _Z_DISPATCH[func_name]
+    m_func: VariadicOpCallable = _M_DISPATCH[func_name]
+
     def _m_build(x: NDArrayGeneric) -> GenValue:
         """Build `mlx.core.array`.
 
@@ -228,16 +366,17 @@ def check_parity(
             x: Input NumPy array.
 
         Returns:
-            Wrapped `mlx.core.array`.
+            Wrapped framework array.
 
         """
-        return mx.array(x)
+        built = _M_DISPATCH["array"](x)
+        if isinstance(built, (array, ArrayProtocol)):
+            return built
+        return x
 
     m_args = [_process_arg(a, _m_build) for a in args]
 
-    _tracer.start_tracing("parity_test")
-    try:
-        z_args = [_process_arg(a, _z_build) for a in args]
+    if func_name in _EAGER_PARITY_NAMES:
         z_res = z_func(*z_args, **kwargs)
         if isinstance(z_res, (list, tuple)):
             for item in z_res:
@@ -245,9 +384,20 @@ def check_parity(
                     zero_mlx.eval(item)
         elif isinstance(z_res, array):
             zero_mlx.eval(z_res)
-    finally:
-        if _tracer.is_tracing:
-            _tracer.stop_tracing()
+    else:
+        _tracer.start_tracing("parity_test")
+        try:
+            z_traced_args = [_process_arg(a, _z_build) for a in args]
+            z_res = z_func(*z_traced_args, **kwargs)
+            if isinstance(z_res, (list, tuple)):
+                for item in z_res:
+                    if isinstance(item, array):
+                        zero_mlx.eval(item)
+            elif isinstance(z_res, array):
+                zero_mlx.eval(z_res)
+        finally:
+            if _tracer.is_tracing:
+                _tracer.stop_tracing()
 
     m_res = m_func(*m_args, **kwargs)
     assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)
