@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from tests.conftest import check_parity
+from tests.conftest import check_parity, np
 
 
 def test_Bitcast_parity() -> None:
@@ -900,7 +899,7 @@ def test_Partition_parity() -> None:
     z_out = zero_mlx.partition(zero_mlx.array(arr_np), 2)
     m_vals = np.partition(arr_np, 2)
     z_vals = np.array(z_out.tolist())
-    assert z_vals[2] == pytest.approx(m_vals[2])
+    assert z_vals[2].item() == pytest.approx(m_vals[2].item())
     assert np.all(z_vals[:2] <= z_vals[2])
     assert np.all(z_vals[2:] >= z_vals[2])
     np.testing.assert_allclose(np.sort(z_vals), np.sort(m_vals))

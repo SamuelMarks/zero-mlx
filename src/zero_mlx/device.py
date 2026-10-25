@@ -68,6 +68,8 @@ gpu: DeviceType = DeviceType.gpu
 class Device:
     """Representation of a specific compute device and index."""
 
+    index: int = 0
+
     def __init__(
         self, type: DeviceType | Device | str | int = DeviceType.cpu, index: int = 0
     ) -> None:
@@ -82,20 +84,40 @@ class Device:
 
         """
         if isinstance(type, Device):
-            self.type: DeviceType = type.type
+            self._type: DeviceType = type.type
             self.index: int = type.index
         elif isinstance(type, DeviceType):
-            self.type = type
+            self._type = type
             self.index = index
         elif isinstance(type, str):
             clean = type.lower()
             if clean in ("cpu", "gpu"):
-                self.type = DeviceType(clean)
+                self._type = DeviceType(clean)
                 self.index = index
             else:
                 raise ValueError(f"Invalid device type: {type}")
         else:
             raise ValueError(f"Invalid device type: {type}")
+
+    @property
+    def type(self) -> DeviceType:
+        """Return the `DeviceType` of this device.
+
+        Returns:
+            `DeviceType` (`DeviceType.cpu` or `DeviceType.gpu`).
+
+        """
+        return self._type
+
+    @type.setter
+    def type(self, value: DeviceType) -> None:
+        """Set the `DeviceType` of this device.
+
+        Args:
+            value: New `DeviceType` value.
+
+        """
+        self._type = value
 
     def __eq__(self, other: object) -> bool:
         """Compare equality against another `Device` or `DeviceType`.
@@ -144,6 +166,8 @@ class Device:
 class Stream:
     """A stream for running operations on a given device."""
 
+    index: int = 0
+
     def __init__(self, device: Device | DeviceType = cpu, index: int = 0) -> None:
         """Initialize a `Stream` bound to a specific device.
 
@@ -152,9 +176,29 @@ class Stream:
             index: Stream identifier index.
 
         """
-        self.device: Device = device if isinstance(device, Device) else Device(device, 0)
+        self._device: Device = device if isinstance(device, Device) else Device(device, 0)
         self.index: int = index
-        self.old_device: Device = self.device
+        self.old_device: Device = self._device
+
+    @property
+    def device(self) -> Device:
+        """Return the `Device` associated with this stream.
+
+        Returns:
+            Associated `Device` instance.
+
+        """
+        return self._device
+
+    @device.setter
+    def device(self, value: Device) -> None:
+        """Set the `Device` associated with this stream.
+
+        Args:
+            value: Target `Device` instance.
+
+        """
+        self._device = value
 
     def __enter__(self) -> Stream:
         """Enter the stream context and set its device as default.
@@ -273,14 +317,14 @@ def default_stream(device: Device | DeviceType | str | None = None) -> Stream:
     return _default_streams.get(dev.type, Stream(dev, 0))
 
 
-def set_default_stream(s: Stream) -> None:
+def set_default_stream(stream: Stream) -> None:
     """Set the default stream for the stream's device.
 
     Args:
-        s: The `Stream` to register as default.
+        stream: The `Stream` to register as default.
 
     """
-    _default_streams[s.device.type] = s
+    _default_streams[stream.device.type] = stream
 
 
 def new_stream(device: Device | DeviceType | str | None = None) -> Stream:
@@ -354,14 +398,14 @@ def stream(s: Stream | Device | DeviceType | str) -> StreamContext:
     return StreamContext(dev, 0)
 
 
-def synchronize(stream_arg: Stream | Device | DeviceType | None = None) -> None:
+def synchronize(stream: Stream | Device | DeviceType | None = None) -> None:
     """Synchronize the given stream (or the default stream if None).
 
     Args:
-        stream_arg: Optional `Stream` or `Device` to synchronize.
+        stream: Optional `Stream` or `Device` to synchronize.
 
     """
-    _ = stream_arg
+    _ = stream
 
 
 def clear_streams() -> None:
@@ -370,17 +414,17 @@ def clear_streams() -> None:
     _stream_counter = 1
 
 
-def is_available(device_type: Device | DeviceType | str = gpu) -> bool:
+def is_available(device: Device | DeviceType | str = gpu) -> bool:
     """Check whether a given device type is available.
 
     Args:
-        device_type: Device or device type to query.
+        device: Device or device type to query.
 
     Returns:
         True if the device is available.
 
     """
-    _ = device_type
+    _ = device
     return True
 
 

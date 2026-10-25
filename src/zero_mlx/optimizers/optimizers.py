@@ -57,6 +57,10 @@ def _resolve_lr(lr: LearningRateOrSchedule | None, step: int = 0) -> float:
 class Optimizer:
     """Base class for all `zero_mlx` first-order optimizers."""
 
+    state: dict[str, StateDict] = {}
+    step: int = 0
+    learning_rate: LearningRateOrSchedule | None = 0.01
+
     def __init__(self, schedulers: dict[str, ScheduleFn] | list[ScheduleFn] | None = None) -> None:
         """Initialize the base `Optimizer`.
 
@@ -68,6 +72,16 @@ class Optimizer:
         self.state: dict[str, StateDict] = {}
         self.step: int = 0
 
+    def init_single(self, parameter: array, state: StateDict) -> None:
+        """Initialize optimizer state for a single parameter `array`.
+
+        Args:
+            parameter: Parameter `array` to initialize state for.
+            state: Mutable state dictionary for `parameter`.
+
+        """
+        _ = (parameter, state)
+
     def init(self, parameters: PyTree) -> None:
         """Initialize optimizer state for a parameter PyTree.
 
@@ -76,8 +90,10 @@ class Optimizer:
 
         """
         flat = tree_flatten(parameters)
-        for k, _ in flat if isinstance(flat, list) else []:
-            self.state.setdefault(k, {})
+        for k, v in flat if isinstance(flat, list) else []:
+            st = self.state.setdefault(k, {})
+            if isinstance(v, array):
+                self.init_single(v, st)
 
     def apply_single(
         self, gradient: array, parameter: array, state: StateDict
@@ -701,7 +717,7 @@ class MultiOptimizer(Optimizer):
     def __init__(
         self,
         optimizers: Sequence[Optimizer],
-        filters: Sequence[FilterFn] = (),
+        filters: Sequence[FilterFn] = [],
     ) -> None:
         """Initialize `MultiOptimizer`.
 

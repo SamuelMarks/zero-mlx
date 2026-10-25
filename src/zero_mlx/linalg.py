@@ -243,23 +243,26 @@ def cholesky(
 
 
 def cholesky_inv(
-    a: ArrayInput,
+    L: ArrayInput = 0.0,
     upper: bool = False,
     *,
+    a: ArrayInput | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
-    """Compute the inverse of a symmetric positive-definite matrix from its Cholesky factor `a`.
+    """Compute the inverse of a symmetric positive-definite matrix from its Cholesky factor `L`.
 
     Args:
-        a: Cholesky factor (`L` or `U`).
-        upper: True if `a` is upper triangular, False if lower triangular.
+        L: Cholesky factor (`L` or `U`).
+        upper: True if `L` is upper triangular, False if lower triangular.
+        a: Optional alias for `L`.
         stream: Optional execution stream or device.
 
     Returns:
         Inverse of the original positive-definite matrix.
 
     """
-    t_inv = tri_inv(a, upper=upper, stream=stream)
+    target_l = a if a is not None else L
+    t_inv = tri_inv(target_l, upper=upper, stream=stream)
     return (t_inv @ t_inv.T) if upper else (t_inv.T @ t_inv)
 
 

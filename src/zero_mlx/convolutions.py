@@ -972,6 +972,7 @@ def gather_qmm(
     bits: int | None = None,
     mode: str = "affine",
     *,
+    global_scale: ArrayInput | None = None,
     sorted_indices: bool = False,
     stream: StreamOrDevice = None,
 ) -> array:
@@ -988,6 +989,7 @@ def gather_qmm(
         group_size: Quantization group size.
         bits: Bits per quantized element.
         mode: Quantization mode.
+        global_scale: Optional global scale factor.
         sorted_indices: Whether `rhs_indices` are pre-sorted.
         stream: Optional stream or device.
 
@@ -995,7 +997,7 @@ def gather_qmm(
         Gathered quantized matmul `array`.
 
     """
-    _ = sorted_indices
+    _ = (global_scale, sorted_indices)
     x_arr = _as_array(x)
     w_arr = _as_array(w)
     s_arr = _as_array(scales)
@@ -1038,6 +1040,7 @@ def qqmm(
     global_scale_x: ArrayInput | None = None,
     global_scale_w: ArrayInput | None = None,
     *,
+    global_scale: ArrayInput | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Perform double-quantized matrix multiplication (`qqmm`) of `x` and `w`.
@@ -1051,15 +1054,17 @@ def qqmm(
         mode: Quantization mode (`'nvfp4'` or `'mxfp8'`).
         global_scale_x: Optional global scale for `x`.
         global_scale_w: Optional global scale for `w`.
+        global_scale: Optional alias for `global_scale_x`.
         stream: Optional stream or device.
 
     Returns:
         Matrix product `array`.
 
     """
+    eff_gs_x = global_scale if global_scale is not None else global_scale_x
     x_arr = _as_array(x).astype(float32)
-    if global_scale_x is not None:
-        x_arr = x_arr / _as_array(global_scale_x).astype(float32)
+    if eff_gs_x is not None:
+        x_arr = x_arr / _as_array(eff_gs_x).astype(float32)
     w_raw = _as_array(w)
     w_arr = (
         dequantize(

@@ -10,6 +10,8 @@ from zero_mlx.dtypes import float32, int32
 from zero_mlx.nn.activations import log_softmax, sigmoid, softmax
 import zero_mlx.ops as mx
 
+Reduction = LossReduction
+
 
 def _as_array(x: ArrayInput) -> array:
     """Convert `x` to a `zero_mlx.array`.
@@ -456,6 +458,7 @@ def triplet_loss(
 
 
 __all__ = [
+    "Reduction",
     "binary_cross_entropy",
     "cosine_similarity_loss",
     "cross_entropy",

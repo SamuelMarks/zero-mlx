@@ -164,6 +164,8 @@ def test_lint_typing(tmp_path: pathlib.Path) -> None:
             '    getattr(a, "x")',
             "    typing.cast(int, a)",
             "    _ = a.__dict__",
+            "def __getattr__(self: int, k: str) -> int:",
+            "    return 1",
         ],
     )
     violations = ltype.scan_directory(str(tmp_path))
@@ -364,7 +366,7 @@ def test_generate_snapshot_and_parity(tmp_path: pathlib.Path) -> None:
     _write_lines(
         eco_file,
         [
-            '{"categories": {"array_api": [{"name": "add", "api_path": "mlx.core.add", "kind": "function", "params": [{"name": "a"}, "bad_param"], "docstring": ""}, {"name": "no_dot", "api_path": "nodot"}, {"name": "missing_sym", "api_path": "mlx.core.missing_sym", "kind": "function", "params": "not_a_list", "docstring": "Doc"}]}}'
+            '{"categories": {"array_api": [{"name": "add", "api_path": "mlx.core.add", "kind": "function", "params": [{"name": "a", "kind": "POSITIONAL_OR_KEYWORD"}], "aliases": ["mlx.core.missing_alias_xyz"], "docstring": ""}, {"name": "abs", "api_path": "mlx.core.abs", "kind": "function", "params": "bad_params_not_list", "docstring": "Doc"}, {"name": "bad_p", "api_path": "mlx.unknown.bad_p", "kind": "function", "params": [{"name": "a"}, "bad_param"], "docstring": ""}, {"name": "no_dot", "api_path": "nodot"}, {"name": "missing_sym", "api_path": "mlx.core.missing_sym", "kind": "function", "params": "not_a_list", "docstring": "Doc"}]}}'
         ],
     )
     out_snap = tmp_path / "snap.json"
@@ -434,6 +436,98 @@ def test_generate_snapshot_and_parity(tmp_path: pathlib.Path) -> None:
     assert cas.main([]) == 0
     with pytest.raises(SystemExit):
         cas.main([str(tmp_path / "nonexistent.json")])
+
+    import importlib.util
+    import zero_mlx as z_mlx_mod
+    from ml_switcheroo_ir.schema.ghost import GhostParam, GhostRef, ParameterKind
+
+    undoc_path = tmp_path / "zero_mlx_test_undoc.py"
+    _write_lines(undoc_path, ["x: int = 1"])
+    spec_u = importlib.util.spec_from_file_location("zero_mlx_test_undoc", str(undoc_path))
+    assert spec_u is not None and spec_u.loader is not None
+    undoc_mod = importlib.util.module_from_spec(spec_u)
+    spec_u.loader.exec_module(undoc_mod)
+    assert (
+        cas.verify_module_hierarchy(
+            (
+                ("zero_mlx", z_mlx_mod),
+                ("zero_mlx_test_undoc", undoc_mod),
+                ("zero_mlx_nonexistent_mod_xyz", None),
+            )
+        )
+        == 2
+    )
+
+    fake_mod_path = tmp_path / "fake_mlx_mod.py"
+    _write_lines(
+        fake_mod_path,
+        [
+            '"""Fake module for testing verify_ghost_ref_signature."""',
+            "class DummyCls:",
+            '    """Doc."""',
+            "    existing_attr: int = 1",
+            "    def __init__(self, typed_arg: int, untyped_arg) -> None:",
+            '        """Doc."""',
+            "        _ = (typed_arg, untyped_arg)",
+            "def dummy_fn(typed_arg: int, **kwargs: int) -> int:",
+            '    """Doc."""',
+            "    _ = kwargs",
+            "    return typed_arg",
+            "def undoc_fn(untyped_arg) -> None:",
+            "    _ = untyped_arg",
+        ],
+    )
+    spec_f = importlib.util.spec_from_file_location("fake_mlx_mod", str(fake_mod_path))
+    assert spec_f is not None and spec_f.loader is not None
+    fake_mod = importlib.util.module_from_spec(spec_f)
+    spec_f.loader.exec_module(fake_mod)
+
+    assert (
+        cas.verify_class_members(
+            {"mlx.core": fake_mod},
+            {
+                ("mlx.missing", "X"): ("a",),
+                ("mlx.core", "MissingCls"): ("a",),
+                ("mlx.core", "DummyCls"): ("existing_attr", "missing_attr"),
+            },
+        )
+        == 1
+    )
+
+    ref_missing = GhostRef(name="absent", api_path="mlx.core.absent", kind="function")
+    assert cas.verify_ghost_ref_signature(ref_missing, fake_mod) == 1
+
+    ref_kind1 = GhostRef(name="dummy_fn", api_path="mlx.core.dummy_fn", kind="class")
+    assert cas.verify_ghost_ref_signature(ref_kind1, fake_mod) == 1
+
+    ref_kind2 = GhostRef(
+        name="DummyCls",
+        api_path="mlx.core.DummyCls",
+        kind="function",
+        params=[
+            GhostParam(name="args", kind=ParameterKind.VAR_POSITIONAL),
+            GhostParam(name="typed_arg", kind=ParameterKind.POSITIONAL_OR_KEYWORD),
+            GhostParam(name="untyped_arg", kind=ParameterKind.POSITIONAL_OR_KEYWORD),
+            GhostParam(name="missing_param", kind=ParameterKind.POSITIONAL_OR_KEYWORD),
+        ],
+    )
+    assert cas.verify_ghost_ref_signature(ref_kind2, fake_mod) == 3
+
+    ref_undoc = GhostRef(
+        name="undoc_fn",
+        api_path="mlx.core.undoc_fn",
+        kind="function",
+        params=[GhostParam(name="missing_p", kind=ParameterKind.POSITIONAL_OR_KEYWORD)],
+    )
+    assert cas.verify_ghost_ref_signature(ref_undoc, fake_mod) == 2
+
+    ref_varkw = GhostRef(
+        name="dummy_fn",
+        api_path="mlx.core.dummy_fn",
+        kind="function",
+        params=[GhostParam(name="extra_kw", kind=ParameterKind.POSITIONAL_OR_KEYWORD)],
+    )
+    assert cas.verify_ghost_ref_signature(ref_varkw, fake_mod) == 0
 
 
 def test_compiler_completeness_and_matrix_and_badges(tmp_path: pathlib.Path) -> None:

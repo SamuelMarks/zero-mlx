@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import Callable
 
 from zero_mlx.array import array
 from zero_mlx.mlx_random import uniform
@@ -18,7 +19,7 @@ class RNN(Module):
         input_size: int,
         hidden_size: int,
         bias: bool = True,
-        nonlinearity: str = "tanh",
+        nonlinearity: Callable[[array], array] | str | None = None,
     ) -> None:
         """Initialize `RNN`.
 
@@ -26,13 +27,15 @@ class RNN(Module):
             input_size: Number of expected features in the input `x`.
             hidden_size: Number of features in the hidden state `h`.
             bias: If False, the layer does not use bias weights `bias_ih` and `bias_hh`.
-            nonlinearity: Nonlinearity to use (`'tanh'` or `'relu'`).
+            nonlinearity: Nonlinearity callable or string (`'tanh'`, `'relu'`, or None defaulting to `tanh`).
 
         """
         super().__init__()
         self.input_size: int = input_size
         self.hidden_size: int = hidden_size
-        self.nonlinearity: str = nonlinearity
+        self.nonlinearity: Callable[[array], array] | str = (
+            "tanh" if nonlinearity is None else nonlinearity
+        )
         scale: float = math.sqrt(1.0 / float(hidden_size))
 
         self.weight_ih: array = uniform(low=-scale, high=scale, shape=(hidden_size, input_size))
@@ -77,7 +80,9 @@ class RNN(Module):
                 hh = mx.add(hh, self.bias_hh)
 
             h = mx.add(ih, hh)
-            if self.nonlinearity == "relu":
+            if callable(self.nonlinearity):
+                h = self.nonlinearity(h)
+            elif self.nonlinearity == "relu":
                 h = mx.maximum(h, 0.0)
             else:
                 h = mx.tanh(h)

@@ -257,7 +257,7 @@ def tree_map_with_path(
     tree: PyTree,
     *rest: PyTree,
     is_leaf: LeafPredicate = None,
-    path: str = "",
+    path: str | None = None,
 ) -> PyTree:
     """Apply `fn(path, leaf, *rest_leaves)` to every leaf in `tree`.
 
@@ -272,8 +272,9 @@ def tree_map_with_path(
         New PyTree with transformed leaves.
 
     """
+    cur_path: str = "" if path is None else path
     if _is_leaf_node(tree, is_leaf):
-        return fn(path, tree, *rest)
+        return fn(cur_path, tree, *rest)
     if isinstance(tree, dict):
         return {
             k: tree_map_with_path(
@@ -281,7 +282,7 @@ def tree_map_with_path(
                 v,
                 *(r[k] for r in rest if isinstance(r, dict)),
                 is_leaf=is_leaf,
-                path=f"{path}.{k}" if path else str(k),
+                path=f"{cur_path}.{k}" if cur_path else str(k),
             )
             for k, v in tree.items()
         }
@@ -292,7 +293,7 @@ def tree_map_with_path(
                 v,
                 *(r[i] for r in rest if isinstance(r, (list, tuple))),
                 is_leaf=is_leaf,
-                path=f"{path}.{i}" if path else str(i),
+                path=f"{cur_path}.{i}" if cur_path else str(i),
             )
             for i, v in enumerate(tree)
         ]
@@ -303,7 +304,7 @@ def tree_map_with_path(
             v,
             *(r[i] for r in rest if isinstance(r, (list, tuple))),
             is_leaf=is_leaf,
-            path=f"{path}.{i}" if path else str(i),
+            path=f"{cur_path}.{i}" if cur_path else str(i),
         )
         for i, v in enumerate(seq_tree)
     )

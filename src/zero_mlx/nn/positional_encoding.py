@@ -33,6 +33,8 @@ class ALiBi(Module):
             slopes.append(extra_base ** (2 * i + 1))
         return array(slopes, dtype=float32).reshape((num_heads, 1, 1))
 
+    create_alibi_slope = create_alibi_slopes
+
     @staticmethod
     def create_alibi_matrix(
         q_sequence_length: int,

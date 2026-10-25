@@ -307,3 +307,83 @@ class ArrayAt:
         """
         _ = update
         raise ValueError("Cannot call .add() directly on .at")
+
+    def subtract(self, update: ArrayInput) -> array:
+        """Raise ValueError when `.subtract()` is called directly on `.at` without indexing.
+
+        Args:
+            update: Unused update value.
+
+        Returns:
+            Never returns.
+
+        Raises:
+            ValueError: Always raised because `.at` must be indexed first.
+
+        """
+        _ = update
+        raise ValueError("Cannot call .subtract() directly on .at")
+
+    def multiply(self, update: ArrayInput) -> array:
+        """Raise ValueError when `.multiply()` is called directly on `.at` without indexing.
+
+        Args:
+            update: Unused update value.
+
+        Returns:
+            Never returns.
+
+        Raises:
+            ValueError: Always raised because `.at` must be indexed first.
+
+        """
+        _ = update
+        raise ValueError("Cannot call .multiply() directly on .at")
+
+    def divide(self, update: ArrayInput) -> array:
+        """Raise ValueError when `.divide()` is called directly on `.at` without indexing.
+
+        Args:
+            update: Unused update value.
+
+        Returns:
+            Never returns.
+
+        Raises:
+            ValueError: Always raised because `.at` must be indexed first.
+
+        """
+        _ = update
+        raise ValueError("Cannot call .divide() directly on .at")
+
+    def maximum(self, update: ArrayInput) -> array:
+        """Raise ValueError when `.maximum()` is called directly on `.at` without indexing.
+
+        Args:
+            update: Unused update value.
+
+        Returns:
+            Never returns.
+
+        Raises:
+            ValueError: Always raised because `.at` must be indexed first.
+
+        """
+        _ = update
+        raise ValueError("Cannot call .maximum() directly on .at")
+
+    def minimum(self, update: ArrayInput) -> array:
+        """Raise ValueError when `.minimum()` is called directly on `.at` without indexing.
+
+        Args:
+            update: Unused update value.
+
+        Returns:
+            Never returns.
+
+        Raises:
+            ValueError: Always raised because `.at` must be indexed first.
+
+        """
+        _ = update
+        raise ValueError("Cannot call .minimum() directly on .at")

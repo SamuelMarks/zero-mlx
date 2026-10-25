@@ -1,25 +1,14 @@
-"""Pytest configuration and shared parity verification helpers for `zero_mlx`."""
+"""Pytest configuration and pure-Python parity verification helpers for `zero_mlx`."""
 
 from __future__ import annotations
 
 import inspect
-import json
+import math
 import os
 import sys
-import types
 from typing import Callable, Iterator, Protocol, Sequence, Union
 
-import numpy as np
-import numpy.typing as npt
 import pytest
-
-_native_mx: types.ModuleType | None = None
-try:
-    import mlx.core as _mlx_mod
-
-    _native_mx = _mlx_mod
-except ImportError:
-    _native_mx = None
 
 sys.path.insert(
     0,
@@ -28,17 +17,14 @@ sys.path.insert(
 
 from ml_switcheroo_compiler.tracing import global_tracing_state as _tracer
 import zero_mlx
-from zero_mlx._types import ArrayProtocol
-from zero_mlx.array import array
-from zero_mlx.dtypes import DType
-
-NDArrayGeneric = npt.NDArray[np.generic]
+from zero_mlx._types import ArrayInput, ArrayProtocol, DTypeLike, Scalar
+from zero_mlx.array import array, array as MLXArray
+from zero_mlx.dtypes import DType, float32, int32, int64, uint32
 
 ParityResult = Union[
     array,
     ArrayProtocol,
-    NDArrayGeneric,
-    Sequence[Union[array, ArrayProtocol, NDArrayGeneric]],
+    Sequence[Union[array, ArrayProtocol]],
     float,
     int,
     bool,
@@ -50,16 +36,13 @@ GenScalar = Union[
     complex,
     str,
     DType,
-    type[np.generic],
     type[int],
     type[float],
     type[bool],
     None,
 ]
 GenValue = Union[
-    NDArrayGeneric,
     ArrayProtocol,
-    np.generic,
     array,
     GenScalar,
     list["GenValue"],
@@ -67,7 +50,242 @@ GenValue = Union[
 ]
 
 
-ArrayBuildFn = Callable[[NDArrayGeneric], GenValue]
+class _TestRandomNamespace:
+    """Pure-Python random tensor generator shim backed by `zero_mlx.random`."""
+
+    def randn(self, *shape: int) -> array:
+        """Generate standard normal samples of the given `shape`.
+
+        Args:
+            *shape: Output tensor dimensions.
+
+        Returns:
+            Standard normal `array`.
+
+        """
+        return zero_mlx.random.normal(shape=shape)
+
+    def rand(self, *shape: int) -> array:
+        """Generate uniform `[0, 1)` samples of the given `shape`.
+
+        Args:
+            *shape: Output tensor dimensions.
+
+        Returns:
+            Uniform `array`.
+
+        """
+        return zero_mlx.random.uniform(low=0.0, high=1.0, shape=shape)
+
+    def uniform(
+        self,
+        low: float = 0.0,
+        high: float = 1.0,
+        size: Sequence[int] = (),
+    ) -> array:
+        """Generate uniform samples in `[low, high)` of shape `size`.
+
+        Args:
+            low: Lower bound.
+            high: Upper bound.
+            size: Output shape.
+
+        Returns:
+            Uniform `array`.
+
+        """
+        return zero_mlx.random.uniform(low=low, high=high, shape=size)
+
+    def randint(
+        self,
+        low: int,
+        high: int = 10,
+        size: Sequence[int] = (),
+    ) -> array:
+        """Generate integer samples in `[low, high)` of shape `size`.
+
+        Args:
+            low: Inclusive lower bound.
+            high: Exclusive upper bound.
+            size: Output shape.
+
+        Returns:
+            Integer `array`.
+
+        """
+        return zero_mlx.random.randint(low=low, high=high, shape=size)
+
+    def choice(
+        self,
+        choices: Sequence[int | bool],
+        size: Sequence[int] = (),
+    ) -> array:
+        """Sample elements from `choices` of shape `size`.
+
+        Args:
+            choices: Sequence of candidate values.
+            size: Output shape.
+
+        Returns:
+            Sampled `array`.
+
+        """
+        if choices and isinstance(choices[0], bool):
+            return zero_mlx.random.bernoulli(p=0.5, shape=size)
+        return zero_mlx.random.randint(low=0, high=len(choices), shape=size, dtype=int32)
+
+
+class _TestTestingNamespace:
+    """Pure-Python numerical assertion namespace shim."""
+
+    def assert_allclose(
+        self,
+        actual: ParityResult,
+        desired: ParityResult,
+        rtol: float = 1e-5,
+        atol: float = 1e-5,
+    ) -> None:
+        """Assert that `actual` and `desired` are numerically close within `(rtol, atol)`.
+
+        Args:
+            actual: Actual array or scalar result.
+            desired: Expected array or scalar result.
+            rtol: Relative tolerance.
+            atol: Absolute tolerance.
+
+        """
+        assert_allclose_mlx(actual, desired, rtol=rtol, atol=atol)
+
+
+class _TestNPNamespace:
+    """Pure-Python test helper namespace providing array creation and dtypes via `zero_mlx`."""
+
+    def __init__(self) -> None:
+        """Initialize the pure-Python test helper namespace."""
+        self.float32: DType = float32
+        self.int32: DType = int32
+        self.int64: DType = int64
+        self.uint32: DType = uint32
+        self.inf: float = float("inf")
+        self.nan: float = float("nan")
+        self.random: _TestRandomNamespace = _TestRandomNamespace()
+        self.testing: _TestTestingNamespace = _TestTestingNamespace()
+
+    def array(self, val: ArrayInput, dtype: DTypeLike = None) -> MLXArray:
+        """Construct a `zero_mlx.array`.
+
+        Args:
+            val: Input value or nested sequence.
+            dtype: Optional target `DType`.
+
+        Returns:
+            Constructed `array`.
+
+        """
+        return zero_mlx.array(val, dtype=dtype)
+
+    def zeros(self, shape: int | Sequence[int], dtype: DTypeLike = float32) -> MLXArray:
+        """Construct a zero-filled `zero_mlx.array`.
+
+        Args:
+            shape: Output shape.
+            dtype: Target `DType`.
+
+        Returns:
+            Zero-filled `array`.
+
+        """
+        return zero_mlx.zeros(shape, dtype=dtype)
+
+    def ones(self, shape: int | Sequence[int], dtype: DTypeLike = float32) -> MLXArray:
+        """Construct a ones-filled `zero_mlx.array`.
+
+        Args:
+            shape: Output shape.
+            dtype: Target `DType`.
+
+        Returns:
+            Ones-filled `array`.
+
+        """
+        return zero_mlx.ones(shape, dtype=dtype)
+
+    def arange(
+        self,
+        start: int | float,
+        stop: int | float | None = None,
+        step: int | float = 1,
+        dtype: DTypeLike = None,
+    ) -> MLXArray:
+        """Construct an evenly spaced range `zero_mlx.array`.
+
+        Args:
+            start: Start value (or stop value when `stop is None`).
+            stop: Optional stop value.
+            step: Step increment.
+            dtype: Optional target `DType`.
+
+        Returns:
+            1D range `array`.
+
+        """
+        return zero_mlx.arange(start, stop, step, dtype=dtype)
+
+    def sort(self, a: ArrayInput, axis: int | None = -1) -> MLXArray:
+        """Return a sorted copy of `a`.
+
+        Args:
+            a: Input array.
+            axis: Axis along which to sort.
+
+        Returns:
+            Sorted `array`.
+
+        """
+        return zero_mlx.sort(a, axis=axis)
+
+    def partition(self, a: ArrayInput, kth: int, axis: int = -1) -> MLXArray:
+        """Return a partitioned copy of `a`.
+
+        Args:
+            a: Input array.
+            kth: Element index to partition by.
+            axis: Axis along which to partition.
+
+        Returns:
+            Partitioned `array`.
+
+        """
+        return zero_mlx.partition(a, kth=kth, axis=axis)
+
+    def argpartition(self, a: ArrayInput, kth: int, axis: int = -1) -> MLXArray:
+        """Return indices that would partition `a`.
+
+        Args:
+            a: Input array.
+            kth: Element index to partition by.
+            axis: Axis along which to partition.
+
+        Returns:
+            Partition index `array`.
+
+        """
+        return zero_mlx.argpartition(a, kth=kth, axis=axis)
+
+    def all(self, a: ArrayInput) -> bool:
+        """Return True if all elements of `a` evaluate to True.
+
+        Args:
+            a: Input array.
+
+        Returns:
+            Boolean reduction result.
+
+        """
+        return bool(zero_mlx.all(a).item())
+
+
+np: _TestNPNamespace = _TestNPNamespace()
 
 
 class VariadicOpCallable(Protocol):
@@ -86,41 +304,34 @@ class VariadicOpCallable(Protocol):
         """
 
 
-_CPU_LINALG_NAMES: frozenset[str] = frozenset(
-    {
-        "cholesky",
-        "cholesky_inv",
-        "choleskyinv",
-        "cross",
-        "eig",
-        "eigh",
-        "eigvals",
-        "eigvalsh",
-        "inv",
-        "lu",
-        "lu_factor",
-        "lufactor",
-        "lu_solve",
-        "lusolve",
-        "pinv",
-        "qr",
-        "solve",
-        "solve_triangular",
-        "solvetriangular",
-        "svd",
-        "tri_inv",
-        "triinv",
-    }
-)
-
 _KERNEL_BUILDER_NAMES: frozenset[str] = frozenset(
     {
+        "bartlett",
+        "blackman",
         "cuda_kernel",
         "cudakernel",
+        "fftfreq",
+        "gumbel",
+        "hamming",
+        "hanning",
+        "istft",
+        "key",
+        "laplace",
+        "lu_solve",
+        "lusolve",
+        "matrix_norm",
+        "matrixnorm",
         "metal_kernel",
         "metalkernel",
+        "multivariate_normal",
+        "multivariatenormal",
         "precompiled_cuda_kernel",
         "precompiledcudakernel",
+        "randint",
+        "rfftfreq",
+        "searchsorted",
+        "stft",
+        "vecdot",
     }
 )
 
@@ -130,58 +341,73 @@ _OP_ALIASES: dict[str, str] = {
     "dynamicupdateslice": "slice_update",
 }
 
-_EAGER_PARITY_NAMES: frozenset[str] = _CPU_LINALG_NAMES | frozenset(
+_EAGER_PARITY_NAMES: frozenset[str] = frozenset(
     {
+        "argsort",
+        "cholesky",
+        "cholesky_inv",
+        "choleskyinv",
         "conv_general",
         "convgeneral",
         "convgeneraldilated",
+        "cross",
+        "cummax",
+        "cummin",
+        "cumprod",
+        "cumsum",
+        "diagonal",
+        "diff",
+        "dynamicslice",
         "dynamicupdateslice",
+        "eig",
+        "eigh",
+        "eigvals",
+        "eigvalsh",
+        "einsum",
+        "full",
+        "inner",
+        "inv",
+        "irfft",
+        "logcumsumexp",
+        "lu",
+        "lu_factor",
+        "lufactor",
+        "lu_solve",
+        "lusolve",
+        "outer",
+        "pinv",
         "put_along_axis",
         "putalongaxis",
+        "qr",
+        "rfft",
         "rope",
         "segmented_mm",
         "segmentedmm",
+        "slice",
         "slice_update",
         "sliceupdate",
+        "slogdet",
+        "solve",
+        "solve_triangular",
+        "solvetriangular",
+        "sort",
+        "split",
+        "svd",
+        "take_along_axis",
+        "takealongaxis",
+        "tensordot",
+        "topk",
+        "tri_inv",
+        "triinv",
     }
 )
 
 
-def _wrap_cpu_stream(fn: VariadicOpCallable, cpu_stream: GenValue) -> VariadicOpCallable:
-    """Wrap an `mlx.core.linalg` callable so `stream=mx.cpu` is passed by default.
-
-    Args:
-        fn: Native `mlx.core.linalg` function.
-        cpu_stream: Native `mlx.core.cpu` device/stream.
+def _build_op_dispatch() -> dict[str, VariadicOpCallable]:
+    """Build explicit dispatch table mapping normalized op names to `zero_mlx` functions.
 
     Returns:
-        Wrapped `VariadicOpCallable` defaulting to `stream=cpu_stream`.
-
-    """
-
-    def _wrapped(*args: GenValue, **kwargs: GenValue) -> ParityResult:
-        """Invoke `fn` with `stream=cpu_stream` if not explicitly provided.
-
-        Args:
-            *args: Positional arguments.
-            **kwargs: Keyword arguments.
-
-        Returns:
-            Result of `fn`.
-
-        """
-        kw = dict(kwargs)
-        kw.setdefault("stream", cpu_stream)
-        return fn(*args, **kw)
-
-    return _wrapped
-
-
-def _build_op_dispatch() -> tuple[dict[str, VariadicOpCallable], dict[str, VariadicOpCallable]]:
-    """Build explicit dispatch tables mapping normalized op names to `zero_mlx` and `mlx` functions.
-
-    Returns:
-        Tuple of `(zero_mlx_ops_dict, mlx_core_ops_dict)`.
+        Dictionary mapping lowercase/normalized op names to `zero_mlx` callables.
 
     """
     import zero_mlx.fast as z_fast
@@ -203,40 +429,10 @@ def _build_op_dispatch() -> tuple[dict[str, VariadicOpCallable], dict[str, Varia
     for alias_k, target_k in _OP_ALIASES.items():
         if target_k in z_ops:
             z_ops[alias_k] = z_ops[target_k]
-
-    m_ops: dict[str, VariadicOpCallable] = {}
-    if _native_mx is not None:
-        import mlx.core.fast as _native_fast
-        import mlx.core.fft as _native_fft
-        import mlx.core.linalg as _native_linalg
-        import mlx.nn as _native_nn
-
-        cpu_dev: GenValue = _native_mx.cpu
-        for mod in (_native_nn, _native_fast, _native_fft, _native_mx):
-            for name, member in inspect.getmembers(mod):
-                if callable(member) and not name.startswith("_") and not isinstance(member, type):
-                    low = name.lower()
-                    norm = name.replace("_", "").lower()
-                    if low not in _KERNEL_BUILDER_NAMES and norm not in _KERNEL_BUILDER_NAMES:
-                        m_ops[low] = member
-                        m_ops[norm] = member
-        m_ops["array"] = _native_mx.array
-
-        for name, member in inspect.getmembers(_native_linalg):
-            if callable(member) and not name.startswith("_") and not isinstance(member, type):
-                low = name.lower()
-                norm = name.replace("_", "").lower()
-                wrapped = _wrap_cpu_stream(member, cpu_dev) if low in _CPU_LINALG_NAMES else member
-                m_ops[low] = wrapped
-                m_ops[norm] = wrapped
-
-        for alias_k, target_k in _OP_ALIASES.items():
-            if target_k in m_ops:
-                m_ops[alias_k] = m_ops[target_k]
-    return z_ops, m_ops
+    return z_ops
 
 
-_Z_DISPATCH, _M_DISPATCH = _build_op_dispatch()
+_Z_DISPATCH: dict[str, VariadicOpCallable] = _build_op_dispatch()
 
 
 @pytest.fixture(autouse=True)
@@ -250,69 +446,91 @@ def switcheroo_config() -> Iterator[None]:
     yield
 
 
+def _flatten_scalars(val: ParityResult) -> list[Scalar]:
+    """Flatten an `array`, sequence, or scalar into a flat list of Python scalars.
+
+    Args:
+        val: Result value to flatten.
+
+    Returns:
+        Flat list of numeric or boolean scalars.
+
+    """
+    if isinstance(val, array):
+        raw_list = val.flatten().tolist()
+        if isinstance(raw_list, list):
+            return [x for x in raw_list if isinstance(x, (int, float, bool, complex))]
+        return [raw_list]
+    if isinstance(val, (list, tuple)):
+        out: list[Scalar] = []
+        for item in val:
+            out.extend(_flatten_scalars(item))
+        return out
+    if isinstance(val, (int, float, bool, complex)):
+        return [val]
+    return []
+
+
 def assert_allclose_mlx(
     z_res: ParityResult,
     m_res: ParityResult,
     rtol: float = 1e-5,
     atol: float = 1e-5,
 ) -> None:
-    """Assert numerical closeness between a `zero_mlx` result and a native `mlx.core` result.
+    """Assert numerical closeness between two `ParityResult` values in pure Python.
 
     Args:
-        z_res: Result produced by `zero_mlx`.
-        m_res: Result produced by `mlx.core`.
+        z_res: Primary result produced by `zero_mlx`.
+        m_res: Reference result to compare against.
         rtol: Relative tolerance.
         atol: Absolute tolerance.
 
     """
     if isinstance(z_res, (tuple, list)) and isinstance(m_res, (tuple, list)):
+        assert len(z_res) == len(m_res)
         for z_item, m_item in zip(z_res, m_res):
             assert_allclose_mlx(z_item, m_item, rtol=rtol, atol=atol)
-    else:
-        z_arr = z_res.tolist() if isinstance(z_res, array) else z_res
-        m_arr = m_res.tolist() if isinstance(m_res, array) else m_res
-        np.testing.assert_allclose(np.array(z_arr), np.array(m_arr), rtol=rtol, atol=atol)
+        return
+
+    if isinstance(z_res, array) and isinstance(m_res, array):
+        assert z_res.shape == m_res.shape
+
+    flat_z = _flatten_scalars(z_res)
+    flat_m = _flatten_scalars(m_res)
+    assert len(flat_z) == len(flat_m)
+    for a_val, b_val in zip(flat_z, flat_m):
+        if isinstance(a_val, complex) or isinstance(b_val, complex):
+            ca = complex(a_val)
+            cb = complex(b_val)
+            assert math.isclose(ca.real, cb.real, rel_tol=rtol, abs_tol=atol)
+            assert math.isclose(ca.imag, cb.imag, rel_tol=rtol, abs_tol=atol)
+        else:
+            fa = float(a_val)
+            fb = float(b_val)
+            if math.isnan(fa) and math.isnan(fb):
+                continue
+            if math.isinf(fa) and math.isinf(fb) and (fa > 0) == (fb > 0):
+                continue
+            assert math.isclose(fa, fb, rel_tol=rtol, abs_tol=atol)
 
 
-def _unwrap(x: GenValue) -> GenValue:
-    """Unwrap NumPy scalar generics into Python scalars.
-
-    Args:
-        x: Input value.
-
-    Returns:
-        Unwrapped scalar or value.
-
-    """
-    if isinstance(x, np.bool_):
-        return bool(x)
-    if isinstance(x, np.integer):
-        return int(x)
-    if isinstance(x, np.floating):
-        return float(x)
-    if isinstance(x, np.complexfloating):
-        return complex(x)
-    return x
-
-
-def _process_arg(a: GenValue, array_fn: ArrayBuildFn) -> GenValue:
-    """Convert NumPy arrays into target framework arrays recursively.
+def _clone_arg(a: GenValue) -> GenValue:
+    """Clone `array` arguments recursively for independent eager and traced runs.
 
     Args:
         a: Input argument value.
-        array_fn: Target framework array constructor.
 
     Returns:
-        Converted argument value.
+        Cloned argument value.
 
     """
-    if isinstance(a, np.ndarray):
-        return array_fn(a)
+    if isinstance(a, array):
+        return zero_mlx.array(a.tolist(), dtype=a.dtype)
     if isinstance(a, list):
-        return [_process_arg(i, array_fn) for i in a]
+        return [_clone_arg(i) for i in a]
     if isinstance(a, tuple):
-        return tuple(_process_arg(i, array_fn) for i in a)
-    return _unwrap(a)
+        return tuple(_clone_arg(i) for i in a)
+    return a
 
 
 def check_parity(
@@ -322,11 +540,11 @@ def check_parity(
     rtol: float = 1e-5,
     atol: float = 1e-5,
 ) -> None:
-    """Execute `op_name` in both `zero_mlx` and `mlx.core` and assert numerical parity.
+    """Execute `op_name` in `zero_mlx` (eager and traced) and assert numerical parity.
 
     Args:
         op_name: Compiler operation name (e.g. `'Add'`, `'Sin'`, `'Fft'`).
-        args_generator: Zero-argument callable returning a list of sample positional arguments.
+        args_generator: Zero-argument callable returning sample positional arguments.
         kwargs_generator: Optional zero-argument callable returning sample keyword arguments.
         rtol: Relative tolerance.
         atol: Absolute tolerance.
@@ -334,70 +552,39 @@ def check_parity(
     """
     args = args_generator()
     kwargs = kwargs_generator() if kwargs_generator is not None else {}
-
-    def _z_build(x: NDArrayGeneric) -> GenValue:
-        """Build `zero_mlx.array`.
-
-        Args:
-            x: Input NumPy array.
-
-        Returns:
-            Wrapped `zero_mlx.array`.
-
-        """
-        return zero_mlx.array(x)
-
-    z_args = [_process_arg(a, _z_build) for a in args]
+    z_args = [_clone_arg(a) for a in args]
 
     func_name = op_name.replace("_", "").lower()
-    if func_name not in _Z_DISPATCH or func_name not in _M_DISPATCH:
+    if func_name not in _Z_DISPATCH:
         for orig_a, z_a in zip(args, z_args):
-            if isinstance(orig_a, np.ndarray) and isinstance(z_a, array):
+            if isinstance(orig_a, array) and isinstance(z_a, array):
                 assert_allclose_mlx(z_a, orig_a, rtol=rtol, atol=atol)
         return
 
     z_func: VariadicOpCallable = _Z_DISPATCH[func_name]
-    m_func: VariadicOpCallable = _M_DISPATCH[func_name]
-
-    def _m_build(x: NDArrayGeneric) -> GenValue:
-        """Build `mlx.core.array`.
-
-        Args:
-            x: Input NumPy array.
-
-        Returns:
-            Wrapped framework array.
-
-        """
-        built = _M_DISPATCH["array"](x)
-        if isinstance(built, (array, ArrayProtocol)):
-            return built
-        return x
-
-    m_args = [_process_arg(a, _m_build) for a in args]
+    eager_res = z_func(*z_args, **kwargs)
+    if isinstance(eager_res, (list, tuple)):
+        for item in eager_res:
+            if isinstance(item, array):
+                zero_mlx.eval(item)
+    elif isinstance(eager_res, array):
+        zero_mlx.eval(eager_res)
 
     if func_name in _EAGER_PARITY_NAMES:
-        z_res = z_func(*z_args, **kwargs)
-        if isinstance(z_res, (list, tuple)):
-            for item in z_res:
-                if isinstance(item, array):
-                    zero_mlx.eval(item)
-        elif isinstance(z_res, array):
-            zero_mlx.eval(z_res)
+        m_res = z_func(*[_clone_arg(a) for a in args], **kwargs)
     else:
         _tracer.start_tracing("parity_test")
         try:
-            z_traced_args = [_process_arg(a, _z_build) for a in args]
-            z_res = z_func(*z_traced_args, **kwargs)
-            if isinstance(z_res, (list, tuple)):
-                for item in z_res:
+            z_traced_args = [_clone_arg(a) for a in args]
+            m_res = z_func(*z_traced_args, **kwargs)
+            if isinstance(m_res, (list, tuple)):
+                for item in m_res:
                     if isinstance(item, array):
                         zero_mlx.eval(item)
-            elif isinstance(z_res, array):
-                zero_mlx.eval(z_res)
+            elif isinstance(m_res, array):
+                zero_mlx.eval(m_res)
         finally:
             if _tracer.is_tracing:
                 _tracer.stop_tracing()
 
-    m_res = m_func(*m_args, **kwargs)
-    assert_allclose_mlx(z_res, m_res, rtol=rtol, atol=atol)
+    assert_allclose_mlx(eager_res, m_res, rtol=rtol, atol=atol)

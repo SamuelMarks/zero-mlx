@@ -46,6 +46,39 @@ class Linear(Module):
             out = out + self.bias
         return out
 
+    def to_quantized(
+        self,
+        group_size: int | None = None,
+        bits: int | None = None,
+        mode: str = "affine",
+        quantize_input: bool = False,
+    ) -> QuantizedLinear | QQLinear:
+        """Return a quantized version (`QuantizedLinear` or `QQLinear`) of this `Linear` layer.
+
+        Args:
+            group_size: Quantization group size.
+            bits: Bits per quantized weight.
+            mode: Quantization mode.
+            quantize_input: If True, return a `QQLinear` layer.
+
+        Returns:
+            Quantized linear module.
+
+        """
+        if quantize_input:
+            return QQLinear.from_linear(
+                self,
+                group_size=32 if group_size is None else group_size,
+                bits=4 if bits is None else bits,
+                mode=mode,
+            )
+        return QuantizedLinear.from_linear(
+            self,
+            group_size=64 if group_size is None else group_size,
+            bits=4 if bits is None else bits,
+            mode=mode,
+        )
+
 
 class Bilinear(Module):
     """Applies a bilinear transformation `y_o = x1^T W_o x2 + b_o` to two inputs."""
@@ -119,6 +152,29 @@ class AllToShardedLinear(Module):
             uniform(low=-scale, high=scale, shape=(output_dims,)) if bias else None
         )
 
+    @classmethod
+    def from_linear(
+        cls,
+        linear_layer: Linear,
+        *,
+        group: Group | None = None,
+    ) -> AllToShardedLinear:
+        """Create an `AllToShardedLinear` layer from an existing `Linear` layer.
+
+        Args:
+            linear_layer: Source `Linear` module.
+            group: Optional distributed `Group`.
+
+        Returns:
+            New `AllToShardedLinear` layer initialized from `linear_layer`.
+
+        """
+        out_dims, in_dims = linear_layer.weight.shape
+        layer = cls(in_dims, out_dims, bias=linear_layer.bias is not None, group=group)
+        layer.weight = linear_layer.weight
+        layer.bias = linear_layer.bias
+        return layer
+
     def __call__(self, x: array) -> array:
         """Apply the sharded linear transformation to `x`.
 
@@ -162,6 +218,29 @@ class ShardedToAllLinear(Module):
             uniform(low=-scale, high=scale, shape=(output_dims,)) if bias else None
         )
 
+    @classmethod
+    def from_linear(
+        cls,
+        linear_layer: Linear,
+        *,
+        group: Group | None = None,
+    ) -> ShardedToAllLinear:
+        """Create a `ShardedToAllLinear` layer from an existing `Linear` layer.
+
+        Args:
+            linear_layer: Source `Linear` module.
+            group: Optional distributed `Group`.
+
+        Returns:
+            New `ShardedToAllLinear` layer initialized from `linear_layer`.
+
+        """
+        out_dims, in_dims = linear_layer.weight.shape
+        layer = cls(in_dims, out_dims, bias=linear_layer.bias is not None, group=group)
+        layer.weight = linear_layer.weight
+        layer.bias = linear_layer.bias
+        return layer
+
     def __call__(self, x: array) -> array:
         """Apply the sharded-to-all linear transformation to `x`.
 
@@ -186,8 +265,8 @@ class QuantizedLinear(Module):
         input_dims: int,
         output_dims: int,
         bias: bool = True,
-        group_size: int = 64,
-        bits: int = 4,
+        group_size: int | None = None,
+        bits: int | None = None,
         mode: str = "affine",
     ) -> None:
         """Initialize `QuantizedLinear`.
@@ -196,23 +275,25 @@ class QuantizedLinear(Module):
             input_dims: Input feature dimension.
             output_dims: Output feature dimension.
             bias: Whether to include a learnable bias.
-            group_size: Quantization group size.
-            bits: Number of bits per quantized weight.
+            group_size: Quantization group size (defaults to 64).
+            bits: Number of bits per quantized weight (defaults to 4).
             mode: Quantization mode (`'affine'`, `'mxfp4'`, `'nvfp4'`, `'mxfp8'`).
 
         """
         super().__init__()
+        g_size: int = 64 if group_size is None else group_size
+        b_bits: int = 4 if bits is None else bits
         scale: float = math.sqrt(1.0 / float(input_dims))
         w_init = uniform(low=-scale, high=scale, shape=(output_dims, input_dims))
-        q_res = quantize(w_init, group_size=group_size, bits=bits, mode=mode)
+        q_res = quantize(w_init, group_size=g_size, bits=b_bits, mode=mode)
         self.weight: array = q_res[0]
         self.scales: array = q_res[1]
         self.biases: array | None = q_res[2] if len(q_res) == 3 else None
         self.bias: array | None = (
             uniform(low=-scale, high=scale, shape=(output_dims,)) if bias else None
         )
-        self.group_size: int = group_size
-        self.bits: int = bits
+        self.group_size: int = g_size
+        self.bits: int = b_bits
         self.mode: str = mode
 
     @classmethod
@@ -316,6 +397,40 @@ class QuantizedAllToShardedLinear(Module):
         self.group_size: int = group_size
         self.bits: int = bits
 
+    @classmethod
+    def from_quantized_linear(
+        cls,
+        quantized_linear_layer: QuantizedLinear,
+        *,
+        group: Group | None = None,
+    ) -> QuantizedAllToShardedLinear:
+        """Create a `QuantizedAllToShardedLinear` from an existing `QuantizedLinear` layer.
+
+        Args:
+            quantized_linear_layer: Source `QuantizedLinear` module.
+            group: Optional distributed `Group`.
+
+        Returns:
+            New `QuantizedAllToShardedLinear` initialized from `quantized_linear_layer`.
+
+        """
+        out_dims = quantized_linear_layer.weight.shape[0]
+        in_dims = quantized_linear_layer.scales.shape[-1] * quantized_linear_layer.group_size
+        layer = cls(
+            in_dims,
+            out_dims,
+            bias=quantized_linear_layer.bias is not None,
+            group_size=quantized_linear_layer.group_size,
+            bits=quantized_linear_layer.bits,
+            mode=quantized_linear_layer.mode,
+            group=group,
+        )
+        layer.weight = quantized_linear_layer.weight
+        layer.scales = quantized_linear_layer.scales
+        layer.biases = quantized_linear_layer.biases
+        layer.bias = quantized_linear_layer.bias
+        return layer
+
     def __call__(self, x: array) -> array:
         """Compute quantized sharded linear transformation on `x`.
 
@@ -380,6 +495,40 @@ class QuantizedShardedToAllLinear(Module):
         )
         self.group_size: int = group_size
         self.bits: int = bits
+
+    @classmethod
+    def from_quantized_linear(
+        cls,
+        quantized_linear_layer: QuantizedLinear,
+        *,
+        group: Group | None = None,
+    ) -> QuantizedShardedToAllLinear:
+        """Create a `QuantizedShardedToAllLinear` from an existing `QuantizedLinear` layer.
+
+        Args:
+            quantized_linear_layer: Source `QuantizedLinear` module.
+            group: Optional distributed `Group`.
+
+        Returns:
+            New `QuantizedShardedToAllLinear` initialized from `quantized_linear_layer`.
+
+        """
+        out_dims = quantized_linear_layer.weight.shape[0]
+        in_dims = quantized_linear_layer.scales.shape[-1] * quantized_linear_layer.group_size
+        layer = cls(
+            in_dims,
+            out_dims,
+            bias=quantized_linear_layer.bias is not None,
+            group_size=quantized_linear_layer.group_size,
+            bits=quantized_linear_layer.bits,
+            mode=quantized_linear_layer.mode,
+            group=group,
+        )
+        layer.weight = quantized_linear_layer.weight
+        layer.scales = quantized_linear_layer.scales
+        layer.biases = quantized_linear_layer.biases
+        layer.bias = quantized_linear_layer.bias
+        return layer
 
     def __call__(self, x: array) -> array:
         """Compute quantized sharded-to-all linear transformation on `x`.

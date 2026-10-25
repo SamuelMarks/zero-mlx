@@ -14,7 +14,7 @@ import zero_mlx.fast as fast
 import zero_mlx.fft as fft
 import zero_mlx.linalg as linalg
 import zero_mlx.metal as metal
-import zero_mlx.mlx_random as random
+import zero_mlx.random as random
 import zero_mlx.nn as nn
 import zero_mlx.optimizers as optimizers
 import zero_mlx.utils as utils
@@ -180,7 +180,9 @@ from zero_mlx.ops import (
     bartlett,
     bitwise_and,
     bitwise_invert,
+    bitwise_left_shift,
     bitwise_or,
+    bitwise_right_shift,
     bitwise_xor,
     blackman,
     block_masked_mm,
@@ -202,6 +204,8 @@ from zero_mlx.ops import (
     cummin,
     cumprod,
     cumsum,
+    cumulative_prod,
+    cumulative_sum,
     degrees,
     depends,
     diag,
@@ -352,7 +356,7 @@ e: float = math.e
 euler_gamma: float = 0.5772156649015329
 newaxis: None = None
 
-import zero_mlx as core
+import zero_mlx.core as core
 
 __all__ = [
     "ArrayAt",
@@ -408,7 +412,9 @@ __all__ = [
     "bfloat16",
     "bitwise_and",
     "bitwise_invert",
+    "bitwise_left_shift",
     "bitwise_or",
+    "bitwise_right_shift",
     "bitwise_xor",
     "blackman",
     "block_masked_mm",
@@ -450,6 +456,8 @@ __all__ = [
     "cummin",
     "cumprod",
     "cumsum",
+    "cumulative_prod",
+    "cumulative_sum",
     "custom_function",
     "default_device",
     "default_stream",

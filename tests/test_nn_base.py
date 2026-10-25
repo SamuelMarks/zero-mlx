@@ -70,7 +70,11 @@ def test_module() -> None:
     bm.update_modules({"m": z_nn.Identity()})
     assert isinstance(bm.m, z_nn.Identity)
     with pytest.raises(AttributeError):
-        _ = bm.nonexistent_attr
+        _ = z_nn.Module().extra
+    from zero_mlx.nn.base import _ModuleAttrDescriptor
+
+    desc = _ModuleAttrDescriptor("weight")
+    assert desc.__get__(None, z_nn.Module) is desc
     with pytest.raises(KeyError):
         _ = bm["nonexistent_key"]
     with pytest.raises(NotImplementedError):
@@ -101,3 +105,100 @@ def test_sequential() -> None:
     x = array([1, 2, 3])
     out = seq(x, something=True)
     assert out.tolist() == [2, 4, 6]
+
+
+def test_module_dict_and_traversal_methods() -> None:
+    """Test dict-like methods, filters, leaf_modules, set_dtype, and layer factory methods."""
+    import zero_mlx as mx
+    import zero_mlx.core as mx_core
+
+    assert mx_core.array([1.0, 2.0]).diag().shape == (2, 2)
+    assert mx.linspace(0.0, 1.0, 4, endpoint=False).shape == (4,)
+
+    arr = array([1.0, 2.0])
+    for op_fn in (
+        arr.at.subtract,
+        arr.at.multiply,
+        arr.at.divide,
+        arr.at.maximum,
+        arr.at.minimum,
+    ):
+        with pytest.raises(ValueError):
+            op_fn(1.0)
+
+    dev = mx.Device(mx.cpu, 0)
+    dev.type = mx.gpu
+    assert dev.type == mx.gpu
+    st = mx.Stream(dev, 0)
+    st.device = mx.Device(mx.cpu, 0)
+    assert st.device.type == mx.cpu
+
+    class Composite(z_nn.Module):
+        """Composite module for testing traversal and dict methods."""
+
+        def __init__(self) -> None:
+            """Initialize composite module."""
+            super().__init__()
+            self.lin = z_nn.Linear(64, 4)
+            self.nested = z_nn.Sequential(z_nn.Linear(4, 2))
+            self._priv = 123
+
+    comp = Composite()
+    assert isinstance(comp.state, dict)
+    assert "lin" in list(comp.keys())
+    assert len(comp.values()) >= 2
+    assert len(comp.items()) >= 2
+    assert comp.get("nonexistent", 99) == 99
+    assert comp.setdefault("custom_flag", True) is True
+    assert comp.pop("custom_flag") is True
+    comp["temp_k"] = 1
+    popped_k, _ = comp.popitem()
+    assert isinstance(popped_k, str)
+    copied = comp.copy()
+    assert isinstance(copied, dict)
+    fk = z_nn.Module.fromkeys(["a", "b"], 0)
+    assert fk == {"a": 0, "b": 0}
+    assert z_nn.Module.is_module(comp) is True
+    assert z_nn.Module.is_module(123) is False
+    assert z_nn.Module.valid_child_filter(comp, "lin", comp.lin) is True
+    assert z_nn.Module.valid_child_filter(comp, "_priv", 123) is False
+    assert z_nn.Module.valid_parameter_filter(comp, "lin", comp.lin) is True
+    assert z_nn.Module.trainable_parameter_filter(comp, "lin", comp.lin) is True
+
+    mapped = comp.filter_and_map(
+        z_nn.Module.valid_parameter_filter,
+        map_fn=lambda v: v,
+    )
+    assert "lin" in mapped
+    leaves = comp.leaf_modules()
+    assert "lin" in leaves
+    visited: list[str] = []
+    comp.apply_to_modules(lambda path, mod: visited.append(path))
+    assert "lin" in visited
+    comp.set_dtype("float16")
+    assert comp.lin.weight.dtype == mx.float16
+    empty_m = z_nn.Module()
+    empty_m.clear()
+    assert empty_m.keys() == []
+
+    lin = z_nn.Linear(64, 4)
+    qlin = lin.to_quantized()
+    assert isinstance(qlin, z_nn.QuantizedLinear)
+    qqlin = lin.to_quantized(quantize_input=True)
+    assert isinstance(qqlin, z_nn.QQLinear)
+    a2s = z_nn.AllToShardedLinear.from_linear(lin)
+    assert isinstance(a2s, z_nn.AllToShardedLinear)
+    s2a = z_nn.ShardedToAllLinear.from_linear(lin)
+    assert isinstance(s2a, z_nn.ShardedToAllLinear)
+    qa2s = z_nn.QuantizedAllToShardedLinear.from_quantized_linear(qlin)
+    assert isinstance(qa2s, z_nn.QuantizedAllToShardedLinear)
+    qs2a = z_nn.QuantizedShardedToAllLinear.from_quantized_linear(qlin)
+    assert isinstance(qs2a, z_nn.QuantizedShardedToAllLinear)
+
+    emb = z_nn.Embedding(8, 64)
+    qemb = emb.to_quantized()
+    assert isinstance(qemb, z_nn.QuantizedEmbedding)
+
+    rnn_fn = z_nn.RNN(4, 4, nonlinearity=lambda h: h * 0.5)
+    out_rnn, _ = rnn_fn(mx.ones((2, 3, 4)))
+    assert out_rnn.shape == (2, 3, 4)

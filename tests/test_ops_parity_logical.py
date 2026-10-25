@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import numpy as np
-
-from tests.conftest import check_parity
+from tests.conftest import check_parity, np
 
 
 def test_All_parity() -> None:

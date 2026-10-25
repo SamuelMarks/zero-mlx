@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from tests.conftest import check_parity
+from tests.conftest import check_parity, np
 
 
 def test_Argmax_parity() -> None:
@@ -205,7 +204,7 @@ def test_Argpartition_parity() -> None:
     m_idx = np.argpartition(arr_np, 2)
     z_part = arr_np[np.array(z_idx.tolist(), dtype=np.int64)]
     m_part = arr_np[np.array(m_idx, dtype=np.int64)]
-    assert z_part[2] == pytest.approx(m_part[2])
+    assert z_part[2].item() == pytest.approx(m_part[2].item())
     assert np.all(z_part[:2] <= z_part[2])
     assert np.all(z_part[2:] >= z_part[2])
     np.testing.assert_allclose(np.sort(z_idx.tolist()), np.sort(np.array(m_idx)))

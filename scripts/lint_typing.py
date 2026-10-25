@@ -13,6 +13,9 @@ DEFAULT_TARGET_DIRS: tuple[str, ...] = ("src/zero_mlx", "scripts", "tests")
 BANNED_REFLECTION_FUNCS: frozenset[str] = frozenset(
     {"getattr", "setattr", "hasattr", "delattr", "__import__", "cast", "vars", "__setattr__"}
 )
+BANNED_DUNDER_METHODS: frozenset[str] = frozenset(
+    {"__getattr__", "__getattribute__", "__setattr__", "__delattr__"}
+)
 BANNED_TYPE_NAMES: frozenset[str] = frozenset({"Any", "object", "AnyType"})
 
 
@@ -50,6 +53,10 @@ def _check_function_node(filepath: str, node: ast.FunctionDef | ast.AsyncFunctio
 
     """
     violations: list[str] = []
+    if node.name in BANNED_DUNDER_METHODS:
+        violations.append(
+            f"{filepath}:{node.lineno}: prohibited dunder method definition '{node.name}'"
+        )
     all_args: list[ast.arg] = [
         *node.args.posonlyargs,
         *node.args.args,

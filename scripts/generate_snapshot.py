@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Snapshot generator grounded in ml-switcheroo-ir GhostRef and ml-ecosystem-snapshots."""
+"""Snapshot generator grounded in ml-switcheroo-ir GhostRef and ml-ecosystem-snapshots v0.0.5."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import sys
 from typing import Sequence
 
+from ml_ecosystem_snapshots.cli.resolver import resolve_snapshot_path
 from ml_ecosystem_snapshots.frameworks.mlx import collect_api
 from ml_switcheroo_ir.schema.ghost import GhostRef, SemanticTier
 
@@ -50,7 +50,7 @@ def collect_ghost_snapshot(
 def load_cached_ecosystem_snapshot(
     cache_path: str | None = None,
 ) -> dict[str, dict[str, dict[str, str]]]:
-    """Load the cached ml-ecosystem-snapshots v0.0.4 MLX JSON and normalize to module map.
+    """Load the ml-ecosystem-snapshots v0.0.5 MLX JSON and normalize to module map.
 
     Args:
         cache_path: Optional path to the `mlx_v0.32.4.json` file.
@@ -63,6 +63,7 @@ def load_cached_ecosystem_snapshot(
         [cache_path]
         if cache_path is not None
         else [
+            resolve_snapshot_path("mlx_v0.32.4"),
             os.path.expanduser("~/.cache/ml_ecosystem_snapshots/snapshots/mlx_v0.32.4.json"),
             os.path.expanduser("~/.cache/ml_ecosystem_snapshots/mlx_v0.32.4.json"),
         ]

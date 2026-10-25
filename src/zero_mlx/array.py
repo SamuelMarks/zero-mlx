@@ -1617,6 +1617,26 @@ class array:
 
         return _ops.cumsum(self, axis=axis, reverse=reverse, inclusive=inclusive, stream=stream)
 
+    def diag(
+        self,
+        k: int = 0,
+        *,
+        stream: StreamOrDevice = None,
+    ) -> array:
+        """Extract a diagonal or construct a diagonal 2D array.
+
+        Args:
+            k: Diagonal offset (`0` is the main diagonal, `> 0` above, `< 0` below).
+            stream: Optional stream or device.
+
+        Returns:
+            Extracted diagonal or constructed diagonal `array`.
+
+        """
+        import zero_mlx.ops as _ops
+
+        return _ops.diag(self, k=k, stream=stream)
+
     def diagonal(
         self,
         offset: int = 0,

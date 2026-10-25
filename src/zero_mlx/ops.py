@@ -26,6 +26,7 @@ from zero_mlx.device import get_peak_memory, synchronize
 from zero_mlx.dtypes import (
     DType,
     DtypeCategory,
+    bfloat16,
     bool_,
     complex64,
     float32,
@@ -364,6 +365,7 @@ def linspace(
     num: int = 50,
     dtype: DTypeLike = float32,
     *,
+    endpoint: bool = True,
     stream: StreamOrDevice = None,
 ) -> array:
     """Generate `num` evenly spaced numbers over a specified interval `[start, stop]`.
@@ -373,6 +375,7 @@ def linspace(
         stop: End value of the sequence.
         num: Number of samples to generate.
         dtype: Output data type.
+        endpoint: If True, `stop` is the last sample; otherwise it is not included.
         stream: Optional stream or device.
 
     Returns:
@@ -381,8 +384,13 @@ def linspace(
     """
     _ = stream
     dt = resolve_dtype(dtype, default=float32)
+    eff_stop: float = (
+        float(start) + (float(stop) - float(start)) * float(num - 1) / float(num)
+        if (not endpoint and num > 1)
+        else float(stop)
+    )
     return array(
-        sops.linspace(start, stop, num, dtype=to_switcheroo_dtype(dt)),
+        sops.linspace(start, eff_stop, num, dtype=to_switcheroo_dtype(dt)),
         dtype=dt,
     )
 
@@ -1631,20 +1639,22 @@ def clip(
 
 
 def nan_to_num(
-    x: ArrayInput,
+    a: ArrayInput = 0.0,
     nan: float = 0.0,
     posinf: float | None = None,
     neginf: float | None = None,
     *,
+    x: ArrayInput | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Replace `NaN` with `nan` and infinity with finite numbers.
 
     Args:
-        x: Input array.
+        a: Input array.
         nan: Value to replace `NaN` with.
         posinf: Value to replace positive infinity with.
         neginf: Value to replace negative infinity with.
+        x: Optional legacy alias for `a`.
         stream: Optional stream or device.
 
     Returns:
@@ -1652,7 +1662,7 @@ def nan_to_num(
 
     """
     _ = stream
-    arr = _as_array(x)
+    arr = _as_array(x if x is not None else a)
     return array(
         sops.nan_to_num(arr._tensor, nan=nan, posinf=posinf, neginf=neginf),
         dtype=arr.dtype,
@@ -2150,6 +2160,10 @@ def right_shift(a: ArrayInput, b: ArrayInput, *, stream: StreamOrDevice = None) 
     return _binary_op(a, b, sops.right_shift)
 
 
+bitwise_left_shift = left_shift
+bitwise_right_shift = right_shift
+
+
 # ==============================================================================
 # Type Casting & Inspection Operations
 # ==============================================================================
@@ -2252,7 +2266,7 @@ def to_fp8(x: ArrayInput, *, stream: StreamOrDevice = None) -> array:
 
 def from_fp8(
     x: ArrayInput,
-    dtype: DTypeLike = float32,
+    dtype: DTypeLike = bfloat16,
     *,
     stream: StreamOrDevice = None,
 ) -> array:
@@ -2269,7 +2283,7 @@ def from_fp8(
     """
     _ = stream
     arr = _as_array(x)
-    dt = resolve_dtype(dtype, default=float32)
+    dt = resolve_dtype(dtype, default=bfloat16)
     return array(sops.cast(arr._tensor, to_switcheroo_dtype(dt)), dtype=dt)
 
 
@@ -2820,6 +2834,10 @@ def cumprod(
     return _scan_op(a, "prod", axis=axis, reverse=reverse, inclusive=inclusive, dtype=dtype)
 
 
+cumulative_sum = cumsum
+cumulative_prod = cumprod
+
+
 def cummax(
     a: ArrayInput,
     axis: int | None = None,
@@ -3360,18 +3378,20 @@ def split(
 
 
 def repeat(
-    a: ArrayInput,
-    repeats: int,
+    array: ArrayInput = 0,
+    repeats: int = 1,
     axis: int | None = None,
     *,
+    a: ArrayInput | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Repeat elements of an array `repeats` times along `axis`.
 
     Args:
-        a: Input array.
+        array: Input array.
         repeats: Number of repetitions for each element.
         axis: Axis along which to repeat values (flattens if None).
+        a: Optional alias for `array`.
         stream: Optional stream or device.
 
     Returns:
@@ -3379,8 +3399,10 @@ def repeat(
 
     """
     _ = stream
-    arr = _as_array(a)
-    return array(pt.repeat(arr._tensor, repeats=repeats, axis=axis), dtype=arr.dtype)
+    from zero_mlx.array import array as _array_cls
+
+    arr = _as_array(a if a is not None else array)
+    return _array_cls(pt.repeat(arr._tensor, repeats=repeats, axis=axis), dtype=arr.dtype)
 
 
 def tile(

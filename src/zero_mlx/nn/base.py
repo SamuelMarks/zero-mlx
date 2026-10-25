@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Protocol, Sequence, Union, runtime_checkable
+from typing import TYPE_CHECKING, Callable, Protocol, Sequence, Union, runtime_checkable
 from weakref import WeakKeyDictionary
 
 from zero_mlx._types import ArrayInput, PyTree
@@ -39,6 +39,7 @@ ModuleAttrValue = Union[
     dict[str, "Module"],
     dict[str, array],
     dict[str, Union["Module", array]],
+    dict[str, "ModuleAttrValue"],
     set[str],
     int,
     float,
@@ -52,14 +53,375 @@ _MODULE_STATE: WeakKeyDictionary[Module, dict[str, ModuleAttrValue]] = WeakKeyDi
 _MODULE_FROZEN: WeakKeyDictionary[Module, set[str]] = WeakKeyDictionary()
 
 
+class _ModuleAttrDescriptor:
+    """Data descriptor routing `Module` parameter and submodule attributes to `_state_dict()`."""
+
+    def __init__(self, name: str) -> None:
+        """Initialize the descriptor for attribute `name`.
+
+        Args:
+            name: Attribute key in the module's state dictionary.
+
+        """
+        self.name: str = name
+
+    def __get__(
+        self,
+        instance: Module | None,
+        owner: type[Module] | None = None,
+    ) -> ModuleAttrValue | _ModuleAttrDescriptor:
+        """Read the attribute value from `instance._state_dict()`.
+
+        Args:
+            instance: `Module` instance, or None when accessed on the class.
+            owner: Owning `Module` class.
+
+        Returns:
+            Stored attribute value, or `self` when accessed on the class.
+
+        Raises:
+            AttributeError: If `self.name` is not set on `instance`.
+
+        """
+        _ = owner
+        if instance is None:
+            return self
+        state = instance._state_dict()
+        if self.name in state:
+            return state[self.name]
+        raise AttributeError(f"'{type(instance).__name__}' object has no attribute '{self.name}'")
+
+    def __set__(self, instance: Module, value: ModuleAttrValue) -> None:
+        """Write `value` into `instance._state_dict()[self.name]`.
+
+        Args:
+            instance: Target `Module` instance.
+            value: Attribute value to store.
+
+        """
+        instance._state_dict()[self.name] = value
+
+
 class Module:
     """Base class for building neural network layers and models in `zero_mlx`."""
 
-    training: bool
+    if TYPE_CHECKING:
+        p: array | float
+        extra: array
+        extra_val: int
+        list_attr: list[Module | array]
+        dict_attr: dict[str, Module | array]
+    else:
+        weight = _ModuleAttrDescriptor("weight")
+        bias = _ModuleAttrDescriptor("bias")
+        scales = _ModuleAttrDescriptor("scales")
+        biases = _ModuleAttrDescriptor("biases")
+        weight_ih = _ModuleAttrDescriptor("weight_ih")
+        weight_hh = _ModuleAttrDescriptor("weight_hh")
+        bias_ih = _ModuleAttrDescriptor("bias_ih")
+        bias_hh = _ModuleAttrDescriptor("bias_hh")
+        running_mean = _ModuleAttrDescriptor("running_mean")
+        running_var = _ModuleAttrDescriptor("running_var")
+        layers = _ModuleAttrDescriptor("layers")
+        query_proj = _ModuleAttrDescriptor("query_proj")
+        key_proj = _ModuleAttrDescriptor("key_proj")
+        value_proj = _ModuleAttrDescriptor("value_proj")
+        out_proj = _ModuleAttrDescriptor("out_proj")
+        attention = _ModuleAttrDescriptor("attention")
+        self_attn = _ModuleAttrDescriptor("self_attn")
+        cross_attn = _ModuleAttrDescriptor("cross_attn")
+        ln = _ModuleAttrDescriptor("ln")
+        ln1 = _ModuleAttrDescriptor("ln1")
+        ln2 = _ModuleAttrDescriptor("ln2")
+        ln3 = _ModuleAttrDescriptor("ln3")
+        linear1 = _ModuleAttrDescriptor("linear1")
+        linear2 = _ModuleAttrDescriptor("linear2")
+        dropout1 = _ModuleAttrDescriptor("dropout1")
+        dropout2 = _ModuleAttrDescriptor("dropout2")
+        dropout3 = _ModuleAttrDescriptor("dropout3")
+        encoder = _ModuleAttrDescriptor("encoder")
+        decoder = _ModuleAttrDescriptor("decoder")
+        module = _ModuleAttrDescriptor("module")
+        sub = _ModuleAttrDescriptor("sub")
+        m = _ModuleAttrDescriptor("m")
+        lin = _ModuleAttrDescriptor("lin")
+        emb = _ModuleAttrDescriptor("emb")
+        seq = _ModuleAttrDescriptor("seq")
+        nested = _ModuleAttrDescriptor("nested")
+        param = _ModuleAttrDescriptor("param")
+        sub_param = _ModuleAttrDescriptor("sub_param")
+        p = _ModuleAttrDescriptor("p")
+        extra = _ModuleAttrDescriptor("extra")
+        extra_val = _ModuleAttrDescriptor("extra_val")
+        list_attr = _ModuleAttrDescriptor("list_attr")
+        dict_attr = _ModuleAttrDescriptor("dict_attr")
+        _priv = _ModuleAttrDescriptor("_priv")
 
     def __init__(self) -> None:
         """Initialize the `Module` state."""
-        self.training = True
+        self._state_dict()["training"] = True
+
+    @property
+    def training(self) -> bool:
+        """Return True if the module is in training mode, False if in evaluation mode.
+
+        Returns:
+            Boolean training mode flag.
+
+        """
+        return bool(self._state_dict().get("training", True))
+
+    @property
+    def state(self) -> dict[str, ModuleAttrValue]:
+        """Return the mutable attribute state dictionary of this module.
+
+        Returns:
+            Mutable mapping of module attributes, parameters, and submodules.
+
+        """
+        return self._state_dict()
+
+    def keys(self) -> list[str]:
+        """Return the list of attribute keys stored in this module.
+
+        Returns:
+            List of attribute keys.
+
+        """
+        return list(self._state_dict().keys())
+
+    def values(self) -> list[ModuleAttrValue]:
+        """Return the list of attribute values stored in this module.
+
+        Returns:
+            List of attribute values.
+
+        """
+        return list(self._state_dict().values())
+
+    def items(self) -> list[tuple[str, ModuleAttrValue]]:
+        """Return the list of `(key, value)` pairs stored in this module.
+
+        Returns:
+            List of `(key, value)` tuples.
+
+        """
+        return list(self._state_dict().items())
+
+    def get(self, key: str, default: ModuleAttrValue = None) -> ModuleAttrValue:
+        """Return the value for `key` if `key` is in the module, else `default`.
+
+        Args:
+            key: Attribute key to look up.
+            default: Fallback value if `key` is not present.
+
+        Returns:
+            Stored value or `default`.
+
+        """
+        return self._state_dict().get(key, default)
+
+    def pop(self, key: str, default: ModuleAttrValue = None) -> ModuleAttrValue:
+        """Remove `key` from the module state and return its value (or `default`).
+
+        Args:
+            key: Attribute key to remove.
+            default: Fallback value if `key` is not present.
+
+        Returns:
+            Removed value or `default`.
+
+        """
+        return self._state_dict().pop(key, default)
+
+    def popitem(self) -> tuple[str, ModuleAttrValue]:
+        """Remove and return the last `(key, value)` pair from the module state.
+
+        Returns:
+            Removed `(key, value)` tuple.
+
+        """
+        return self._state_dict().popitem()
+
+    def clear(self) -> None:
+        """Remove all keys from the module state."""
+        self._state_dict().clear()
+
+    def copy(self) -> dict[str, ModuleAttrValue]:
+        """Return a shallow dictionary copy of the module state.
+
+        Returns:
+            Shallow copy of the state dictionary.
+
+        """
+        return self._state_dict().copy()
+
+    def setdefault(self, key: str, default: ModuleAttrValue = None) -> ModuleAttrValue:
+        """Return `self[key]` if present, otherwise set `self[key] = default` and return it.
+
+        Args:
+            key: Attribute key.
+            default: Default value to store when `key` is absent.
+
+        Returns:
+            Existing or newly stored value.
+
+        """
+        return self._state_dict().setdefault(key, default)
+
+    @classmethod
+    def fromkeys(
+        cls,
+        iterable: Sequence[str],
+        value: ModuleAttrValue = None,
+    ) -> dict[str, ModuleAttrValue]:
+        """Create a dictionary with keys from `iterable` and values set to `value`.
+
+        Args:
+            iterable: Sequence of key strings.
+            value: Initial value for each key.
+
+        Returns:
+            Dictionary mapping each key to `value`.
+
+        """
+        return dict.fromkeys(iterable, value)
+
+    @staticmethod
+    def is_module(value: ModuleAttrValue) -> bool:
+        """Return True if `value` is an instance of `Module`.
+
+        Args:
+            value: Value to test.
+
+        Returns:
+            True if `value` is a `Module`.
+
+        """
+        return isinstance(value, Module)
+
+    @staticmethod
+    def valid_child_filter(module: Module, key: str, value: ModuleAttrValue) -> bool:
+        """Return True if `(key, value)` is a valid child attribute on `module`.
+
+        Args:
+            module: Parent `Module`.
+            key: Attribute name.
+            value: Attribute value.
+
+        Returns:
+            True if `key` does not start with `'_'` and `value` is a `Module`, `list`, `tuple`, or `dict`.
+
+        """
+        _ = module
+        return not key.startswith("_") and isinstance(value, (Module, list, tuple, dict))
+
+    @staticmethod
+    def valid_parameter_filter(module: Module, key: str, value: ModuleAttrValue) -> bool:
+        """Return True if `(key, value)` is a valid parameter or child container on `module`.
+
+        Args:
+            module: Parent `Module`.
+            key: Attribute name.
+            value: Attribute value.
+
+        Returns:
+            True if `key` is public and `value` is an `array` or child container.
+
+        """
+        _ = module
+        return not key.startswith("_") and isinstance(value, (array, Module, list, tuple, dict))
+
+    @staticmethod
+    def trainable_parameter_filter(module: Module, key: str, value: ModuleAttrValue) -> bool:
+        """Return True if `(key, value)` is a non-frozen trainable parameter on `module`.
+
+        Args:
+            module: Parent `Module`.
+            key: Attribute name.
+            value: Attribute value.
+
+        Returns:
+            True if `key` is a valid parameter and not frozen on `module`.
+
+        """
+        return (
+            Module.valid_parameter_filter(module, key, value)
+            and key not in module._get_frozen_set()
+        )
+
+    def filter_and_map(
+        self,
+        filter_fn: Callable[[Module, str, ModuleAttrValue], bool],
+        map_fn: Callable[[ModuleAttrValue], ModuleAttrValue] | None = None,
+        is_leaf_fn: Callable[[Module, str, ModuleAttrValue], bool] | None = None,
+    ) -> dict[str, ModuleAttrValue]:
+        """Recursively filter and optionally map attributes of this module.
+
+        Args:
+            filter_fn: Predicate `(module, key, value) -> bool` selecting attributes.
+            map_fn: Optional transformation function applied to leaf values.
+            is_leaf_fn: Optional predicate `(module, key, value) -> bool` identifying leaf values.
+
+        Returns:
+            Nested dictionary of filtered and mapped values.
+
+        """
+        result: dict[str, ModuleAttrValue] = {}
+        for k, v in self._state_dict().items():
+            if not filter_fn(self, k, v):
+                continue
+            is_leaf = (
+                is_leaf_fn(self, k, v) if is_leaf_fn is not None else not isinstance(v, Module)
+            )
+            if not is_leaf and isinstance(v, Module):
+                result[k] = v.filter_and_map(filter_fn, map_fn=map_fn, is_leaf_fn=is_leaf_fn)
+            else:
+                result[k] = map_fn(v) if map_fn is not None else v
+        return result
+
+    def leaf_modules(self) -> dict[str, Module]:
+        """Return a dictionary of leaf submodules (modules that have no child submodules).
+
+        Returns:
+            Dictionary mapping submodule names to leaf `Module` instances.
+
+        """
+        return {path: mod for path, mod in self.named_modules() if path and not mod._modules}
+
+    def apply_to_modules(self, apply_fn: Callable[[str, Module], None]) -> Module:
+        """Apply `apply_fn(path, module)` to this module and all its descendant submodules.
+
+        Args:
+            apply_fn: Callback receiving `(dotted_path, module)`.
+
+        Returns:
+            `self` for chaining.
+
+        """
+        for path, mod in self.named_modules():
+            apply_fn(path, mod)
+        return self
+
+    def set_dtype(
+        self,
+        dtype: str,
+        predicate: Callable[[array], bool] | None = None,
+    ) -> Module:
+        """Cast parameters of this module matching `predicate` to `dtype`.
+
+        Args:
+            dtype: Target data type.
+            predicate: Optional predicate filtering which `array` parameters to cast.
+
+        Returns:
+            `self` after casting parameters.
+
+        """
+        from zero_mlx.dtypes import issubdtype, floating
+
+        pred = predicate if predicate is not None else (lambda x: issubdtype(x.dtype, floating))
+        return self.apply(lambda x: x.astype(dtype) if pred(x) else x)
 
     def _state_dict(self) -> dict[str, ModuleAttrValue]:
         """Return the internal attribute dictionary of this module instance.
@@ -73,36 +435,6 @@ class Module:
             state = {"training": True}
             _MODULE_STATE[self] = state
         return state
-
-    def __getattr__(self, key: str) -> ModuleAttrValue:
-        """Look up a registered parameter, submodule, or attribute by name.
-
-        Args:
-            key: Attribute name.
-
-        Returns:
-            Stored attribute value.
-
-        Raises:
-            AttributeError: If `key` is not present in the module.
-
-        """
-        if key == "training":
-            return bool(self._state_dict().get("training", True))
-        state = self._state_dict()
-        if key in state:
-            return state[key]
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{key}'")
-
-    def __setattr__(self, key: str, value: ModuleAttrValue) -> None:
-        """Store an attribute, parameter, or submodule in the module's state dictionary.
-
-        Args:
-            key: Attribute name to set.
-            value: Attribute value to bind.
-
-        """
-        self._state_dict()[key] = value
 
     def __getitem__(self, key: str) -> ModuleAttrValue:
         """Retrieve a module attribute, parameter, or submodule by `key`.
@@ -161,9 +493,9 @@ class Module:
                     if isinstance(item, Module):
                         mods[f"{k}.{idx}"] = item
             elif isinstance(v, dict):
-                for sub_k, item in v.items():
-                    if isinstance(item, Module):
-                        mods[f"{k}.{sub_k}"] = item
+                for sub_k, sub_item in v.items():
+                    if isinstance(sub_item, Module):
+                        mods[f"{k}.{sub_k}"] = sub_item
         return mods
 
     @property
@@ -435,7 +767,7 @@ class Module:
         return self
 
     def train(self, mode: bool = True) -> Module:
-        """Set the module and all its submodules into training mode (if `mode=True`) or evaluation mode.
+        """Set the module and all its submodules into training (`mode=True`) or evaluation (`mode=False`) mode.
 
         Args:
             mode: True for training mode, False for evaluation mode.
@@ -444,7 +776,7 @@ class Module:
             `self` for chaining.
 
         """
-        self.training = mode
+        self._state_dict()["training"] = mode
         for m in self._modules.values():
             m.train(mode)
         return self

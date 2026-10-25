@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check API parity of zero_mlx against mlx_api_snapshot.json and ml-ecosystem-snapshots v0.0.4."""
+"""Check API parity of zero_mlx against mlx_api_snapshot.json and ml-ecosystem-snapshots v0.0.5."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import json
 import os
 import sys
 from typing import Sequence
+
+from ml_ecosystem_snapshots.cli.resolver import resolve_snapshot_path
 
 NL: str = chr(10)
 CR: str = chr(13)
@@ -43,10 +45,10 @@ def parse_defs(filepath: str, zero_api: set[str]) -> None:
                     zero_api.add(bound_name)
 
 
-def _load_ecosystem_v004_apis(
+def _load_ecosystem_v005_apis(
     ecosystem_path: str | None = None,
 ) -> dict[str, tuple[str, dict[str, str]]]:
-    """Load additional API definitions from ml-ecosystem-snapshots v0.0.4 if available.
+    """Load additional API definitions from ml-ecosystem-snapshots v0.0.5 if available.
 
     Args:
         ecosystem_path: Optional explicit path to `mlx_v0.32.4.json`.
@@ -59,10 +61,12 @@ def _load_ecosystem_v004_apis(
         [ecosystem_path]
         if ecosystem_path is not None
         else [
+            resolve_snapshot_path("mlx_v0.32.4"),
             os.path.expanduser("~/.cache/ml_ecosystem_snapshots/snapshots/mlx_v0.32.4.json"),
             os.path.expanduser("~/.cache/ml_ecosystem_snapshots/mlx_v0.32.4.json"),
         ]
     )
+
     apis: dict[str, tuple[str, dict[str, str]]] = {}
     for path in candidates:
         if os.path.exists(path):
@@ -84,6 +88,9 @@ def _load_ecosystem_v004_apis(
                             },
                         )
     return apis
+
+
+_load_ecosystem_v004_apis = _load_ecosystem_v005_apis
 
 
 def check_parity(
@@ -117,7 +124,7 @@ def check_parity(
             if name not in mlx_apis:
                 mlx_apis[name] = (f"{mod_name}.{name}", info)
 
-    for name, val in _load_ecosystem_v004_apis(ecosystem_path).items():
+    for name, val in _load_ecosystem_v005_apis(ecosystem_path).items():
         if name not in mlx_apis:
             mlx_apis[name] = val
 

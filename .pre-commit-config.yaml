@@ -51,14 +51,14 @@ repos:
         pass_filenames: false
 
       - id: check-api-parity
-        name: Check API Parity against MLX Snapshot
+        name: Check API Parity against MLX Snapshot (v0.0.5)
         entry: python3 scripts/check_api_parity.py
         language: system
         types: [python]
         pass_filenames: false
 
       - id: check-api-snapshot
-        name: Check API Snapshot Grounding (v0.0.4)
+        name: Check API Snapshot Grounding (v0.0.5)
         entry: python3 scripts/check_api_snapshot.py
         language: system
         types: [python]
@@ -96,5 +96,4 @@ repos:
         entry: python3 scripts/check_3rdparty_imports.py
         language: system
         types: [python]
-        exclude: ^tests/(conftest\.py|test_ops_parity_.*\.py)$
         pass_filenames: true

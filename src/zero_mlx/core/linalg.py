@@ -1,0 +1,51 @@
+"""Linear algebra submodule (`mlx.core.linalg` / `zero_mlx.core.linalg`)."""
+
+from __future__ import annotations
+
+from zero_mlx.linalg import (
+    cholesky,
+    cholesky_inv,
+    cross,
+    det,
+    eig,
+    eigh,
+    eigvals,
+    eigvalsh,
+    inv,
+    lu,
+    lu_factor,
+    lu_solve,
+    matrix_norm,
+    norm,
+    pinv,
+    qr,
+    slogdet,
+    solve,
+    solve_triangular,
+    svd,
+    tri_inv,
+)
+
+__all__ = [
+    "cholesky",
+    "cholesky_inv",
+    "cross",
+    "det",
+    "eig",
+    "eigh",
+    "eigvals",
+    "eigvalsh",
+    "inv",
+    "lu",
+    "lu_factor",
+    "lu_solve",
+    "matrix_norm",
+    "norm",
+    "pinv",
+    "qr",
+    "slogdet",
+    "solve",
+    "solve_triangular",
+    "svd",
+    "tri_inv",
+]

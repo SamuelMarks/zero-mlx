@@ -52,6 +52,30 @@ class Embedding(Module):
         """
         return mx.matmul(x, self.weight.T)
 
+    def to_quantized(
+        self,
+        group_size: int | None = None,
+        bits: int | None = None,
+        mode: str = "affine",
+    ) -> QuantizedEmbedding:
+        """Return a `QuantizedEmbedding` initialized from this `Embedding` layer.
+
+        Args:
+            group_size: Quantization group size (defaults to 64).
+            bits: Bits per quantized weight (defaults to 4).
+            mode: Quantization mode.
+
+        Returns:
+            Quantized `QuantizedEmbedding` instance.
+
+        """
+        return QuantizedEmbedding.from_embedding(
+            self,
+            group_size=64 if group_size is None else group_size,
+            bits=4 if bits is None else bits,
+            mode=mode,
+        )
+
 
 class QuantizedEmbedding(Module):
     """A lookup table that stores quantized embeddings of a fixed dictionary and dimension."""
@@ -60,8 +84,8 @@ class QuantizedEmbedding(Module):
         self,
         num_embeddings: int,
         dims: int,
-        group_size: int = 64,
-        bits: int = 4,
+        group_size: int | None = None,
+        bits: int | None = None,
         mode: str = "affine",
     ) -> None:
         """Initialize `QuantizedEmbedding`.
@@ -69,20 +93,22 @@ class QuantizedEmbedding(Module):
         Args:
             num_embeddings: Size of the dictionary of embeddings.
             dims: Size of each embedding vector.
-            group_size: Quantization group size.
-            bits: Number of bits per quantized weight.
+            group_size: Quantization group size (defaults to 64).
+            bits: Number of bits per quantized weight (defaults to 4).
             mode: Quantization mode (`'affine'`, `'mxfp4'`, `'nvfp4'`, `'mxfp8'`).
 
         """
         super().__init__()
+        g_size: int = 64 if group_size is None else group_size
+        b_bits: int = 4 if bits is None else bits
         self.num_embeddings: int = num_embeddings
         self.dims: int = dims
-        self.group_size: int = group_size
-        self.bits: int = bits
+        self.group_size: int = g_size
+        self.bits: int = b_bits
         self.mode: str = mode
         scale: float = math.sqrt(1.0 / float(dims))
         w_init = uniform(low=-scale, high=scale, shape=(num_embeddings, dims))
-        q_res = quantize(w_init, group_size=group_size, bits=bits, mode=mode)
+        q_res = quantize(w_init, group_size=g_size, bits=b_bits, mode=mode)
         self.weight: array = q_res[0]
         self.scales: array = q_res[1]
         self.biases: array | None = q_res[2] if len(q_res) == 3 else None

@@ -30,6 +30,7 @@ def fft(
     n: int | None = None,
     axis: int = -1,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the one-dimensional discrete Fourier Transform.
@@ -38,13 +39,14 @@ def fft(
         a: Input array.
         n: Length of the transformed axis of the output.
         axis: Axis over which to compute the FFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.fft(arr._tensor, n=n, axis=axis), dtype=complex64)
 
@@ -54,6 +56,7 @@ def ifft(
     n: int | None = None,
     axis: int = -1,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the one-dimensional inverse discrete Fourier Transform.
@@ -62,13 +65,14 @@ def ifft(
         a: Input array.
         n: Length of the transformed axis of the output.
         axis: Axis over which to compute the inverse FFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.ifft(arr._tensor, n=n, axis=axis), dtype=complex64)
 
@@ -78,6 +82,7 @@ def fft2(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = (-2, -1),
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the two-dimensional discrete Fourier Transform.
@@ -86,13 +91,14 @@ def fft2(
         a: Input array.
         s: Shape (length of each transformed axis) of the output.
         axes: Axes over which to compute the 2D FFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.Fft2()(arr._tensor, s=s, axes=axes), dtype=complex64)
 
@@ -102,6 +108,7 @@ def ifft2(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = (-2, -1),
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the two-dimensional inverse discrete Fourier Transform.
@@ -110,13 +117,14 @@ def ifft2(
         a: Input array.
         s: Shape (length of each transformed axis) of the output.
         axes: Axes over which to compute the 2D inverse FFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.ifft2(arr._tensor, s=s, axes=axes), dtype=complex64)
 
@@ -126,6 +134,7 @@ def fftn(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = None,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the N-dimensional discrete Fourier Transform.
@@ -134,13 +143,14 @@ def fftn(
         a: Input array.
         s: Shape (length of each transformed axis) of the output.
         axes: Axes over which to compute the N-D FFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.fftn(arr._tensor, s=s, axes=axes), dtype=complex64)
 
@@ -150,6 +160,7 @@ def ifftn(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = None,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the N-dimensional inverse discrete Fourier Transform.
@@ -158,13 +169,14 @@ def ifftn(
         a: Input array.
         s: Shape (length of each transformed axis) of the output.
         axes: Axes over which to compute the N-D inverse FFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.ifftn(arr._tensor, s=s, axes=axes), dtype=complex64)
 
@@ -174,6 +186,7 @@ def rfft(
     n: int | None = None,
     axis: int = -1,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the one-dimensional discrete Fourier Transform for real input.
@@ -182,13 +195,14 @@ def rfft(
         a: Real-valued input array.
         n: Number of points along transformation axis in the input to use.
         axis: Axis over which to compute the RFFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.Rfft()(arr._tensor, n=n, axis=axis), dtype=complex64)
 
@@ -198,6 +212,7 @@ def irfft(
     n: int | None = None,
     axis: int = -1,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the inverse of `rfft` (1D real inverse FFT).
@@ -206,13 +221,14 @@ def irfft(
         a: Complex-valued input array.
         n: Length of the transformed axis of the output.
         axis: Axis over which to compute the IRFFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Real output `array` of dtype `float32`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.Irfft()(arr._tensor, n=n, axis=axis), dtype=float32)
 
@@ -222,6 +238,7 @@ def rfft2(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = (-2, -1),
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the two-dimensional discrete Fourier Transform for real input.
@@ -230,13 +247,14 @@ def rfft2(
         a: Real-valued input array.
         s: Shape of the FFT.
         axes: Axes over which to compute the 2D RFFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.rfft2(arr._tensor, s=s, axes=axes), dtype=complex64)
 
@@ -246,6 +264,7 @@ def irfft2(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = (-2, -1),
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the inverse of `rfft2` (2D real inverse FFT).
@@ -254,13 +273,14 @@ def irfft2(
         a: Complex-valued input array.
         s: Shape of the real output.
         axes: Axes over which to compute the 2D IRFFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Real output `array` of dtype `float32`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.irfft2(arr._tensor, s=s, axes=axes), dtype=float32)
 
@@ -270,6 +290,7 @@ def rfftn(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = None,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the N-dimensional discrete Fourier Transform for real input.
@@ -278,13 +299,14 @@ def rfftn(
         a: Real-valued input array.
         s: Shape of the FFT.
         axes: Axes over which to compute the N-D RFFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Complex output `array` of dtype `complex64`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.rfftn(arr._tensor, s=s, axes=axes), dtype=complex64)
 
@@ -294,6 +316,7 @@ def irfftn(
     s: Sequence[int] | None = None,
     axes: Sequence[int] | None = None,
     *,
+    norm: str | None = None,
     stream: StreamOrDevice = None,
 ) -> array:
     """Compute the inverse of `rfftn` (N-dimensional real inverse FFT).
@@ -302,13 +325,14 @@ def irfftn(
         a: Complex-valued input array.
         s: Shape of the real output.
         axes: Axes over which to compute the N-D IRFFT.
+        norm: Optional normalization mode (`'backward'`, `'ortho'`, `'forward'`).
         stream: Optional stream or device.
 
     Returns:
         Real output `array` of dtype `float32`.
 
     """
-    _ = stream
+    _ = (norm, stream)
     arr = _as_array(a)
     return array(sig.irfftn(arr._tensor, s=s, axes=axes), dtype=float32)
 
