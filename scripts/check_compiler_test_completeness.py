@@ -26,7 +26,6 @@ def check_completeness(
 
     """
     sys.path.insert(0, os.path.abspath("src"))
-    sys.path.insert(0, os.path.abspath("../ml-switcheroo-compiler/src"))
     import zero_mlx as _zmlx
     from ml_switcheroo_compiler.ops.registry import _OP_REGISTRY
 

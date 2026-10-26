@@ -615,13 +615,25 @@ def test_compiler_completeness_and_matrix_and_badges(tmp_path: pathlib.Path) -> 
     bad_cov_json = tmp_path / "bad_cov.json"
     _write_lines(bad_cov_json, ["not_json"])
     assert ubadges.get_test_coverage(cov_json_path=str(bad_cov_json)) == 0.0
-    assert (
-        ubadges.get_test_coverage(cov_json_path=str(tmp_path / "missing_dir" / "missing.json"))
-        == 0.0
-    )
+    assert ubadges.get_test_coverage(cov_json_path=str(bad_cov_json / "missing.json")) == 0.0
     ubadges.update_readme(readme_path=str(tmp_path / "nonexistent_readme.md"))
     orig_readme = pathlib.Path("README.md").read_text(encoding="utf-8")
     try:
         assert ubadges.main([]) == 0
     finally:
         pathlib.Path("README.md").write_text(orig_readme, encoding="utf-8")
+
+    expected_wheels: tuple[str, ...] = (
+        "https://github.com/SamuelMarks/ml-ecosystem-snapshots/releases/download/v0.0.5/ml_ecosystem_snapshots-0.0.5-py3-none-any.whl",
+        "https://github.com/SamuelMarks/ml-switcheroo-ir/releases/download/v0.0.4/ml_switcheroo_ir-0.0.4-py3-none-any.whl",
+        "https://github.com/SamuelMarks/ml-switcheroo-compiler/releases/download/v0.0.1/ml_switcheroo_compiler-0.0.1-py3-none-any.whl",
+    )
+    for cfg_path in (
+        "requirements.txt",
+        "requirements-test.txt",
+        "setup_dev_env.sh",
+        ".github/workflows/ci.yml",
+    ):
+        cfg_text = pathlib.Path(cfg_path).read_text(encoding="utf-8")
+        for wheel_url in expected_wheels:
+            assert wheel_url in cfg_text
