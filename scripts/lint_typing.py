@@ -11,12 +11,23 @@ from typing import Sequence
 
 DEFAULT_TARGET_DIRS: tuple[str, ...] = ("src/zero_mlx", "scripts", "tests")
 BANNED_REFLECTION_FUNCS: frozenset[str] = frozenset(
-    {"getattr", "setattr", "hasattr", "delattr", "__import__", "cast", "vars", "__setattr__"}
+    {
+        "getattr",
+        "setattr",
+        "hasattr",
+        "delattr",
+        "__import__",
+        "cast",
+        "vars",
+        "__setattr__",
+        "getmembers",
+        "WeakKeyDictionary",
+    }
 )
 BANNED_DUNDER_METHODS: frozenset[str] = frozenset(
     {"__getattr__", "__getattribute__", "__setattr__", "__delattr__"}
 )
-BANNED_TYPE_NAMES: frozenset[str] = frozenset({"Any", "object", "AnyType"})
+BANNED_TYPE_NAMES: frozenset[str] = frozenset({"Any", "object", "AnyType", "WeakKeyDictionary"})
 
 
 def _check_annotation(node: ast.AST | None, filepath: str) -> list[str]:
@@ -105,7 +116,7 @@ def _check_ast_node(filepath: str, node: ast.AST) -> list[str]:
     violations: list[str] = []
     if isinstance(node, ast.ImportFrom):
         for alias in node.names:
-            if alias.name in ("Any", "cast"):
+            if alias.name in ("Any", "cast", "WeakKeyDictionary"):
                 violations.append(f"{filepath}:{node.lineno}: prohibited import '{alias.name}'")
     elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
         violations.extend(_check_function_node(filepath, node))
@@ -130,6 +141,7 @@ def _check_ast_node(filepath: str, node: ast.AST) -> list[str]:
                 and isinstance(node.func.value, ast.Name)
                 and node.func.value.id in ("sops", "mops", "ops")
             )
+            and not (node.func.attr == "getmembers" and filepath.endswith("check_api_snapshot.py"))
         ):
             violations.append(
                 f"{filepath}:{node.lineno}: prohibited reflection/cast call '.{node.func.attr}()'"

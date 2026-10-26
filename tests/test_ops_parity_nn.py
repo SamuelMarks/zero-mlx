@@ -243,3 +243,202 @@ def test_MetalKernel_parity() -> None:
 def test_PrecompiledCudaKernel_parity() -> None:
     """Test parity for PrecompiledCudaKernel."""
     check_parity("PrecompiledCudaKernel", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_AdamaxHyperparams_parity() -> None:
+    """Test parity for AdamaxHyperparams."""
+    check_parity("AdamaxHyperparams", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_AdaptiveAvgPool3D_parity() -> None:
+    """Test parity for AdaptiveAvgPool3D."""
+    check_parity("AdaptiveAvgPool3D", lambda: [np.random.randn(1, 2, 2, 2, 1).astype(np.float32)])
+
+
+def test_AdaptiveMaxPool3D_parity() -> None:
+    """Test parity for AdaptiveMaxPool3D."""
+    check_parity("AdaptiveMaxPool3D", lambda: [np.random.randn(1, 2, 2, 2, 1).astype(np.float32)])
+
+
+def test_AdaptiveMaxPool3D_Indices_parity() -> None:
+    """Test parity for AdaptiveMaxPool3D_Indices."""
+    check_parity(
+        "AdaptiveMaxPool3D_Indices",
+        lambda: [np.random.randn(1, 2, 2, 2, 1).astype(np.float32)],
+    )
+
+
+def test_ApplyAdagrad_parity() -> None:
+    """Test parity for ApplyAdagrad."""
+    check_parity("ApplyAdagrad", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_ApplyAdam_parity() -> None:
+    """Test parity for ApplyAdam."""
+    check_parity("ApplyAdam", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_ApplyFtrl_parity() -> None:
+    """Test parity for ApplyFtrl."""
+    check_parity("ApplyFtrl", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_ApplyRMSProp_parity() -> None:
+    """Test parity for ApplyRMSProp."""
+    check_parity("ApplyRMSProp", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_ConvTransposeShapeTuple_parity() -> None:
+    """Test parity for ConvTransposeShapeTuple."""
+    check_parity("ConvTransposeShapeTuple", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_Dropout1d_parity() -> None:
+    """Test parity for Dropout1d."""
+    check_parity("Dropout1d", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_FractionalAvgPool_parity() -> None:
+    """Test parity for FractionalAvgPool."""
+    check_parity("FractionalAvgPool", lambda: [np.random.randn(1, 4, 4, 1).astype(np.float32)])
+
+
+def test_FractionalMaxPool_parity() -> None:
+    """Test parity for FractionalMaxPool."""
+    check_parity("FractionalMaxPool", lambda: [np.random.randn(1, 4, 4, 1).astype(np.float32)])
+
+
+def test_FractionalMaxPool3D_parity() -> None:
+    """Test parity for FractionalMaxPool3D."""
+    check_parity(
+        "FractionalMaxPool3D",
+        lambda: [np.random.randn(1, 2, 2, 2, 1).astype(np.float32)],
+    )
+
+
+def test_FractionalMaxPool3D_Indices_parity() -> None:
+    """Test parity for FractionalMaxPool3D_Indices."""
+    check_parity(
+        "FractionalMaxPool3D_Indices",
+        lambda: [np.random.randn(1, 2, 2, 2, 1).astype(np.float32)],
+    )
+
+
+def test_Iou_parity() -> None:
+    """Test parity for Iou."""
+    check_parity("Iou", lambda: [np.random.randn(2, 4).astype(np.float32)])
+
+
+def test_LionConfig_parity() -> None:
+    """Test parity for LionConfig."""
+    check_parity("LionConfig", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_LogSigmoid_parity() -> None:
+    """Test parity for LogSigmoid."""
+    check_parity("LogSigmoid", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_LogSoftmax_parity() -> None:
+    """Test parity for LogSoftmax."""
+    check_parity("LogSoftmax", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_MaxPoolWithIndices_parity() -> None:
+    """Test parity for MaxPoolWithIndices."""
+    check_parity("MaxPoolWithIndices", lambda: [np.random.randn(1, 2, 2, 1).astype(np.float32)])
+
+
+def test_MaxPoolWithIndices_Indices_parity() -> None:
+    """Test parity for MaxPoolWithIndices_Indices."""
+    check_parity(
+        "MaxPoolWithIndices_Indices",
+        lambda: [np.random.randn(1, 2, 2, 1).astype(np.float32)],
+    )
+
+
+def test_MaxUnpool1D_parity() -> None:
+    """Test parity for MaxUnpool1D."""
+    check_parity("MaxUnpool1D", lambda: [np.random.randn(1, 2, 1).astype(np.float32)])
+
+
+def test_MaxUnpool2D_parity() -> None:
+    """Test parity for MaxUnpool2D."""
+    check_parity("MaxUnpool2D", lambda: [np.random.randn(1, 2, 2, 1).astype(np.float32)])
+
+
+def test_MaxUnpool3D_parity() -> None:
+    """Test parity for MaxUnpool3D."""
+    check_parity("MaxUnpool3D", lambda: [np.random.randn(1, 2, 2, 2, 1).astype(np.float32)])
+
+
+def test_Nms_parity() -> None:
+    """Test parity for Nms."""
+    check_parity("Nms", lambda: [np.random.randn(2, 4).astype(np.float32)])
+
+
+def test_Normalization_parity() -> None:
+    """Test parity for Normalization."""
+    check_parity("Normalization", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_ScaledDotProductAttention_parity() -> None:
+    """Test parity for ScaledDotProductAttention."""
+    check_parity(
+        "ScaledDotProductAttention",
+        lambda: [
+            np.ones((1, 2, 3, 4), dtype=np.float32),
+            np.ones((1, 2, 3, 4), dtype=np.float32),
+            np.ones((1, 2, 3, 4), dtype=np.float32),
+        ],
+    )
+
+
+def test_Smm_parity() -> None:
+    """Test parity for Smm."""
+    check_parity("Smm", lambda: [np.random.randn(2, 2).astype(np.float32)])
+
+
+def test_Softsign_parity() -> None:
+    """Test parity for Softsign."""
+    check_parity("Softsign", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_SpaceToBatch_parity() -> None:
+    """Test parity for SpaceToBatch."""
+    check_parity("SpaceToBatch", lambda: [np.random.randn(1, 2, 2, 1).astype(np.float32)])
+
+
+def test_SpaceToBatchND_parity() -> None:
+    """Test parity for SpaceToBatchND."""
+    check_parity("SpaceToBatchND", lambda: [np.random.randn(1, 2, 2, 1).astype(np.float32)])
+
+
+def test_SparseConcat_parity() -> None:
+    """Test parity for SparseConcat."""
+    check_parity("SparseConcat", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_SparsePlus_parity() -> None:
+    """Test parity for SparsePlus."""
+    check_parity("SparsePlus", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_SparseSampledAdd_parity() -> None:
+    """Test parity for SparseSampledAdd."""
+    check_parity("SparseSampledAdd", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_SparseSigmoid_parity() -> None:
+    """Test parity for SparseSigmoid."""
+    check_parity("SparseSigmoid", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_SparseSplit_parity() -> None:
+    """Test parity for SparseSplit."""
+    check_parity("SparseSplit", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_SparseToDense_parity() -> None:
+    """Test parity for SparseToDense."""
+    check_parity("SparseToDense", lambda: [np.random.randn(2, 3).astype(np.float32)])

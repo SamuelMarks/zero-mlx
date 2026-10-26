@@ -5,12 +5,15 @@ from __future__ import annotations
 import math
 from typing import Callable
 
+from zero_mlx._types import DTypeLike
 from zero_mlx.array import array
+from zero_mlx.dtypes import float32
 from zero_mlx.nn.activations import relu
 from zero_mlx.nn.base import Module
 from zero_mlx.nn.dropout import Dropout
 from zero_mlx.nn.linear import Linear
 from zero_mlx.nn.normalization import LayerNorm
+from zero_mlx.nn.utils import checkpoint as nn_checkpoint
 import zero_mlx.ops as mx
 
 
@@ -57,18 +60,19 @@ class MultiHeadAttention(Module):
         if v_dims % num_heads != 0:
             raise ValueError(f"value_dims ({v_dims}) must be divisible by num_heads ({num_heads})")
 
-        self.query_proj: array = mx.zeros((q_in, dims))
-        self.key_proj: array = mx.zeros((k_in, dims))
-        self.value_proj: array = mx.zeros((v_in, v_dims))
-        self.out_proj: array = mx.zeros((v_dims, v_out))
+        self.query_proj: Linear | array = Linear(q_in, dims, bias=bias)
+        self.key_proj: Linear | array = Linear(k_in, dims, bias=bias)
+        self.value_proj: Linear | array = Linear(v_in, v_dims, bias=bias)
+        self.out_proj: Linear | array = Linear(v_dims, v_out, bias=bias)
         self.bias: bool = bias
 
     @staticmethod
-    def create_additive_causal_mask(n: int) -> array:
+    def create_additive_causal_mask(n: int, dtype: DTypeLike = float32) -> array:
         """Create an `n x n` upper-triangular additive causal attention mask (`0` and `-inf`).
 
         Args:
             n: Sequence length.
+            dtype: Output floating-point data type.
 
         Returns:
             Additive causal mask `array` of shape `(n, n)`.
@@ -76,7 +80,7 @@ class MultiHeadAttention(Module):
         """
         indices = mx.arange(0, n)
         mask = mx.expand_dims(indices, axis=1) < mx.expand_dims(indices, axis=0)
-        return mx.where(mask, float("-inf"), 0.0)
+        return mx.where(mask, float("-inf"), 0.0).astype(dtype)
 
     def __call__(
         self,
@@ -100,9 +104,21 @@ class MultiHeadAttention(Module):
         b_sz, l_len, _ = queries.shape
         _, s_len, _ = keys.shape
 
-        q = mx.matmul(queries, self.query_proj)
-        k = mx.matmul(keys, self.key_proj)
-        v = mx.matmul(values, self.value_proj)
+        q = (
+            self.query_proj(queries)
+            if isinstance(self.query_proj, Linear)
+            else mx.matmul(queries, self.query_proj)
+        )
+        k = (
+            self.key_proj(keys)
+            if isinstance(self.key_proj, Linear)
+            else mx.matmul(keys, self.key_proj)
+        )
+        v = (
+            self.value_proj(values)
+            if isinstance(self.value_proj, Linear)
+            else mx.matmul(values, self.value_proj)
+        )
 
         q = mx.reshape(q, (b_sz, l_len, self.num_heads, -1))
         k = mx.reshape(k, (b_sz, s_len, self.num_heads, -1))
@@ -121,7 +137,11 @@ class MultiHeadAttention(Module):
         out = mx.matmul(attn, v)
         out = mx.transpose(out, (0, 2, 1, 3))
         out = mx.reshape(out, (b_sz, l_len, -1))
-        return mx.matmul(out, self.out_proj)
+        return (
+            self.out_proj(out)
+            if isinstance(self.out_proj, Linear)
+            else mx.matmul(out, self.out_proj)
+        )
 
 
 class TransformerEncoderLayer(Module):
@@ -240,7 +260,11 @@ class TransformerEncoder(Module):
 
         """
         for layer in self.layers:
-            x = layer(x, mask)
+            if self.checkpoint:
+                res = nn_checkpoint(layer)(x) if mask is None else nn_checkpoint(layer)(x, mask)
+                x = res[0] if isinstance(res, tuple) else res
+            else:
+                x = layer(x, mask)
         return self.ln(x)
 
 
@@ -380,7 +404,11 @@ class TransformerDecoder(Module):
 
         """
         for layer in self.layers:
-            x = layer(x, memory, x_mask, memory_mask)
+            if self.checkpoint:
+                res = nn_checkpoint(layer)(x, memory)
+                x = res[0] if isinstance(res, tuple) else res
+            else:
+                x = layer(x, memory, x_mask, memory_mask)
         return self.ln(x)
 
 

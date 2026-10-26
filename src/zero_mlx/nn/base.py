@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Protocol, Sequence, Union, runtime_checkable
-from weakref import WeakKeyDictionary
+from typing import TYPE_CHECKING, Callable, Iterator, Protocol, Sequence, Union, runtime_checkable
 
-from zero_mlx._types import ArrayInput, PyTree
+from zero_mlx._types import ArrayInput, DTypeLike, PyTree
 from zero_mlx.array import array
 from zero_mlx.utils import tree_flatten
 
@@ -34,13 +33,12 @@ class CallableModuleProtocol(Protocol):
 ModuleAttrValue = Union[
     array,
     "Module",
-    list[Union["Module", array, str]],
-    tuple[Union["Module", array], ...],
+    list[Union["Module", array, str, "ModuleAttrValue"]],
+    tuple[Union["Module", array, "ModuleAttrValue"], ...],
     dict[str, "Module"],
     dict[str, array],
     dict[str, Union["Module", array]],
     dict[str, "ModuleAttrValue"],
-    set[str],
     int,
     float,
     bool,
@@ -49,11 +47,8 @@ ModuleAttrValue = Union[
     None,
 ]
 
-_MODULE_STATE: WeakKeyDictionary[Module, dict[str, ModuleAttrValue]] = WeakKeyDictionary()
-_MODULE_FROZEN: WeakKeyDictionary[Module, set[str]] = WeakKeyDictionary()
 
-
-class _ModuleAttrDescriptor:
+class ModuleAttr:
     """Data descriptor routing `Module` parameter and submodule attributes to `_state_dict()`."""
 
     def __init__(self, name: str) -> None:
@@ -69,7 +64,7 @@ class _ModuleAttrDescriptor:
         self,
         instance: Module | None,
         owner: type[Module] | None = None,
-    ) -> ModuleAttrValue | _ModuleAttrDescriptor:
+    ) -> ModuleAttrValue | ModuleAttr:
         """Read the attribute value from `instance._state_dict()`.
 
         Args:
@@ -102,64 +97,155 @@ class _ModuleAttrDescriptor:
         instance._state_dict()[self.name] = value
 
 
+_ModuleAttrDescriptor = ModuleAttr
+
+
+def _filter_and_map_container(
+    parent: Module,
+    container: (
+        list[Module | array | str | ModuleAttrValue]
+        | tuple[Module | array | ModuleAttrValue, ...]
+        | dict[str, Module]
+        | dict[str, array]
+        | dict[str, Module | array]
+        | dict[str, ModuleAttrValue]
+    ),
+    filter_fn: Callable[[Module, str, ModuleAttrValue], bool],
+    map_fn: Callable[[ModuleAttrValue], ModuleAttrValue] | None = None,
+    is_leaf_fn: Callable[[Module, str, ModuleAttrValue], bool] | None = None,
+) -> ModuleAttrValue:
+    """Recursively filter and map a nested `list`, `tuple`, or `dict` container on `parent`.
+
+    Args:
+        parent: Owning `Module`.
+        container: Container attribute value (`list`, `tuple`, or `dict`).
+        filter_fn: Predicate `(module, key, value) -> bool`.
+        map_fn: Optional leaf transformation function.
+        is_leaf_fn: Optional custom leaf predicate.
+
+    Returns:
+        Filtered and mapped container of the same collection kind.
+
+    """
+    if isinstance(container, (list, tuple)):
+        out_seq: list[ModuleAttrValue] = []
+        for item in container:
+            if isinstance(item, Module):
+                out_seq.append(item.filter_and_map(filter_fn, map_fn=map_fn, is_leaf_fn=is_leaf_fn))
+            else:
+                out_seq.append(map_fn(item) if map_fn is not None else item)
+        return tuple(out_seq) if isinstance(container, tuple) else out_seq
+
+    out_dict: dict[str, ModuleAttrValue] = {}
+    for sub_k, sub_v in container.items():
+        if isinstance(sub_v, Module):
+            out_dict[sub_k] = sub_v.filter_and_map(filter_fn, map_fn=map_fn, is_leaf_fn=is_leaf_fn)
+        else:
+            out_dict[sub_k] = map_fn(sub_v) if map_fn is not None else sub_v
+    return out_dict
+
+
+def _extract_container_params(
+    container: (
+        list[Module | array | str | ModuleAttrValue]
+        | tuple[Module | array | ModuleAttrValue, ...]
+        | dict[str, Module]
+        | dict[str, array]
+        | dict[str, Module | array]
+        | dict[str, ModuleAttrValue]
+    ),
+    trainable_only: bool,
+) -> PyTree:
+    """Recursively extract parameter PyTrees from a `list`, `tuple`, or `dict` container.
+
+    Args:
+        container: Sequence or mapping of `Module` or `array` elements.
+        trainable_only: If True, call `trainable_parameters()` on nested modules.
+
+    Returns:
+        Extracted parameter `list` or `dict`.
+
+    """
+    if isinstance(container, (list, tuple)):
+        return [
+            (item.trainable_parameters() if trainable_only else item.parameters())
+            if isinstance(item, Module)
+            else item
+            for item in container
+            if isinstance(item, (Module, array))
+        ]
+
+    return {
+        k: (v.trainable_parameters() if trainable_only else v.parameters())
+        if isinstance(v, Module)
+        else v
+        for k, v in container.items()
+        if isinstance(v, (Module, array))
+    }
+
+
+def _has_any_array_leaf(tree: PyTree) -> bool:
+    """Return True if `tree` contains at least one `array` leaf.
+
+    Args:
+        tree: Nested PyTree structure.
+
+    Returns:
+        True if an `array` leaf is present in `tree`.
+
+    """
+    if isinstance(tree, array):
+        return True
+    if isinstance(tree, dict):
+        return any(_has_any_array_leaf(v) for v in tree.values())
+    return isinstance(tree, (list, tuple)) and any(_has_any_array_leaf(v) for v in tree)
+
+
 class Module:
     """Base class for building neural network layers and models in `zero_mlx`."""
 
+    _state: dict[str, ModuleAttrValue] | None = None
+    _frozen: set[str] | None = None
+
     if TYPE_CHECKING:
         p: array | float
-        extra: array
-        extra_val: int
-        list_attr: list[Module | array]
-        dict_attr: dict[str, Module | array]
     else:
-        weight = _ModuleAttrDescriptor("weight")
-        bias = _ModuleAttrDescriptor("bias")
-        scales = _ModuleAttrDescriptor("scales")
-        biases = _ModuleAttrDescriptor("biases")
-        weight_ih = _ModuleAttrDescriptor("weight_ih")
-        weight_hh = _ModuleAttrDescriptor("weight_hh")
-        bias_ih = _ModuleAttrDescriptor("bias_ih")
-        bias_hh = _ModuleAttrDescriptor("bias_hh")
-        running_mean = _ModuleAttrDescriptor("running_mean")
-        running_var = _ModuleAttrDescriptor("running_var")
-        layers = _ModuleAttrDescriptor("layers")
-        query_proj = _ModuleAttrDescriptor("query_proj")
-        key_proj = _ModuleAttrDescriptor("key_proj")
-        value_proj = _ModuleAttrDescriptor("value_proj")
-        out_proj = _ModuleAttrDescriptor("out_proj")
-        attention = _ModuleAttrDescriptor("attention")
-        self_attn = _ModuleAttrDescriptor("self_attn")
-        cross_attn = _ModuleAttrDescriptor("cross_attn")
-        ln = _ModuleAttrDescriptor("ln")
-        ln1 = _ModuleAttrDescriptor("ln1")
-        ln2 = _ModuleAttrDescriptor("ln2")
-        ln3 = _ModuleAttrDescriptor("ln3")
-        linear1 = _ModuleAttrDescriptor("linear1")
-        linear2 = _ModuleAttrDescriptor("linear2")
-        dropout1 = _ModuleAttrDescriptor("dropout1")
-        dropout2 = _ModuleAttrDescriptor("dropout2")
-        dropout3 = _ModuleAttrDescriptor("dropout3")
-        encoder = _ModuleAttrDescriptor("encoder")
-        decoder = _ModuleAttrDescriptor("decoder")
-        module = _ModuleAttrDescriptor("module")
-        sub = _ModuleAttrDescriptor("sub")
-        m = _ModuleAttrDescriptor("m")
-        lin = _ModuleAttrDescriptor("lin")
-        emb = _ModuleAttrDescriptor("emb")
-        seq = _ModuleAttrDescriptor("seq")
-        nested = _ModuleAttrDescriptor("nested")
-        param = _ModuleAttrDescriptor("param")
-        sub_param = _ModuleAttrDescriptor("sub_param")
-        p = _ModuleAttrDescriptor("p")
-        extra = _ModuleAttrDescriptor("extra")
-        extra_val = _ModuleAttrDescriptor("extra_val")
-        list_attr = _ModuleAttrDescriptor("list_attr")
-        dict_attr = _ModuleAttrDescriptor("dict_attr")
-        _priv = _ModuleAttrDescriptor("_priv")
+        weight = ModuleAttr("weight")
+        bias = ModuleAttr("bias")
+        scales = ModuleAttr("scales")
+        biases = ModuleAttr("biases")
+        weight_ih = ModuleAttr("weight_ih")
+        weight_hh = ModuleAttr("weight_hh")
+        bias_ih = ModuleAttr("bias_ih")
+        bias_hh = ModuleAttr("bias_hh")
+        running_mean = ModuleAttr("running_mean")
+        running_var = ModuleAttr("running_var")
+        layers = ModuleAttr("layers")
+        query_proj = ModuleAttr("query_proj")
+        key_proj = ModuleAttr("key_proj")
+        value_proj = ModuleAttr("value_proj")
+        out_proj = ModuleAttr("out_proj")
+        attention = ModuleAttr("attention")
+        self_attn = ModuleAttr("self_attn")
+        cross_attn = ModuleAttr("cross_attn")
+        ln = ModuleAttr("ln")
+        ln1 = ModuleAttr("ln1")
+        ln2 = ModuleAttr("ln2")
+        ln3 = ModuleAttr("ln3")
+        linear1 = ModuleAttr("linear1")
+        linear2 = ModuleAttr("linear2")
+        dropout1 = ModuleAttr("dropout1")
+        dropout2 = ModuleAttr("dropout2")
+        dropout3 = ModuleAttr("dropout3")
+        encoder = ModuleAttr("encoder")
+        decoder = ModuleAttr("decoder")
+        module = ModuleAttr("module")
+        p = ModuleAttr("p")
 
     def __init__(self) -> None:
         """Initialize the `Module` state."""
-        self._state_dict()["training"] = True
+        self._state = {"training": True}
+        self._frozen = set()
 
     @property
     def training(self) -> bool:
@@ -207,6 +293,15 @@ class Module:
 
         """
         return list(self._state_dict().items())
+
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over attribute keys stored in this module.
+
+        Returns:
+            Iterator over attribute key strings.
+
+        """
+        return iter(self._state_dict())
 
     def get(self, key: str, default: ModuleAttrValue = None) -> ModuleAttrValue:
         """Return the value for `key` if `key` is in the module, else `default`.
@@ -372,10 +467,16 @@ class Module:
             if not filter_fn(self, k, v):
                 continue
             is_leaf = (
-                is_leaf_fn(self, k, v) if is_leaf_fn is not None else not isinstance(v, Module)
+                is_leaf_fn(self, k, v)
+                if is_leaf_fn is not None
+                else not isinstance(v, (Module, list, tuple, dict))
             )
             if not is_leaf and isinstance(v, Module):
                 result[k] = v.filter_and_map(filter_fn, map_fn=map_fn, is_leaf_fn=is_leaf_fn)
+            elif not is_leaf and isinstance(v, (list, tuple, dict)):
+                result[k] = _filter_and_map_container(
+                    self, v, filter_fn, map_fn=map_fn, is_leaf_fn=is_leaf_fn
+                )
             else:
                 result[k] = map_fn(v) if map_fn is not None else v
         return result
@@ -405,20 +506,20 @@ class Module:
 
     def set_dtype(
         self,
-        dtype: str,
+        dtype: DTypeLike,
         predicate: Callable[[array], bool] | None = None,
     ) -> Module:
         """Cast parameters of this module matching `predicate` to `dtype`.
 
         Args:
-            dtype: Target data type.
+            dtype: Target data type (`DType` or dtype string).
             predicate: Optional predicate filtering which `array` parameters to cast.
 
         Returns:
             `self` after casting parameters.
 
         """
-        from zero_mlx.dtypes import issubdtype, floating
+        from zero_mlx.dtypes import floating, issubdtype
 
         pred = predicate if predicate is not None else (lambda x: issubdtype(x.dtype, floating))
         return self.apply(lambda x: x.astype(dtype) if pred(x) else x)
@@ -430,11 +531,10 @@ class Module:
             Mutable mapping of attribute names to values on `self`.
 
         """
-        state = _MODULE_STATE.get(self)
-        if state is None:
-            state = {"training": True}
-            _MODULE_STATE[self] = state
-        return state
+        if self._state is None:
+            self._state = {"training": True}
+            self._frozen = set()
+        return self._state
 
     def __getitem__(self, key: str) -> ModuleAttrValue:
         """Retrieve a module attribute, parameter, or submodule by `key`.
@@ -486,6 +586,8 @@ class Module:
         """
         mods: dict[str, Module] = {}
         for k, v in self._state_dict().items():
+            if k.startswith("_"):
+                continue
             if isinstance(v, Module):
                 mods[k] = v
             elif isinstance(v, (list, tuple)):
@@ -519,11 +621,8 @@ class Module:
             Set of frozen key strings.
 
         """
-        frozen = _MODULE_FROZEN.get(self)
-        if frozen is None:
-            frozen = set()
-            _MODULE_FROZEN[self] = frozen
-        return frozen
+        _ = self._state_dict()
+        return self._frozen if self._frozen is not None else set()
 
     def parameters(self) -> dict[str, PyTree]:
         """Return a nested dictionary of all parameters in this module and its submodules.
@@ -533,11 +632,15 @@ class Module:
 
         """
         params: dict[str, PyTree] = {}
-        for k, v in self._parameters.items():
-            params[k] = v
-        for k, m in self._modules.items():
-            if "." not in k:
-                params[k] = m.parameters()
+        for k, v in self._state_dict().items():
+            if k.startswith("_") or k == "training":
+                continue
+            if isinstance(v, array):
+                params[k] = v
+            elif isinstance(v, Module):
+                params[k] = v.parameters()
+            elif isinstance(v, (list, tuple, dict)):
+                params[k] = _extract_container_params(v, trainable_only=False)
         return params
 
     def trainable_parameters(self) -> dict[str, PyTree]:
@@ -549,12 +652,17 @@ class Module:
         """
         frozen = self._get_frozen_set()
         params: dict[str, PyTree] = {}
-        for k, v in self._parameters.items():
-            if k not in frozen:
+        for k, v in self._state_dict().items():
+            if k.startswith("_") or k == "training" or k in frozen:
+                continue
+            if isinstance(v, array):
                 params[k] = v
-        for k, m in self._modules.items():
-            if "." not in k and k not in frozen:
-                params[k] = m.trainable_parameters()
+            elif isinstance(v, Module):
+                params[k] = v.trainable_parameters()
+            elif isinstance(v, (list, tuple, dict)):
+                extracted = _extract_container_params(v, trainable_only=True)
+                if _has_any_array_leaf(extracted):
+                    params[k] = extracted
         return params
 
     def freeze(
@@ -579,10 +687,16 @@ class Module:
 
         """
         frozen = self._get_frozen_set()
+        state = self._state_dict()
         if keys is not None:
             key_list = [keys] if isinstance(keys, str) else list(keys)
             for k in key_list:
-                if strict and k not in self._parameters and k not in self._modules:
+                if (
+                    strict
+                    and k not in self._parameters
+                    and k not in self._modules
+                    and k not in state
+                ):
                     raise KeyError(f"Parameter or submodule '{k}' not found")
                 frozen.add(k)
         else:
@@ -613,10 +727,16 @@ class Module:
 
         """
         frozen = self._get_frozen_set()
+        state = self._state_dict()
         if keys is not None:
             key_list = [keys] if isinstance(keys, str) else list(keys)
             for k in key_list:
-                if strict and k not in self._parameters and k not in self._modules:
+                if (
+                    strict
+                    and k not in self._parameters
+                    and k not in self._modules
+                    and k not in state
+                ):
                     raise KeyError(f"Parameter or submodule '{k}' not found")
                 frozen.discard(k)
         else:
@@ -646,8 +766,25 @@ class Module:
                 raise ValueError(
                     f"Module '{type(self).__name__}' has no parameter or submodule '{k}'"
                 )
-            if isinstance(v, dict) and k in mods:
-                mods[k].update(v, strict=strict)
+            curr = state.get(k)
+            if isinstance(v, dict) and isinstance(curr, Module):
+                curr.update(v, strict=strict)
+            elif isinstance(v, dict) and isinstance(curr, dict):
+                new_dict: dict[str, ModuleAttrValue] = dict(curr)
+                for sub_k, sub_v in v.items():
+                    sub_curr = new_dict.get(sub_k)
+                    if isinstance(sub_curr, Module) and isinstance(sub_v, dict):
+                        sub_curr.update(sub_v, strict=strict)
+                    else:
+                        new_dict[sub_k] = sub_v if isinstance(sub_v, array) else array(sub_v)
+                state[k] = new_dict
+            elif isinstance(v, (list, tuple)) and isinstance(curr, list):
+                for idx, item_v in enumerate(v):
+                    sub_item = curr[idx]
+                    if isinstance(sub_item, Module) and isinstance(item_v, dict):
+                        sub_item.update(item_v, strict=strict)
+                    else:
+                        curr[idx] = item_v if isinstance(item_v, array) else array(item_v)
             else:
                 v_arr = v if isinstance(v, array) else array(v)
                 state[k] = v_arr
@@ -760,10 +897,29 @@ class Module:
 
         """
         state = self._state_dict()
-        for k, v in list(self._parameters.items()):
-            state[k] = map_fn(v)
-        for m in self._modules.values():
-            m.apply(map_fn)
+        for k, v in list(state.items()):
+            if k.startswith("_") or k == "training":
+                continue
+            if isinstance(v, array):
+                state[k] = map_fn(v)
+            elif isinstance(v, Module):
+                v.apply(map_fn)
+            elif isinstance(v, list):
+                state[k] = [
+                    item.apply(map_fn)
+                    if isinstance(item, Module)
+                    else (map_fn(item) if isinstance(item, array) else item)
+                    for item in v
+                ]
+            elif isinstance(v, dict):
+                state[k] = {
+                    sub_k: (
+                        sub_v.apply(map_fn)
+                        if isinstance(sub_v, Module)
+                        else (map_fn(sub_v) if isinstance(sub_v, array) else sub_v)
+                    )
+                    for sub_k, sub_v in v.items()
+                }
         return self
 
     def train(self, mode: bool = True) -> Module:
@@ -848,4 +1004,10 @@ class Identity(Module):
         return x
 
 
-__all__ = ["CallableModuleProtocol", "Identity", "Module", "ModuleAttrValue"]
+__all__ = [
+    "CallableModuleProtocol",
+    "Identity",
+    "Module",
+    "ModuleAttr",
+    "ModuleAttrValue",
+]

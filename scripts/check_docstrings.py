@@ -81,9 +81,6 @@ def _check_function_docstring(
             f"{filepath}:{node.lineno}: placeholder docstring '{first_line}' in '{node.name}'"
         )
 
-    if node.name.startswith("test_"):
-        return violations
-
     params: list[str] = []
     for arg in [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]:
         if arg.arg not in ("self", "cls"):

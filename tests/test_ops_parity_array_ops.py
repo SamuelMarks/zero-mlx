@@ -1615,3 +1615,233 @@ def test_PutAlongAxis_parity() -> None:
 def test_GetItem_parity() -> None:
     """Test parity for GetItem."""
     check_parity("GetItem", lambda: [np.random.randn(2, 3).astype(np.float32)])
+
+
+def test_Append_parity() -> None:
+    """Test parity for Append."""
+    check_parity(
+        "Append",
+        lambda: [
+            np.array([1.0, 2.0], dtype=np.float32),
+            np.array([3.0, 4.0], dtype=np.float32),
+        ],
+    )
+
+
+def test_Argsort_parity() -> None:
+    """Test parity for Argsort."""
+    check_parity(
+        "Argsort",
+        lambda: [np.array([[3.0, 1.0, 2.0]], dtype=np.float32)],
+    )
+
+
+def test_Atleast1d_parity() -> None:
+    """Test parity for Atleast1d."""
+    check_parity(
+        "Atleast1d",
+        lambda: [np.array(3.0, dtype=np.float32)],
+    )
+
+
+def test_Atleast2d_parity() -> None:
+    """Test parity for Atleast2d."""
+    check_parity(
+        "Atleast2d",
+        lambda: [np.array([1.0, 2.0], dtype=np.float32)],
+    )
+
+
+def test_Atleast3d_parity() -> None:
+    """Test parity for Atleast3d."""
+    check_parity(
+        "Atleast3d",
+        lambda: [np.array([[1.0, 2.0]], dtype=np.float32)],
+    )
+
+
+def test_Block_parity() -> None:
+    """Test parity for Block."""
+    check_parity(
+        "Block",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Collapse_parity() -> None:
+    """Test parity for Collapse."""
+    check_parity(
+        "Collapse",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ExpandDims_parity() -> None:
+    """Test parity for ExpandDims."""
+    check_parity(
+        "ExpandDims",
+        lambda: [np.random.randn(2, 3).astype(np.float32), 0],
+    )
+
+
+def test_Extract_parity() -> None:
+    """Test parity for Extract."""
+    check_parity(
+        "Extract",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_FillDiagonal_parity() -> None:
+    """Test parity for FillDiagonal."""
+    check_parity(
+        "FillDiagonal",
+        lambda: [np.random.randn(3, 3).astype(np.float32)],
+    )
+
+
+def test_Flatnonzero_parity() -> None:
+    """Test parity for Flatnonzero."""
+    check_parity(
+        "Flatnonzero",
+        lambda: [np.array([0.0, 1.0, 0.0, 2.0], dtype=np.float32)],
+    )
+
+
+def test_Flip_parity() -> None:
+    """Test parity for Flip."""
+    check_parity(
+        "Flip",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Fliplr_parity() -> None:
+    """Test parity for Fliplr."""
+    check_parity(
+        "Fliplr",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Flipud_parity() -> None:
+    """Test parity for Flipud."""
+    check_parity(
+        "Flipud",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_IndexInDim_parity() -> None:
+    """Test parity for IndexInDim."""
+    check_parity(
+        "IndexInDim",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Insert_parity() -> None:
+    """Test parity for Insert."""
+    check_parity(
+        "Insert",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Lexsort_parity() -> None:
+    """Test parity for Lexsort."""
+    check_parity(
+        "Lexsort",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_MapFlatValues_parity() -> None:
+    """Test parity for MapFlatValues."""
+    check_parity(
+        "MapFlatValues",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Nonzero_parity() -> None:
+    """Test parity for Nonzero."""
+    check_parity(
+        "Nonzero",
+        lambda: [np.array([0.0, 1.0, 2.0], dtype=np.float32)],
+    )
+
+
+def test_Pad_parity() -> None:
+    """Test parity for Pad."""
+    check_parity(
+        "Pad",
+        lambda: [np.random.randn(2, 3).astype(np.float32), ((1, 1), (1, 1))],
+    )
+
+
+def test_Rank_parity() -> None:
+    """Test parity for Rank."""
+    check_parity(
+        "Rank",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_RavelMultiIndex_parity() -> None:
+    """Test parity for RavelMultiIndex."""
+    check_parity(
+        "RavelMultiIndex",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Searchsorted_parity() -> None:
+    """Test parity for Searchsorted."""
+    check_parity(
+        "Searchsorted",
+        lambda: [np.array([1.0, 2.0, 3.0], dtype=np.float32)],
+    )
+
+
+def test_Size_parity() -> None:
+    """Test parity for Size."""
+    check_parity(
+        "Size",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_SortComplex_parity() -> None:
+    """Test parity for SortComplex."""
+    check_parity(
+        "SortComplex",
+        lambda: [np.random.randn(4).astype(np.float32)],
+    )
+
+
+def test_Unique_parity() -> None:
+    """Test parity for Unique."""
+    check_parity(
+        "Unique",
+        lambda: [np.array([3.0, 1.0, 2.0, 1.0], dtype=np.float32)],
+    )
+
+
+def test_Unstack_parity() -> None:
+    """Test parity for Unstack."""
+    check_parity(
+        "Unstack",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_UpdateSlice_parity() -> None:
+    """Test parity for UpdateSlice."""
+    check_parity(
+        "UpdateSlice",
+        lambda: [
+            np.zeros((2, 3), dtype=np.float32),
+            np.ones((1, 2), dtype=np.float32),
+        ],
+    )

@@ -39,6 +39,14 @@ def _interp_1d_axis(
         return mx.repeat(x, n_out, axis=axis)
 
     idx_out = mx.arange(n_out, dtype=float32)
+    if mode == "nearest":
+        nearest_idx = mx.clip(
+            mx.floor(idx_out * (float(n_in) / float(n_out))).astype(int32),
+            0,
+            n_in - 1,
+        )
+        return mx.take(x, nearest_idx, axis=axis)
+
     src_pos = (
         idx_out * (float(n_in - 1) / float(n_out - 1))
         if (align_corners and n_out > 1)
@@ -104,6 +112,8 @@ class Upsample(Module):
             raise ValueError(
                 f"Unsupported Upsample mode '{mode}', expected 'nearest', 'linear', or 'cubic'"
             )
+        if size is not None and scale_factor is not None:
+            raise ValueError("Only one of size or scale_factor may be specified")
         self.scale_factor: float | tuple[float, ...] | None = scale_factor
         self.size: int | tuple[int, ...] | None = size
         self.mode: str = mode
@@ -148,7 +158,7 @@ class Upsample(Module):
         else:
             target_size = spatial_shape
 
-        if self.mode == "nearest":
+        if self.mode == "nearest" and len(target_size) == 2:
             out = sops.resize_nearest(x._tensor, size=target_size, align_corners=self.align_corners)
             return array(out, dtype=x.dtype)
 

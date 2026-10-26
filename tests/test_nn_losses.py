@@ -53,7 +53,13 @@ def test_kl_div_loss() -> None:
     """Test `kl_div_loss` output shape and numerical values across reductions."""
     t = array([[0.5, 0.5], [0.25, 0.75]], dtype=mx.float32)
     i = mx.log(t)
-    assert z_losses.kl_div_loss(i, t, reduction="none").shape == (2, 2)
+    none_loss = z_losses.kl_div_loss(i, t, axis=-1, reduction="none")
+    assert none_loss.shape == (2,)
+    assert bool(mx.allclose(none_loss, array([0.0, 0.0]), rtol=1e-5, atol=1e-5).item()) is True
     mean_loss = float(z_losses.kl_div_loss(i, t, reduction="mean").item().real)
     assert abs(mean_loss) < 1e-5
     assert z_losses.kl_div_loss(i, t, reduction="sum").ndim == 0
+    ce_smooth = z_losses.cross_entropy(
+        array([[1.0, 2.0]]), array([[0.2, 0.8]]), label_smoothing=0.1, reduction="mean"
+    )
+    assert ce_smooth.ndim == 0 and float(ce_smooth.item().real) > 0.0

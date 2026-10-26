@@ -225,3 +225,102 @@ def test_Stft_parity() -> None:
         "Stft",
         lambda: [np.random.randn(2, 3).astype(np.float32)],
     )
+
+
+def test_Fft2_parity() -> None:
+    """Test parity for Fft2."""
+    check_parity(
+        "Fft2",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Fftconvolve_parity() -> None:
+    """Test parity for Fftconvolve."""
+    check_parity(
+        "Fftconvolve",
+        lambda: [
+            np.random.randn(4).astype(np.float32),
+            np.random.randn(2).astype(np.float32),
+        ],
+    )
+
+
+def test_Fftn_parity() -> None:
+    """Test parity for Fftn."""
+    check_parity(
+        "Fftn",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Ifft2_parity() -> None:
+    """Test parity for Ifft2."""
+    check_parity(
+        "Ifft2",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Ifftn_parity() -> None:
+    """Test parity for Ifftn."""
+    check_parity(
+        "Ifftn",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Irfft2_parity() -> None:
+    """Test parity for Irfft2."""
+    check_parity(
+        "Irfft2",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Irfftn_parity() -> None:
+    """Test parity for Irfftn."""
+    check_parity(
+        "Irfftn",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Rfft2_parity() -> None:
+    """Test parity for Rfft2."""
+    check_parity(
+        "Rfft2",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Rfftn_parity() -> None:
+    """Test parity for Rfftn."""
+    check_parity(
+        "Rfftn",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Welch_parity() -> None:
+    """Test parity for Welch."""
+    check_parity(
+        "Welch",
+        lambda: [np.random.randn(8).astype(np.float32)],
+    )
+
+
+def test_WindowHamming_parity() -> None:
+    """Test parity for WindowHamming."""
+    check_parity(
+        "WindowHamming",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_WindowHann_parity() -> None:
+    """Test parity for WindowHann."""
+    check_parity(
+        "WindowHann",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )

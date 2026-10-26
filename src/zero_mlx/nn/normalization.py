@@ -125,9 +125,15 @@ class GroupNorm(Module):
         """
         shape = x.shape
         batch = shape[0]
-        reshaped_x = mx.reshape(x, (batch, -1, self.num_groups, self.dims // self.num_groups))
-        mean = mx.mean(reshaped_x, axis=(1, 3), keepdims=True)
-        var = mx.var(reshaped_x, axis=(1, 3), keepdims=True, ddof=0)
+        group_size = self.dims // self.num_groups
+        if self.pytorch_compatible:
+            reshaped_x = mx.reshape(x, (batch, -1, self.num_groups, group_size))
+            mean = mx.mean(reshaped_x, axis=(1, 3), keepdims=True)
+            var = mx.var(reshaped_x, axis=(1, 3), keepdims=True, ddof=0)
+        else:
+            reshaped_x = mx.reshape(x, (batch, -1, group_size, self.num_groups))
+            mean = mx.mean(reshaped_x, axis=(1, 2), keepdims=True)
+            var = mx.var(reshaped_x, axis=(1, 2), keepdims=True, ddof=0)
         out = mx.divide(mx.subtract(reshaped_x, mean), mx.sqrt(mx.add(var, self.eps)))
         out = mx.reshape(out, shape)
 

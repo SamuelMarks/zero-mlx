@@ -745,3 +745,193 @@ def test_Xlog1py_parity() -> None:
         "Xlog1py",
         lambda: [np.random.randn(2, 3).astype(np.float32)],
     )
+
+
+def test_ChebyshevPolynomialT_parity() -> None:
+    """Test parity for ChebyshevPolynomialT."""
+    check_parity(
+        "ChebyshevPolynomialT",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ChebyshevPolynomialU_parity() -> None:
+    """Test parity for ChebyshevPolynomialU."""
+    check_parity(
+        "ChebyshevPolynomialU",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Clip_parity() -> None:
+    """Test parity for Clip."""
+    check_parity(
+        "Clip",
+        lambda: [np.random.randn(2, 3).astype(np.float32), -0.5, 0.5],
+    )
+
+
+def test_Convolve2d_parity() -> None:
+    """Test parity for Convolve2d."""
+    check_parity(
+        "Convolve2d",
+        lambda: [
+            np.random.randn(3, 3).astype(np.float32),
+            np.random.randn(2, 2).astype(np.float32),
+        ],
+    )
+
+
+def test_Degrees_parity() -> None:
+    """Test parity for Degrees."""
+    check_parity(
+        "Degrees",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Ediff1d_parity() -> None:
+    """Test parity for Ediff1d."""
+    check_parity(
+        "Ediff1d",
+        lambda: [np.random.randn(4).astype(np.float32)],
+    )
+
+
+def test_Fabs_parity() -> None:
+    """Test parity for Fabs."""
+    check_parity(
+        "Fabs",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_HermitePolynomialH_parity() -> None:
+    """Test parity for HermitePolynomialH."""
+    check_parity(
+        "HermitePolynomialH",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_HermitePolynomialHe_parity() -> None:
+    """Test parity for HermitePolynomialHe."""
+    check_parity(
+        "HermitePolynomialHe",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_LaguerrePolynomialL_parity() -> None:
+    """Test parity for LaguerrePolynomialL."""
+    check_parity(
+        "LaguerrePolynomialL",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_LegendrePolynomialP_parity() -> None:
+    """Test parity for LegendrePolynomialP."""
+    check_parity(
+        "LegendrePolynomialP",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ModifiedBesselI0_parity() -> None:
+    """Test parity for ModifiedBesselI0."""
+    check_parity(
+        "ModifiedBesselI0",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ModifiedBesselI1_parity() -> None:
+    """Test parity for ModifiedBesselI1."""
+    check_parity(
+        "ModifiedBesselI1",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ModifiedBesselK0_parity() -> None:
+    """Test parity for ModifiedBesselK0."""
+    check_parity(
+        "ModifiedBesselK0",
+        lambda: [np.random.uniform(0.5, 2.0, size=(2, 3)).astype(np.float32)],
+    )
+
+
+def test_ModifiedBesselK1_parity() -> None:
+    """Test parity for ModifiedBesselK1."""
+    check_parity(
+        "ModifiedBesselK1",
+        lambda: [np.random.uniform(0.5, 2.0, size=(2, 3)).astype(np.float32)],
+    )
+
+
+def test_Radians_parity() -> None:
+    """Test parity for Radians."""
+    check_parity(
+        "Radians",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Rem_parity() -> None:
+    """Test parity for Rem."""
+    check_parity(
+        "Rem",
+        lambda: [
+            np.array([5.0, 7.0], dtype=np.float32),
+            np.array([2.0, 3.0], dtype=np.float32),
+        ],
+    )
+
+
+def test_Rint_parity() -> None:
+    """Test parity for Rint."""
+    check_parity(
+        "Rint",
+        lambda: [np.array([1.2, 2.7, -1.5], dtype=np.float32)],
+    )
+
+
+def test_ScalarMul_parity() -> None:
+    """Test parity for ScalarMul."""
+    check_parity(
+        "ScalarMul",
+        lambda: [np.random.randn(2, 3).astype(np.float32), 2.0],
+    )
+
+
+def test_ShiftedChebyshevPolynomialT_parity() -> None:
+    """Test parity for ShiftedChebyshevPolynomialT."""
+    check_parity(
+        "ShiftedChebyshevPolynomialT",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ShiftedChebyshevPolynomialU_parity() -> None:
+    """Test parity for ShiftedChebyshevPolynomialU."""
+    check_parity(
+        "ShiftedChebyshevPolynomialU",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ShiftedChebyshevPolynomialV_parity() -> None:
+    """Test parity for ShiftedChebyshevPolynomialV."""
+    check_parity(
+        "ShiftedChebyshevPolynomialV",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ShiftedChebyshevPolynomialW_parity() -> None:
+    """Test parity for ShiftedChebyshevPolynomialW."""
+    check_parity(
+        "ShiftedChebyshevPolynomialW",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )

@@ -33,9 +33,14 @@ def test_module_imports() -> None:
     z_eval(converted)
     assert converted.tolist() == [1.0, 2.0]
 
-    grads = {"w": array([2.0, 4.0])}
+    grads: mx._types.PyTree = {"w": array([2.0, 4.0]), "meta": 1}
     avg = average_gradients(grads)
-    assert isinstance(avg, dict) and avg["w"].tolist() == [2.0, 4.0]
+    assert (
+        isinstance(avg, dict)
+        and isinstance(avg["w"], array)
+        and avg["w"].tolist() == [2.0, 4.0]
+        and avg["meta"] == 1
+    )
 
     g_out = gelu_fast_approx(array([0.0, 1.0]))
     expected = array([0.0, 1.0 / (1.0 + math.exp(-1.702))])

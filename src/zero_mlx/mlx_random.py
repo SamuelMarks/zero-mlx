@@ -21,7 +21,7 @@ from zero_mlx.dtypes import (
     uint32,
 )
 import zero_mlx.ops as mx_ops
-from zero_mlx.random_state import set_global_seed, state
+from zero_mlx.random_state import next_global_key, set_global_seed, state
 
 
 class PRNGKey:
@@ -65,7 +65,7 @@ def _get_key_tensor(key_in: array | PRNGKey | int | None = None) -> sops.Tensor:
 
     """
     if key_in is None:
-        return state()._tensor
+        return next_global_key()._tensor
     if isinstance(key_in, PRNGKey):
         return key_in.key._tensor
     if isinstance(key_in, array):
@@ -216,7 +216,9 @@ def normal(
 
     """
     target_dt: DType = resolve_dtype(dtype, default=float32)
-    base_key: array = state() if key is None else (key.key if isinstance(key, PRNGKey) else key)
+    base_key: array = (
+        next_global_key() if key is None else (key.key if isinstance(key, PRNGKey) else key)
+    )
     subkeys = split(base_key, num=2, stream=stream)
     u1 = uniform(1e-6, 1.0 - 1e-6, shape=shape, dtype=float32, key=subkeys[0], stream=stream)
     u2 = uniform(1e-6, 1.0 - 1e-6, shape=shape, dtype=float32, key=subkeys[1], stream=stream)

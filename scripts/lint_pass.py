@@ -118,6 +118,51 @@ def _check_assert_node(path: str, node: ast.Assert) -> str | None:
     return None
 
 
+def _check_indirect_tautology(
+    path: str,
+    func_node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[str]:
+    """Check a function body for `a = f(x); b = f(x); assert a == b` indirect tautologies.
+
+    Args:
+        path: File path of the test module.
+        func_node: Function AST node to inspect.
+
+    Returns:
+        List of indirect tautology violation messages.
+
+    """
+    errs: list[str] = []
+    call_assigns: dict[str, str] = {}
+    for stmt in func_node.body:
+        if (
+            isinstance(stmt, ast.Assign)
+            and len(stmt.targets) == 1
+            and isinstance(stmt.targets[0], ast.Name)
+            and isinstance(stmt.value, ast.Call)
+        ):
+            call_assigns[stmt.targets[0].id] = ast.dump(stmt.value)
+        elif (
+            isinstance(stmt, ast.Assert)
+            and isinstance(stmt.test, ast.Compare)
+            and len(stmt.test.ops) == 1
+            and isinstance(stmt.test.ops[0], (ast.Eq, ast.Is))
+            and isinstance(stmt.test.left, ast.Name)
+            and isinstance(stmt.test.comparators[0], ast.Name)
+        ):
+            lhs_id = stmt.test.left.id
+            rhs_id = stmt.test.comparators[0].id
+            if (
+                lhs_id in call_assigns
+                and rhs_id in call_assigns
+                and call_assigns[lhs_id] == call_assigns[rhs_id]
+            ):
+                errs.append(
+                    f"FAILED: Indirect tautological comparison '{lhs_id} == {rhs_id}' found in {path}:{stmt.lineno}"
+                )
+    return errs
+
+
 def _check_except_handler(path: str, node: ast.ExceptHandler) -> list[str]:
     """Check an `ast.ExceptHandler` for swallowed exceptions or caught AssertionErrors.
 
@@ -184,6 +229,7 @@ def check_test_file_ast(
         ):
             errors.append(f"FAILED: Prohibited 'pytest.skip()' found in {path}:{node.lineno}")
         elif check_zero_assertions and isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            errors.extend(_check_indirect_tautology(path, node))
             if node.name.startswith("test_") and not _has_assertion_or_verification(node):
                 errors.append(
                     f"FAILED: Zero assertions in test function '{node.name}' at {path}:{node.lineno}"

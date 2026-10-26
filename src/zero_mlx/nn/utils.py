@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Callable, Protocol, Union
+from typing import Protocol
 
 from zero_mlx._types import ArrayInput, DTypeLike, PyTree
 from zero_mlx.array import array
 from zero_mlx.distributed import Group
+from zero_mlx.new_ops import _numerical_grad_single
 from zero_mlx.nn.average_gradients import average_gradients
 from zero_mlx.nn.base import Module
-import zero_mlx.ops as mx
+from zero_mlx.utils import tree_map_with_path, tree_unflatten
 
 
 class LossCallable(Protocol):
-    """Protocol for loss functions differentiated by `nn.value_and_grad`."""
+    """Protocol for variadic loss functions differentiated by `nn.value_and_grad`."""
 
     def __call__(
         self,
@@ -101,19 +102,6 @@ class FullyShardedModule(Module):
         return res
 
 
-def _zero_leaf(p: PyTree) -> PyTree:
-    """Replace an `array` leaf with `zeros_like(p)`.
-
-    Args:
-        p: Parameter leaf.
-
-    Returns:
-        Zeroed `array` or unchanged non-array leaf.
-
-    """
-    return mx.zeros_like(p) if isinstance(p, array) else p
-
-
 def _invoke_loss(
     fn: LossCallable,
     model: Module,
@@ -152,7 +140,7 @@ def value_and_grad(model: Module, fn: LossCallable) -> ValueAndGradCallable:
     """
 
     def _wrapped(*args: ArrayInput, **kwargs: ArrayInput) -> tuple[array, dict[str, PyTree]]:
-        """Evaluate `fn` and return `(value, zero_initialized_trainable_grads)`.
+        """Evaluate `fn` and compute gradients for all trainable parameters in `model`.
 
         Args:
             *args: Positional arguments passed to `fn`.
@@ -165,9 +153,40 @@ def value_and_grad(model: Module, fn: LossCallable) -> ValueAndGradCallable:
         arr_args = tuple(a if isinstance(a, array) else array(a) for a in args)
         arr_kwargs = {k: (v if isinstance(v, array) else array(v)) for k, v in kwargs.items()}
         val = _invoke_loss(fn, model, arr_args, arr_kwargs)
-        from zero_mlx.utils import tree_map
 
-        grads = tree_map(_zero_leaf, model.trainable_parameters())
+        def _grad_leaf(path: str, leaf: PyTree) -> PyTree:
+            """Compute the parameter gradient for a single `array` leaf at `path`.
+
+            Args:
+                path: Dot-separated parameter path within `model`.
+                leaf: Parameter leaf value.
+
+            Returns:
+                Gradient `array` matching `leaf`.
+
+            """
+            orig_param: array = leaf if isinstance(leaf, array) else array(leaf)
+
+            def _loss_for_param(perturbed: array) -> array:
+                """Evaluate loss with `path` set to `perturbed`.
+
+                Args:
+                    perturbed: Perturbed parameter `array`.
+
+                Returns:
+                    Scalar loss `array`.
+
+                """
+                patch = tree_unflatten([(path, perturbed)])
+                model.update(patch if isinstance(patch, dict) else {}, strict=False)
+                return _invoke_loss(fn, model, arr_args, arr_kwargs)
+
+            grad_arr = _numerical_grad_single(_loss_for_param, orig_param)
+            restore = tree_unflatten([(path, orig_param)])
+            model.update(restore if isinstance(restore, dict) else {}, strict=False)
+            return grad_arr
+
+        grads = tree_map_with_path(_grad_leaf, model.trainable_parameters())
         return val, grads if isinstance(grads, dict) else {}
 
     return _wrapped
@@ -197,16 +216,18 @@ def checkpoint(module: Module, fn: CheckpointCallable | None = None) -> Checkpoi
 
         """
         if fn is not None:
-            res: array | tuple[array, ...] = fn(*args, **kwargs)
-        else:
-            res = module._call_forward(*args, **kwargs)
+            return fn(*args, **kwargs)
+        res = module._call_forward(*args, **kwargs)
         return res[0] if isinstance(res, tuple) else res
 
     return _checkpointed
 
 
 __all__ = [
+    "CheckpointCallable",
     "FullyShardedModule",
+    "LossCallable",
+    "ValueAndGradCallable",
     "average_gradients",
     "checkpoint",
     "value_and_grad",

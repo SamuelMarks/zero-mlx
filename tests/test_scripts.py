@@ -208,7 +208,11 @@ def test_check_docstrings(tmp_path: pathlib.Path) -> None:
             "        return x",
             "",
             "def test_helper(a: int) -> None:",
-            '    """Test function skips arg section check."""',
+            '    """Test function documents its arguments.',
+            "",
+            "    Args:",
+            "        a: Input integer.",
+            '    """',
             "    assert a == 1",
         ],
     )
@@ -318,6 +322,10 @@ def test_lint_pass(tmp_path: pathlib.Path) -> None:
             "def test_self_eq() -> None:",
             "    x = 1",
             "    assert x == x",
+            "def test_indirect_self_eq() -> None:",
+            "    a = compute(1)",
+            "    b = compute(1)",
+            "    assert a == b",
             "def test_excluded_middle() -> None:",
             "    x = 1",
             "    assert x is None or x is not None",
@@ -612,4 +620,8 @@ def test_compiler_completeness_and_matrix_and_badges(tmp_path: pathlib.Path) -> 
         == 0.0
     )
     ubadges.update_readme(readme_path=str(tmp_path / "nonexistent_readme.md"))
-    assert ubadges.main([]) == 0
+    orig_readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+    try:
+        assert ubadges.main([]) == 0
+    finally:
+        pathlib.Path("README.md").write_text(orig_readme, encoding="utf-8")

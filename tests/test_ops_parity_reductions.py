@@ -616,3 +616,35 @@ def test_WeibullMin_parity() -> None:
         "WeibullMin",
         lambda: [np.random.randn(2, 3).astype(np.float32)],
     )
+
+
+def test_ApplyOverAxes_parity() -> None:
+    """Test parity for ApplyOverAxes."""
+    check_parity(
+        "ApplyOverAxes",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Average_parity() -> None:
+    """Test parity for Average."""
+    check_parity(
+        "Average",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Percentile_parity() -> None:
+    """Test parity for Percentile."""
+    check_parity(
+        "Percentile",
+        lambda: [np.random.randn(2, 3).astype(np.float32), 50.0],
+    )
+
+
+def test_Quantile_parity() -> None:
+    """Test parity for Quantile."""
+    check_parity(
+        "Quantile",
+        lambda: [np.random.randn(2, 3).astype(np.float32), 0.5],
+    )

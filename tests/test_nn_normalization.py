@@ -2,74 +2,81 @@
 
 from __future__ import annotations
 
-import math
-from typing import Callable
-
 import zero_mlx as mx
 from zero_mlx.array import array
 import zero_mlx.nn as z_nn
 
 
-def _test_module_shape(
-    m: Callable[[array], array],
-    x_shape: tuple[int, ...],
-    expected_shape: tuple[int, ...],
-) -> None:
-    """Run normalization module `m` on a deterministic input of `x_shape` and assert `expected_shape`.
-
-    Args:
-        m: Normalization `Module` to test.
-        x_shape: Input tensor shape.
-        expected_shape: Expected output tensor shape.
-
-    """
-    x = mx.linspace(-2.0, 2.0, math.prod(x_shape), dtype=mx.float32).reshape(x_shape)
-    out = m(x)
-    assert out.shape == expected_shape
-    assert bool(mx.all(mx.isfinite(out)).item()) is True
-
-
 def test_batchnorm() -> None:
-    """Test `BatchNorm` with and without affine/running stats in train and eval modes."""
-    m = z_nn.BatchNorm(3)
-    _test_module_shape(m, (2, 5, 3), (2, 5, 3))
+    """Test `BatchNorm` normalizes each feature channel to zero mean and unit variance."""
+    m = z_nn.BatchNorm(2, eps=0.0)
+    x = array([[1.0, 10.0], [3.0, 20.0]], dtype=mx.float32)
+    out = m(x)
+    expected = array([[-1.0, -1.0], [1.0, 1.0]], dtype=mx.float32)
+    assert out.shape == (2, 2)
+    assert bool(mx.allclose(out, expected, rtol=1e-4, atol=1e-4).item()) is True
     m.eval()
-    _test_module_shape(m, (2, 5, 3), (2, 5, 3))
-    m_no_affine = z_nn.BatchNorm(3, affine=False, track_running_stats=False)
-    _test_module_shape(m_no_affine, (2, 5, 3), (2, 5, 3))
+    out_eval = m(x)
+    assert out_eval.shape == (2, 2)
+    assert bool(mx.all(mx.isfinite(out_eval)).item()) is True
+
+    m_no_affine = z_nn.BatchNorm(2, eps=0.0, affine=False, track_running_stats=False)
+    out_na = m_no_affine(x)
+    assert bool(mx.allclose(out_na, expected, rtol=1e-4, atol=1e-4).item()) is True
 
 
 def test_groupnorm() -> None:
-    """Test `GroupNorm` with and without affine parameters."""
-    m = z_nn.GroupNorm(2, 4)
-    _test_module_shape(m, (2, 4, 3, 3), (2, 4, 3, 3))
-    _test_module_shape(m, (2, 3, 3, 4), (2, 3, 3, 4))
-    m_no_affine = z_nn.GroupNorm(2, 4, affine=False)
-    _test_module_shape(m_no_affine, (2, 4, 3, 3), (2, 4, 3, 3))
+    """Test `GroupNorm` normalizes across channel groups and respects `pytorch_compatible`."""
+    m = z_nn.GroupNorm(2, 4, eps=0.0, affine=True, pytorch_compatible=True)
+    x = array([[[[1.0, 3.0, 10.0, 20.0]]]], dtype=mx.float32)
+    out = m(x)
+    expected = array([[[[-1.0, 1.0, -1.0, 1.0]]]], dtype=mx.float32)
+    assert out.shape == (1, 1, 1, 4)
+    assert bool(mx.allclose(out, expected, rtol=1e-4, atol=1e-4).item()) is True
+
+    m_non_pt = z_nn.GroupNorm(2, 4, eps=0.0, affine=False, pytorch_compatible=False)
+    out_non_pt = m_non_pt(x)
+    assert out_non_pt.shape == (1, 1, 1, 4)
+    assert abs(float(mx.mean(out_non_pt).item().real)) < 1e-5
 
 
 def test_instancenorm() -> None:
-    """Test `InstanceNorm` with and without affine parameters."""
-    m = z_nn.InstanceNorm(3, affine=True)
-    _test_module_shape(m, (2, 3, 4, 4), (2, 3, 4, 4))
-    _test_module_shape(m, (2, 4, 4, 3), (2, 4, 4, 3))
-    m_no_affine = z_nn.InstanceNorm(3, affine=False)
-    _test_module_shape(m_no_affine, (2, 3, 4, 4), (2, 3, 4, 4))
+    """Test `InstanceNorm` normalizes spatial dimensions per sample and channel."""
+    m = z_nn.InstanceNorm(2, eps=0.0, affine=True)
+    x = array([[[1.0, 10.0], [3.0, 20.0]]], dtype=mx.float32)
+    out = m(x)
+    expected = array([[[-1.0, -1.0], [1.0, 1.0]]], dtype=mx.float32)
+    assert out.shape == (1, 2, 2)
+    assert bool(mx.allclose(out, expected, rtol=1e-4, atol=1e-4).item()) is True
+
+    m_no_affine = z_nn.InstanceNorm(2, eps=0.0, affine=False)
+    assert bool(mx.allclose(m_no_affine(x), expected, rtol=1e-4, atol=1e-4).item()) is True
 
 
 def test_layernorm() -> None:
-    """Test `LayerNorm` with int/tuple dims and with/without affine."""
-    m = z_nn.LayerNorm(3)
-    _test_module_shape(m, (2, 5, 3), (2, 5, 3))
-    m_tup = z_nn.LayerNorm((5, 3))
-    _test_module_shape(m_tup, (2, 5, 3), (2, 5, 3))
-    m_no_affine = z_nn.LayerNorm(3, affine=False)
-    _test_module_shape(m_no_affine, (2, 5, 3), (2, 5, 3))
+    """Test `LayerNorm` normalizes the last dimension(s) to zero mean and unit variance."""
+    m = z_nn.LayerNorm(2, eps=0.0, affine=True)
+    x = array([[1.0, 3.0], [10.0, 20.0]], dtype=mx.float32)
+    out = m(x)
+    expected = array([[-1.0, 1.0], [-1.0, 1.0]], dtype=mx.float32)
+    assert out.shape == (2, 2)
+    assert bool(mx.allclose(out, expected, rtol=1e-4, atol=1e-4).item()) is True
+
+    m.weight = array([2.0, 2.0], dtype=mx.float32)
+    m.bias = array([0.5, 0.5], dtype=mx.float32)
+    out_scaled = m(x)
+    expected_scaled = array([[-1.5, 2.5], [-1.5, 2.5]], dtype=mx.float32)
+    assert bool(mx.allclose(out_scaled, expected_scaled, rtol=1e-4, atol=1e-4).item()) is True
+
+    m_no_affine = z_nn.LayerNorm(2, eps=0.0, affine=False)
+    assert bool(mx.allclose(m_no_affine(x), expected, rtol=1e-4, atol=1e-4).item()) is True
 
 
 def test_rmsnorm() -> None:
-    """Test `RMSNorm` with int and tuple dims."""
-    m = z_nn.RMSNorm(3)
-    _test_module_shape(m, (2, 5, 3), (2, 5, 3))
-    m_tup = z_nn.RMSNorm((5, 3))
-    _test_module_shape(m_tup, (2, 5, 3), (2, 5, 3))
+    """Test `RMSNorm` divides by root-mean-square `sqrt(mean(x^2) + eps)`."""
+    m = z_nn.RMSNorm(2, eps=0.0)
+    x = array([[3.0, 3.0], [4.0, -4.0]], dtype=mx.float32)
+    out = m(x)
+    expected = array([[1.0, 1.0], [1.0, -1.0]], dtype=mx.float32)
+    assert out.shape == (2, 2)
+    assert bool(mx.allclose(out, expected, rtol=1e-4, atol=1e-4).item()) is True

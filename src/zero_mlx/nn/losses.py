@@ -80,7 +80,12 @@ def cross_entropy(
     t_arr = _as_array(targets)
     log_probs = log_softmax(l_arr, axis=axis)
     if t_arr.ndim == l_arr.ndim:
-        loss = -mx.sum(t_arr * log_probs, axis=axis)
+        if label_smoothing > 0.0:
+            num_classes = float(l_arr.shape[axis])
+            t_smooth = (1.0 - label_smoothing) * t_arr + (label_smoothing / num_classes)
+            loss = -mx.sum(t_smooth * log_probs, axis=axis)
+        else:
+            loss = -mx.sum(t_arr * log_probs, axis=axis)
     else:
         tgt_idx = mx.expand_dims(t_arr.astype(int32), axis=axis)
         picked = mx.squeeze(mx.take_along_axis(log_probs, tgt_idx, axis=axis), axis=axis)
@@ -254,10 +259,10 @@ def kl_div_loss(
         KL divergence loss `array`.
 
     """
-    _ = axis
     inp = _as_array(inputs)
     tgt = _as_array(targets)
-    loss = mx.where(tgt > 0.0, tgt * (mx.log(tgt) - inp), 0.0)
+    elem = mx.where(tgt > 0.0, tgt * (mx.log(tgt) - inp), 0.0)
+    loss = mx.sum(elem, axis=axis)
     return _reduce(loss, reduction)
 
 
@@ -392,9 +397,7 @@ def nll_loss(
     w = mx.where(mask, w, 0.0)
     if reduction == "mean":
         return mx.sum(loss) / mx.maximum(mx.sum(w), 1e-8)
-    if reduction == "sum":
-        return mx.sum(loss)
-    return loss
+    return _reduce(loss, reduction)
 
 
 def smooth_l1_loss(

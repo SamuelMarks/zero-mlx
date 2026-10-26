@@ -867,3 +867,193 @@ def test_YuvToRgb_parity() -> None:
         "YuvToRgb",
         lambda: [np.random.randn(2, 3).astype(np.float32)],
     )
+
+
+def test_ArrayEquiv_parity() -> None:
+    """Test parity for ArrayEquiv."""
+    check_parity(
+        "ArrayEquiv",
+        lambda: [
+            np.array([1.0, 2.0], dtype=np.float32),
+            np.array([1.0, 2.0], dtype=np.float32),
+        ],
+    )
+
+
+def test_ArrayRepr_parity() -> None:
+    """Test parity for ArrayRepr."""
+    check_parity(
+        "ArrayRepr",
+        lambda: [np.array([1.0, 2.0], dtype=np.float32)],
+    )
+
+
+def test_ArrayStr_parity() -> None:
+    """Test parity for ArrayStr."""
+    check_parity(
+        "ArrayStr",
+        lambda: [np.array([1.0, 2.0], dtype=np.float32)],
+    )
+
+
+def test_CanCast_parity() -> None:
+    """Test parity for CanCast."""
+    check_parity(
+        "CanCast",
+        lambda: [np.array([1.0, 2.0], dtype=np.float32)],
+    )
+
+
+def test_Cond_parity() -> None:
+    """Test parity for Cond."""
+    check_parity(
+        "Cond",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_DecodeBase64_parity() -> None:
+    """Test parity for DecodeBase64."""
+    check_parity(
+        "DecodeBase64",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_DecodeCsv_parity() -> None:
+    """Test parity for DecodeCsv."""
+    check_parity(
+        "DecodeCsv",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_DecodeImage_parity() -> None:
+    """Test parity for DecodeImage."""
+    check_parity(
+        "DecodeImage",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_EncodeBase64_parity() -> None:
+    """Test parity for EncodeBase64."""
+    check_parity(
+        "EncodeBase64",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Iscomplex_parity() -> None:
+    """Test parity for Iscomplex."""
+    check_parity(
+        "Iscomplex",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Iscomplexobj_parity() -> None:
+    """Test parity for Iscomplexobj."""
+    check_parity(
+        "Iscomplexobj",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Isin_parity() -> None:
+    """Test parity for Isin."""
+    check_parity(
+        "Isin",
+        lambda: [
+            np.array([1.0, 2.0, 3.0], dtype=np.float32),
+            np.array([2.0, 4.0], dtype=np.float32),
+        ],
+    )
+
+
+def test_Isneginf_parity() -> None:
+    """Test parity for Isneginf."""
+    check_parity(
+        "Isneginf",
+        lambda: [np.array([float("-inf"), 0.0, float("inf")], dtype=np.float32)],
+    )
+
+
+def test_Isposinf_parity() -> None:
+    """Test parity for Isposinf."""
+    check_parity(
+        "Isposinf",
+        lambda: [np.array([float("-inf"), 0.0, float("inf")], dtype=np.float32)],
+    )
+
+
+def test_Isreal_parity() -> None:
+    """Test parity for Isreal."""
+    check_parity(
+        "Isreal",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Isrealobj_parity() -> None:
+    """Test parity for Isrealobj."""
+    check_parity(
+        "Isrealobj",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_Issubdtype_parity() -> None:
+    """Test parity for Issubdtype."""
+    check_parity(
+        "Issubdtype",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ParseExample_parity() -> None:
+    """Test parity for ParseExample."""
+    check_parity(
+        "ParseExample",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ParseSequenceExample_parity() -> None:
+    """Test parity for ParseSequenceExample."""
+    check_parity(
+        "ParseSequenceExample",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ParseTensor_parity() -> None:
+    """Test parity for ParseTensor."""
+    check_parity(
+        "ParseTensor",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_ReadFile_parity() -> None:
+    """Test parity for ReadFile."""
+    check_parity(
+        "ReadFile",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_SerializeTensor_parity() -> None:
+    """Test parity for SerializeTensor."""
+    check_parity(
+        "SerializeTensor",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )
+
+
+def test_WriteFile_parity() -> None:
+    """Test parity for WriteFile."""
+    check_parity(
+        "WriteFile",
+        lambda: [np.random.randn(2, 3).astype(np.float32)],
+    )

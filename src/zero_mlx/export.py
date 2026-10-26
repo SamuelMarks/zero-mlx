@@ -5,11 +5,30 @@ from __future__ import annotations
 import json
 import os
 from types import TracebackType
-from typing import IO, Callable, Protocol, Sequence
+from typing import IO, Callable, Protocol, Union
+
+from ml_switcheroo_compiler.interpreter.evaluator import EvalValue, evaluate_graph
+import ml_switcheroo_compiler.tracing as tracing
+from ml_switcheroo_compiler.tracing.tracer import ProxyTensor, _tracer
+from ml_switcheroo_ir import LogicalEdge, LogicalGraph, LogicalNode
 
 from zero_mlx._types import ArrayInput, NestedSequence, Scalar
 from zero_mlx.array import array
 from zero_mlx.dtypes import DType
+
+TraceEntryValue = Union[
+    list[list[int]],
+    dict[str, list[int]],
+    dict[str, Union[str, list[str], dict[str, str], None]],
+    list[dict[str, Union[str, int]]],
+    list[dict[str, Union[str, list[int], NestedSequence, Scalar]]],
+]
+ExportPayloadValue = Union[
+    bool,
+    int,
+    dict[str, str],
+    list[dict[str, TraceEntryValue]],
+]
 
 
 class ExportableFunction(Protocol):
@@ -44,9 +63,74 @@ class ImportedFunction(Protocol):
         """
 
 
-_EXPORT_REGISTRY: dict[str, tuple[ExportableFunction, dict[str, str]]] = {}
-
 NL: str = chr(10)
+
+
+def _trace_function_to_entry(
+    fun: ExportableFunction,
+    arr_args: tuple[array, ...],
+    arr_kwargs: dict[str, array],
+) -> dict[str, TraceEntryValue]:
+    """Trace `fun(*arr_args, **arr_kwargs)` into a serializable `LogicalGraph` entry.
+
+    Args:
+        fun: Function to trace.
+        arr_args: Positional `array` inputs.
+        arr_kwargs: Keyword `array` inputs.
+
+    Returns:
+        Dictionary containing the serialized `LogicalGraph`, input shapes, and fallback outputs.
+
+    """
+    eager_res = fun(*arr_args, **arr_kwargs)
+    eager_tup = eager_res if isinstance(eager_res, tuple) else (eager_res,)
+    eager_specs: list[dict[str, str | list[int] | NestedSequence | Scalar]] = [
+        {
+            "dtype": (r if isinstance(r, array) else array(r)).dtype.value,
+            "shape": list((r if isinstance(r, array) else array(r)).shape),
+            "data": (r if isinstance(r, array) else array(r)).reshape(-1).tolist(),
+        }
+        for r in eager_tup
+    ]
+
+    graph = _tracer.start_tracing("exported_fn")
+    out_specs: list[dict[str, str | int]] = []
+    try:
+        proxy_args: list[array] = []
+        for idx, a in enumerate(arr_args):
+            p_arr = array(a.tolist(), dtype=a.dtype)
+            p_arr._tensor._data = ProxyTensor(f"arg_{idx}", a.shape, dtype=a.dtype.value)
+            proxy_args.append(p_arr)
+
+        proxy_kwargs: dict[str, array] = {}
+        for k, v in arr_kwargs.items():
+            p_kw = array(v.tolist(), dtype=v.dtype)
+            p_kw._tensor._data = ProxyTensor(f"kw_{k}", v.shape, dtype=v.dtype.value)
+            proxy_kwargs[k] = p_kw
+
+        traced_res = fun(*proxy_args, **proxy_kwargs)
+        traced_tup = traced_res if isinstance(traced_res, tuple) else (traced_res,)
+        for out_idx, r in enumerate(traced_tup):
+            r_arr = r if isinstance(r, array) else array(r)
+            if isinstance(r_arr._tensor.data, ProxyTensor):
+                node_id = r_arr._tensor.data.id
+                if node_id not in graph.outputs:
+                    graph.outputs.append(node_id)
+                out_specs.append({"kind": "node", "id": node_id, "dtype": r_arr.dtype.value})
+            else:
+                out_specs.append({"kind": "const", "index": out_idx, "dtype": r_arr.dtype.value})
+    finally:
+        if tracing.global_tracing_state.is_tracing:
+            _tracer.stop_tracing()
+
+    graph_dict: dict[str, str | list[str] | dict[str, str] | None] = graph.model_dump(mode="json")
+    return {
+        "input_shapes": [list(a.shape) for a in arr_args],
+        "kwarg_shapes": {k: list(v.shape) for k, v in arr_kwargs.items()},
+        "graph": graph_dict,
+        "out_specs": out_specs,
+        "eager_outputs": eager_specs,
+    }
 
 
 class FunctionExporter:
@@ -74,13 +158,8 @@ class FunctionExporter:
         self.shapeless: bool = shapeless
         self.metadata: dict[str, str] = dict(metadata) if metadata is not None else {}
         self.traces: list[tuple[tuple[array, ...], dict[str, array]]] = []
-        self._trace_outputs: list[list[dict[str, str | list[int] | NestedSequence | Scalar]]] = []
+        self._trace_entries: list[dict[str, TraceEntryValue]] = []
         self._closed: bool = False
-        _ = (
-            _EXPORT_REGISTRY.setdefault(os.path.abspath(file), (self.fun, self.metadata))
-            if self.fun is not None
-            else None
-        )
 
     def __call__(self, *args: ArrayInput, **kwargs: ArrayInput) -> None:
         """Record a function trace with the given positional and keyword array arguments.
@@ -99,30 +178,27 @@ class FunctionExporter:
         arr_kwargs = {k: (v if isinstance(v, array) else array(v)) for k, v in kwargs.items()}
         self.traces.append((arr_args, arr_kwargs))
         if self.fun is not None:
-            res = self.fun(*arr_args, **arr_kwargs)
-            res_tup = res if isinstance(res, tuple) else (res,)
-            self._trace_outputs.append(
-                [
-                    {
-                        "dtype": (r if isinstance(r, array) else array(r)).dtype.value,
-                        "shape": list((r if isinstance(r, array) else array(r)).shape),
-                        "data": (r if isinstance(r, array) else array(r)).reshape(-1).tolist(),
-                    }
-                    for r in res_tup
-                ]
-            )
+            self._trace_entries.append(_trace_function_to_entry(self.fun, arr_args, arr_kwargs))
         self._flush()
 
-    def _flush(self) -> None:
-        """Write serialized function metadata, trace count, and traced outputs to `self.file`."""
-        payload = {
+    def _serialize_payload(self) -> dict[str, ExportPayloadValue]:
+        """Construct the JSON-serializable `.mlxfn` dictionary payload.
+
+        Returns:
+            Dictionary containing `shapeless`, `metadata`, `num_traces`, and `trace_entries`.
+
+        """
+        return {
             "shapeless": self.shapeless,
             "metadata": self.metadata,
             "num_traces": len(self.traces),
-            "trace_outputs": self._trace_outputs,
+            "trace_entries": self._trace_entries,
         }
+
+    def _flush(self) -> None:
+        """Write serialized function metadata and traced IR graphs to `self.file`."""
         with open(self.file, "w", encoding="utf-8") as f:
-            json.dump(payload, f)
+            json.dump(self._serialize_payload(), f)
 
     def __enter__(self) -> FunctionExporter:
         """Enter the exporter context manager.
@@ -203,11 +279,102 @@ def export_function(
     else:
         arr_args = tuple(a if isinstance(a, array) else array(a) for a in args)
         arr_kwargs = {k: (v if isinstance(v, array) else array(v)) for k, v in kwargs.items()}
-        _ = fun(*arr_args, **arr_kwargs)
-        payload_bytes = json.dumps({"shapeless": shapeless, "metadata": metadata or {}}).encode(
-            "utf-8"
-        )
+        entry = _trace_function_to_entry(fun, arr_args, arr_kwargs)
+        payload_bytes = json.dumps(
+            {
+                "shapeless": shapeless,
+                "metadata": metadata or {},
+                "num_traces": 1,
+                "trace_entries": [entry],
+            }
+        ).encode("utf-8")
         file_or_callback(payload_bytes)
+
+
+def _evaluate_trace_entry(
+    entry: dict[str, str | list[dict[str, str | int | list[int] | list[float]]]],
+    arr_args: tuple[array, ...],
+    arr_kwargs: dict[str, array],
+) -> tuple[array, ...]:
+    """Evaluate a deserialized trace entry using `evaluate_graph` on `(arr_args, arr_kwargs)`.
+
+    Args:
+        entry: Deserialized trace dictionary from `.mlxfn`.
+        arr_args: Positional input arrays.
+        arr_kwargs: Keyword input arrays.
+
+    Returns:
+        Tuple of evaluated output `array` objects.
+
+    """
+    raw_graph = entry.get("graph")
+    raw_specs = entry.get("out_specs", [])
+    raw_eager = entry.get("eager_outputs", [])
+    eager_list = raw_eager if isinstance(raw_eager, list) else []
+
+    if isinstance(raw_graph, dict) and isinstance(raw_specs, list) and raw_specs:
+        raw_nodes = raw_graph.get("nodes", {})
+        raw_edges = raw_graph.get("edges", [])
+        raw_inputs = raw_graph.get("inputs", [])
+        raw_outputs = raw_graph.get("outputs", [])
+        nodes_map: dict[str, LogicalNode] = (
+            {
+                str(k): LogicalNode.model_validate(v)
+                for k, v in raw_nodes.items()
+                if isinstance(v, dict)
+            }
+            if isinstance(raw_nodes, dict)
+            else {}
+        )
+        edges_list: list[LogicalEdge] = (
+            [LogicalEdge.model_validate(e) for e in raw_edges if isinstance(e, dict)]
+            if isinstance(raw_edges, list)
+            else []
+        )
+        graph = LogicalGraph(
+            name=str(raw_graph.get("name", "exported_fn")),
+            nodes=nodes_map,
+            edges=edges_list,
+            inputs=[str(i) for i in raw_inputs] if isinstance(raw_inputs, list) else [],
+            outputs=[str(o) for o in raw_outputs] if isinstance(raw_outputs, list) else [],
+        )
+        if graph.outputs:
+            env_inputs: dict[str, EvalValue] = {
+                f"arg_{idx}": a._tensor.data for idx, a in enumerate(arr_args)
+            }
+            for k, v in arr_kwargs.items():
+                env_inputs[f"kw_{k}"] = v._tensor.data
+            evaluated = evaluate_graph(graph, env_inputs)
+            outputs: list[array] = []
+            for spec in raw_specs:
+                if isinstance(spec, dict) and spec.get("kind") == "node":
+                    node_id = str(spec["id"])
+                    dt = DType(str(spec.get("dtype", "float32")))
+                    outputs.append(array(evaluated[node_id], dtype=dt))
+                elif isinstance(spec, dict):
+                    c_idx = int(spec.get("index", 0))
+                    c_item = eager_list[c_idx]
+                    if isinstance(c_item, dict):
+                        c_dt = DType(str(c_item.get("dtype", "float32")))
+                        c_raw_shp = c_item.get("shape", [])
+                        c_shp = (
+                            tuple(int(d) for d in c_raw_shp) if isinstance(c_raw_shp, list) else ()
+                        )
+                        c_data = c_item.get("data", [])
+                        c_list = c_data if isinstance(c_data, list) else []
+                        outputs.append(array(c_list, dtype=c_dt).reshape(c_shp))
+            return tuple(outputs)
+
+    out_fallback: list[array] = []
+    for item in eager_list:
+        if isinstance(item, dict):
+            i_dt = DType(str(item.get("dtype", "float32")))
+            i_raw_shp = item.get("shape", [])
+            i_shp = tuple(int(d) for d in i_raw_shp) if isinstance(i_raw_shp, list) else ()
+            i_data = item.get("data", [])
+            i_list = i_data if isinstance(i_data, list) else []
+            out_fallback.append(array(i_list, dtype=i_dt).reshape(i_shp))
+    return tuple(out_fallback)
 
 
 def import_function(
@@ -227,19 +394,15 @@ def import_function(
 
     """
     abs_path = os.path.abspath(file)
-    if not os.path.exists(abs_path) and abs_path not in _EXPORT_REGISTRY:
+    if not os.path.exists(abs_path):
         raise FileNotFoundError(f"Exported function file not found: {file}")
 
-    meta: dict[str, str] = {}
-    disk_traces: list[list[dict[str, str | list[int] | list[float]]]] = []
     with open(abs_path, encoding="utf-8") as f:
         data = json.load(f)
-        raw_meta: dict[str, str] = data.get("metadata", {})
-        meta = {str(k): str(v) for k, v in raw_meta.items()}
-        disk_traces = data.get("trace_outputs", [])
-
-    registered = _EXPORT_REGISTRY.get(abs_path)
-    orig_fn = registered[0] if registered is not None else None
+    raw_meta: dict[str, str] = data.get("metadata", {})
+    meta: dict[str, str] = {str(k): str(v) for k, v in raw_meta.items()}
+    shapeless: bool = bool(data.get("shapeless", False))
+    trace_entries = data.get("trace_entries", [])
 
     def _imported_runner(*args: ArrayInput, **kwargs: ArrayInput) -> tuple[array, ...]:
         """Execute the imported function and return a tuple of `array` outputs.
@@ -251,22 +414,23 @@ def import_function(
         Returns:
             Tuple of output `array` objects.
 
+        Raises:
+            ValueError: If `shapeless` is False and no exported trace matches the input shapes.
+
         """
         arr_args = tuple(a if isinstance(a, array) else array(a) for a in args)
         arr_kwargs = {k: (v if isinstance(v, array) else array(v)) for k, v in kwargs.items()}
-        if orig_fn is not None:
-            res = orig_fn(*arr_args, **arr_kwargs)
-            if isinstance(res, tuple):
-                return tuple(r if isinstance(r, array) else array(r) for r in res)
-            return (res if isinstance(res, array) else array(res),)
-        if disk_traces:
-            first_trace = disk_traces[0]
-            return tuple(
-                array(item["data"], dtype=DType(str(item["dtype"]))).reshape(
-                    tuple(int(d) for d in item.get("shape", []))
+        if isinstance(trace_entries, list) and trace_entries:
+            arg_shapes = [list(a.shape) for a in arr_args]
+            for entry in trace_entries:
+                if isinstance(entry, dict) and (
+                    shapeless or entry.get("input_shapes") == arg_shapes
+                ):
+                    return _evaluate_trace_entry(entry, arr_args, arr_kwargs)
+            if not shapeless:
+                raise ValueError(
+                    f"Input shapes {arg_shapes} do not match any exported trace in {file}"
                 )
-                for item in first_trace
-            )
         return arr_args
 
     if return_metadata:
@@ -286,10 +450,14 @@ def export_to_dot(file: str | IO[str], *args: ArrayInput, **kwargs: ArrayInput) 
     lines: list[str] = ["digraph G {"]
     for idx, arg in enumerate(args):
         arr = arg if isinstance(arg, array) else array(arg)
-        lines.append(f'  node_{idx} [label="arg_{idx}: {arr.shape}"];')
+        lines.append(f'  node_{idx} [label="arg_{idx}: {arr.shape} ({arr.dtype.value})"];')
+        lines.append(f'  out_{idx} [label="output_{idx}"];')
+        lines.append(f"  node_{idx} -> out_{idx};")
     for name, val in kwargs.items():
         arr = val if isinstance(val, array) else array(val)
-        lines.append(f'  {name} [label="{name}: {arr.shape}"];')
+        lines.append(f'  {name} [label="{name}: {arr.shape} ({arr.dtype.value})"];')
+        lines.append(f'  out_{name} [label="output_{name}"];')
+        lines.append(f"  {name} -> out_{name};")
     lines.append("}")
     dot_str: str = NL.join(lines) + NL
     if isinstance(file, str):
@@ -300,7 +468,9 @@ def export_to_dot(file: str | IO[str], *args: ArrayInput, **kwargs: ArrayInput) 
 
 
 __all__ = [
+    "ExportableFunction",
     "FunctionExporter",
+    "ImportedFunction",
     "export_function",
     "export_to_dot",
     "exporter",

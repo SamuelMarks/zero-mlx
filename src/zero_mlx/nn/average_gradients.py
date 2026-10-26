@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from zero_mlx._types import PyTree, StreamOrDevice
-from zero_mlx.distributed import Group
+from zero_mlx.array import array
+from zero_mlx.distributed import Group, all_sum
+from zero_mlx.utils import tree_map
 
 
 def average_gradients(
@@ -26,8 +28,26 @@ def average_gradients(
         Averaged `gradients` PyTree.
 
     """
-    _ = (group, all_reduce_size, communication_type, communication_stream)
-    return gradients
+    _ = (all_reduce_size, communication_type)
+    grp = group if group is not None else Group()
+    world_size = max(1, grp.size())
+
+    def _avg_leaf(leaf: PyTree) -> PyTree:
+        """All-reduce and scale a single `array` gradient leaf.
+
+        Args:
+            leaf: PyTree leaf value.
+
+        Returns:
+            Averaged `array` if `leaf` is an `array`, else `leaf`.
+
+        """
+        if isinstance(leaf, array):
+            summed = all_sum(leaf, group=grp, stream=communication_stream)
+            return summed * (1.0 / float(world_size)) if world_size > 1 else summed
+        return leaf
+
+    return tree_map(_avg_leaf, gradients)
 
 
 __all__ = ["average_gradients"]

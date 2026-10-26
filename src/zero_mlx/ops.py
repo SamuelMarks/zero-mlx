@@ -2665,59 +2665,6 @@ def count_nonzero(
     return sum(nz_mask, axis=axis, keepdims=keepdims, stream=stream)
 
 
-def _apply_scan_1d(
-    vals: list[float],
-    mode: str,
-    reverse: bool,
-    inclusive: bool,
-) -> list[float]:
-    """Execute a 1D cumulative scan (`sum`, `prod`, `max`, `min`, `logaddexp`).
-
-    Args:
-        vals: 1D list of float values.
-        mode: Scan mode (`'sum'`, `'prod'`, `'max'`, `'min'`, `'logaddexp'`).
-        reverse: Whether to scan from right to left.
-        inclusive: Whether the i-th output includes the i-th input.
-
-    Returns:
-        1D list of scanned values.
-
-    """
-    n = len(vals)
-    if n == 0:
-        return []
-    seq = list(reversed(vals)) if reverse else list(vals)
-    identities: dict[str, float] = {
-        "sum": 0.0,
-        "prod": 1.0,
-        "max": float("-inf"),
-        "min": float("inf"),
-        "logaddexp": float("-inf"),
-    }
-    acc: float = identities[mode]
-    out: list[float] = []
-    for x in seq:
-        if not inclusive:
-            out.append(acc)
-        if mode == "sum":
-            acc = acc + x
-        elif mode == "prod":
-            acc = acc * x
-        elif mode == "max":
-            acc = x if x > acc else acc
-        elif mode == "min":
-            acc = x if x < acc else acc
-        else:
-            if acc == float("-inf"):
-                acc = x
-            else:
-                m_val: float = builtins.max(acc, x)
-                acc = m_val + math.log(math.exp(acc - m_val) + math.exp(x - m_val))
-        if inclusive:
-            out.append(acc)
-    return list(reversed(out)) if reverse else out
-
-
 def _scan_op(
     a: ArrayInput,
     mode: str,
@@ -2751,10 +2698,33 @@ def _scan_op(
     else:
         ax = axis if axis >= 0 else arr.ndim + axis
 
-    if not reverse and inclusive:
-        if mode == "logaddexp":
-            m = max(arr, axis=ax, keepdims=True)
-            return m + log(cumsum(exp(arr - m), axis=ax))
+    work = flip(arr.astype(target_dt), axis=ax) if reverse else arr.astype(target_dt)
+    if not inclusive and work.shape[ax] > 0:
+        ident_val: float = (
+            0.0
+            if mode == "sum"
+            else (1.0 if mode == "prod" else (float("inf") if mode == "min" else float("-inf")))
+        )
+        pad_spec = [(1, 0) if i == ax else (0, 0) for i in range(work.ndim)]
+        padded = pad(work, pad_spec, constant_values=ident_val)
+        sl = [
+            builtins.slice(0, work.shape[ax]) if i == ax else builtins.slice(None)
+            for i in range(work.ndim)
+        ]
+        work = padded[tuple(sl)]
+
+    if mode == "logaddexp":
+        m = max(work, axis=ax, keepdims=True)
+        safe_m = where(isinf(m), zeros_like(m), m)
+        cs = cumsum(exp(work - safe_m), axis=ax)
+        pos_mask = cs > 0.0
+        safe_cs = where(pos_mask, cs, ones_like(cs))
+        res = where(
+            pos_mask,
+            safe_m + log(safe_cs),
+            full(cs.shape, float("-inf"), dtype=target_dt),
+        )
+    else:
         scan_fns = {
             "sum": sops.cumsum,
             "prod": sops.cumprod,
@@ -2762,22 +2732,9 @@ def _scan_op(
             "min": sops.cummin,
         }
         fn = scan_fns[mode]
-        return array(fn(arr._tensor, axis=ax), dtype=target_dt)
+        res = array(fn(work._tensor, axis=ax), dtype=target_dt)
 
-    moved = arr.moveaxis(ax, -1) if ax != arr.ndim - 1 else arr
-    orig_moved_shape = moved.shape
-    flat_2d = moved.reshape(-1, orig_moved_shape[-1])
-    rows = flat_2d.tolist()
-    scanned_rows: list[list[float]] = []
-    for r in rows if isinstance(rows, list) else []:
-        row_floats: list[float] = [
-            float(v.real)
-            for v in (r if isinstance(r, list) else [r])
-            if isinstance(v, (int, float, bool, complex))
-        ]
-        scanned_rows.append(_apply_scan_1d(row_floats, mode, reverse, inclusive))
-    res_2d = array(scanned_rows, dtype=target_dt).reshape(orig_moved_shape)
-    return res_2d.moveaxis(-1, ax) if ax != arr.ndim - 1 else res_2d
+    return flip(res, axis=ax) if reverse else res
 
 
 def cumsum(

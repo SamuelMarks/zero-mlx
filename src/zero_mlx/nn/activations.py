@@ -188,7 +188,7 @@ def relu(x: ArrayInput) -> array:
 
 
 def relu2(x: ArrayInput) -> array:
-    """Compute the Squared ReLU (or ReLU clipped at 2).
+    """Compute the Squared ReLU `max(x, 0)^2`.
 
     Args:
         x: Input array.
@@ -198,7 +198,7 @@ def relu2(x: ArrayInput) -> array:
 
     """
     arr = _as_array(x)
-    return mx.minimum(mx.maximum(arr, 0.0), 2.0)
+    return mx.square(mx.maximum(arr, 0.0))
 
 
 def relu6(x: ArrayInput) -> array:

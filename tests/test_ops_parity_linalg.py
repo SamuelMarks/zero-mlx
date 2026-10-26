@@ -684,3 +684,265 @@ def test_Vecdot_parity() -> None:
         "Vecdot",
         lambda: [np.random.randn(2, 3).astype(np.float32)],
     )
+
+
+def test_CholeskyEx_parity() -> None:
+    """Test parity for CholeskyEx."""
+    check_parity(
+        "CholeskyEx",
+        lambda: [np.array([[4.0, 1.0], [1.0, 3.0]], dtype=np.float32)],
+    )
+
+
+def test_Eig_parity() -> None:
+    """Test parity for Eig."""
+    check_parity(
+        "Eig",
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
+    )
+
+
+def test_Eigvals_parity() -> None:
+    """Test parity for Eigvals."""
+    check_parity(
+        "Eigvals",
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
+    )
+
+
+def test_EinsumPath_parity() -> None:
+    """Test parity for EinsumPath."""
+    check_parity(
+        "EinsumPath",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_InvEx_parity() -> None:
+    """Test parity for InvEx."""
+    check_parity(
+        "InvEx",
+        lambda: [np.array([[4.0, 1.0], [1.0, 3.0]], dtype=np.float32)],
+    )
+
+
+def test_LinearOperator_parity() -> None:
+    """Test parity for LinearOperator."""
+    check_parity(
+        "LinearOperator",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorAdjoint_parity() -> None:
+    """Test parity for LinearOperatorAdjoint."""
+    check_parity(
+        "LinearOperatorAdjoint",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorBlockDiag_parity() -> None:
+    """Test parity for LinearOperatorBlockDiag."""
+    check_parity(
+        "LinearOperatorBlockDiag",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorBlockLowerTriangular_parity() -> None:
+    """Test parity for LinearOperatorBlockLowerTriangular."""
+    check_parity(
+        "LinearOperatorBlockLowerTriangular",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorCirculant_parity() -> None:
+    """Test parity for LinearOperatorCirculant."""
+    check_parity(
+        "LinearOperatorCirculant",
+        lambda: [np.random.randn(4).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorCirculant2D_parity() -> None:
+    """Test parity for LinearOperatorCirculant2D."""
+    check_parity(
+        "LinearOperatorCirculant2D",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorCirculant3D_parity() -> None:
+    """Test parity for LinearOperatorCirculant3D."""
+    check_parity(
+        "LinearOperatorCirculant3D",
+        lambda: [np.random.randn(2, 2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorComposition_parity() -> None:
+    """Test parity for LinearOperatorComposition."""
+    check_parity(
+        "LinearOperatorComposition",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorDiag_parity() -> None:
+    """Test parity for LinearOperatorDiag."""
+    check_parity(
+        "LinearOperatorDiag",
+        lambda: [np.random.randn(3).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorFullMatrix_parity() -> None:
+    """Test parity for LinearOperatorFullMatrix."""
+    check_parity(
+        "LinearOperatorFullMatrix",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorHouseholder_parity() -> None:
+    """Test parity for LinearOperatorHouseholder."""
+    check_parity(
+        "LinearOperatorHouseholder",
+        lambda: [np.random.randn(3).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorIdentity_parity() -> None:
+    """Test parity for LinearOperatorIdentity."""
+    check_parity(
+        "LinearOperatorIdentity",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorInversion_parity() -> None:
+    """Test parity for LinearOperatorInversion."""
+    check_parity(
+        "LinearOperatorInversion",
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
+    )
+
+
+def test_LinearOperatorKronecker_parity() -> None:
+    """Test parity for LinearOperatorKronecker."""
+    check_parity(
+        "LinearOperatorKronecker",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorLowRankUpdate_parity() -> None:
+    """Test parity for LinearOperatorLowRankUpdate."""
+    check_parity(
+        "LinearOperatorLowRankUpdate",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorLowerTriangular_parity() -> None:
+    """Test parity for LinearOperatorLowerTriangular."""
+    check_parity(
+        "LinearOperatorLowerTriangular",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorPermutation_parity() -> None:
+    """Test parity for LinearOperatorPermutation."""
+    check_parity(
+        "LinearOperatorPermutation",
+        lambda: [np.array([1, 0], dtype=np.int32)],
+    )
+
+
+def test_LinearOperatorScaledIdentity_parity() -> None:
+    """Test parity for LinearOperatorScaledIdentity."""
+    check_parity(
+        "LinearOperatorScaledIdentity",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorToeplitz_parity() -> None:
+    """Test parity for LinearOperatorToeplitz."""
+    check_parity(
+        "LinearOperatorToeplitz",
+        lambda: [np.random.randn(3).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorTridiag_parity() -> None:
+    """Test parity for LinearOperatorTridiag."""
+    check_parity(
+        "LinearOperatorTridiag",
+        lambda: [np.random.randn(3, 3).astype(np.float32)],
+    )
+
+
+def test_LinearOperatorZeros_parity() -> None:
+    """Test parity for LinearOperatorZeros."""
+    check_parity(
+        "LinearOperatorZeros",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )
+
+
+def test_Lstsq_parity() -> None:
+    """Test parity for Lstsq."""
+    check_parity(
+        "Lstsq",
+        lambda: [
+            np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32),
+            np.array([2.0, 4.0], dtype=np.float32),
+        ],
+    )
+
+
+def test_LuMatrixInverse_parity() -> None:
+    """Test parity for LuMatrixInverse."""
+    check_parity(
+        "LuMatrixInverse",
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
+    )
+
+
+def test_LuReconstruct_parity() -> None:
+    """Test parity for LuReconstruct."""
+    check_parity(
+        "LuReconstruct",
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
+    )
+
+
+def test_Qdwh_parity() -> None:
+    """Test parity for Qdwh."""
+    check_parity(
+        "Qdwh",
+        lambda: [np.array([[2.0, 0.0], [0.0, 4.0]], dtype=np.float32)],
+    )
+
+
+def test_SolveEx_parity() -> None:
+    """Test parity for SolveEx."""
+    check_parity(
+        "SolveEx",
+        lambda: [
+            np.array([[4.0, 1.0], [1.0, 3.0]], dtype=np.float32),
+            np.array([1.0, 2.0], dtype=np.float32),
+        ],
+    )
+
+
+def test_TridiagonalMatmul_parity() -> None:
+    """Test parity for TridiagonalMatmul."""
+    check_parity(
+        "TridiagonalMatmul",
+        lambda: [np.random.randn(2, 2).astype(np.float32)],
+    )

@@ -649,10 +649,13 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
         exp(array([2.0]))
     with pytest.raises(RuntimeError):
         exp(array([2.0]))
-    z_export._EXPORT_REGISTRY.pop(str(tmp_path / "func2.mlxfn"), None)
     imp2 = z_export.import_function(fn_path2)
     assert not isinstance(imp2, tuple)
-    assert len(imp2(array([2.0]))) == 2
+    res_imp2 = imp2(array([5.0]))
+    assert len(res_imp2) == 2
+    assert res_imp2[0].tolist() == [10.0] and res_imp2[1].tolist() == [6.0]
+    with pytest.raises(ValueError):
+        imp2(array([1.0, 2.0]))
 
     unreg_path = str(tmp_path / "unreg.mlxfn")
     with z_export.exporter(unreg_path, None) as exp_none:
@@ -748,6 +751,10 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert isinstance(g_multi, tuple) and len(g_multi) == 2
     _, g_kw = mx.value_and_grad(sq_fn, argnames="y")(array([1.0]), y=array([2.0]))
     assert isinstance(g_kw, dict) and "y" in g_kw
+    _, g_both = mx.value_and_grad(sq_fn, argnums=0, argnames="y")(array([1.0]), y=array([2.0]))
+    assert isinstance(g_both, tuple) and len(g_both) == 2
+    with pytest.raises(ValueError):
+        mx.grad(lambda *a, **kw: a[0])(array([1.0, 2.0]))
 
     def _vjp_fn(*primals: array) -> list[array]:
         """Two-output primal function.
@@ -812,19 +819,51 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert vm_fn(mx.ones((3, 2)), array([1.0, 2.0])).shape == (3, 2)
     vm_fn2 = mx.vmap(_mul2_vmap, in_axes=1)
     assert vm_fn2(mx.ones((2, 3))).shape == (3, 2)
+    vm_none = mx.vmap(_mul2_vmap, in_axes=0, out_axes=None)
+    assert isinstance(vm_none(mx.ones((2, 3))), array)
+    vm_seq = mx.vmap(_mul2_vmap, in_axes=0, out_axes=(0,))
+    assert isinstance(vm_seq(mx.ones((2, 3))), array)
+    with pytest.raises(ValueError):
+        mx.vmap(_add_vmap, in_axes=(0, 0))(mx.ones((2, 2)), mx.ones((3, 2)))
+
+    comp_fn = mx.compile(_mul2_vmap)
+    assert isinstance(comp_fn(array([1.0, 2.0])), array)
+    mx.disable_compile()
+    assert isinstance(comp_fn(array([1.0, 2.0])), array)
+    mx.enable_compile()
 
     npy_file = tmp_path / "arr.npy"
     mx.save(npy_file, array([1.0, 2.0]))
     mx.save(tmp_path / "scalar.npy", array(3.0))
     loaded_npy = mx.load(npy_file)
     assert isinstance(loaded_npy, array) and loaded_npy.tolist() == [1.0, 2.0]
-    z_new_ops._SAVED_ARRAYS.clear()
-    loaded_disk = mx.load(npy_file)
+    loaded_disk = mx.load(npy_file, format="npy")
     assert isinstance(loaded_disk, array) and loaded_disk.tolist() == [1.0, 2.0]
     loaded_disk_meta = mx.load(tmp_path / "scalar.npy", return_metadata=True)
     assert isinstance(loaded_disk_meta, tuple)
-    assert mx.load(tmp_path / "missing_file.npy") == {}
-    assert mx.load(tmp_path / "missing_file.npy", return_metadata=True) == ({}, {})
+    with pytest.raises(FileNotFoundError):
+        mx.load(tmp_path / "missing_file.npy")
+    with pytest.raises(ValueError):
+        mx.load(npy_file, format="invalid_fmt")
+
+    # Test binary stream save/load and complex/int64/bool dtypes
+    stream_buf = io.BytesIO()
+    mx.save(stream_buf, array([True, False], dtype=mx.bool_))
+    stream_buf.seek(0)
+    s_loaded = mx.load(stream_buf)
+    assert isinstance(s_loaded, array) and s_loaded.tolist() == [True, False]
+    stream_buf_meta = io.BytesIO(stream_buf.getvalue())
+    assert isinstance(mx.load(stream_buf_meta, return_metadata=True), tuple)
+
+    c_npy = tmp_path / "complex.npy"
+    mx.save(c_npy, array([1.0 + 2.0j], dtype=mx.complex64))
+    c_loaded = mx.load(c_npy)
+    assert isinstance(c_loaded, array) and c_loaded.tolist() == [1.0 + 2.0j]
+
+    i64_npy = tmp_path / "int64.npy"
+    mx.save(i64_npy, array([10000000000], dtype=mx.int64))
+    i64_loaded = mx.load(i64_npy)
+    assert isinstance(i64_loaded, array) and i64_loaded.tolist() == [10000000000]
 
     npz_file = tmp_path / "bundle"
     mx.savez(npz_file, array([1.0]), named=array([[2.0, 3.0]]))
@@ -832,24 +871,23 @@ def test_random_and_distributed_and_fast_and_export(tmp_path: pathlib.Path) -> N
     assert isinstance(load_res, tuple)
     loaded_npz, meta_npz = load_res
     assert isinstance(loaded_npz, dict) and isinstance(meta_npz, dict)
-    z_new_ops._SAVED_ARRAYS.clear()
     loaded_npz_disk = mx.load(npz_file, return_metadata=True)
     assert isinstance(loaded_npz_disk, tuple) and "named" in loaded_npz_disk[0]
     mx.savez_compressed(npz_file, array([1.0]), named=array([2.0]))
-    z_new_ops._SAVED_ARRAYS.clear()
     assert isinstance(mx.load(npz_file), dict)
 
     st_file = tmp_path / "weights"
     mx.save_safetensors(st_file, {"w": array([1.0, 2.0])}, metadata={"f": "mlx"})
-    z_new_ops._SAVED_ARRAYS.clear()
     st_loaded, st_meta = mx.load(st_file, return_metadata=True)
     assert isinstance(st_loaded, dict) and st_meta == {"f": "mlx"}
+    assert isinstance(mx.load(st_file, return_metadata=False), dict)
 
     gguf_file = tmp_path / "weights_gguf"
     mx.save_gguf(gguf_file, {"w": array([1.0])}, metadata={"arch": "llama"})
-    z_new_ops._SAVED_ARRAYS.clear()
     gguf_loaded, gguf_meta = mx.load(gguf_file, return_metadata=True)
     assert isinstance(gguf_loaded, dict) and gguf_meta == {"arch": "llama"}
+    mx.save_safetensors(io.BytesIO(), {"w": array([1.0])})
+    mx.save_gguf(io.BytesIO(), {"w": array([1.0])})
 
     legacy_j1 = tmp_path / "leg1.json"
     legacy_j1.write_text('{"dtype": "float32", "data": [1.0, 2.0]}', encoding="utf-8")
@@ -1137,7 +1175,7 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
 
     chk_out = z_new_ops.checkpoint(_chk_id)(a)
     assert isinstance(chk_out, array) and chk_out.tolist() == [1.0, 2.0, 3.0]
-    assert len(z_ops._apply_scan_1d([1.0, 2.0], "logaddexp", False, True)) == 2
+    assert mx.logcumsumexp(array([1.0, 2.0]), reverse=True, inclusive=False).shape == (2,)
     assert mx.concatenate([a]).tolist() == [1.0, 2.0, 3.0]
     assert len(mx.unstack(mx.ones((2, 3)), axis=0)) == 2
     assert mx.vecdot(a, a).item() == 14.0
@@ -1227,7 +1265,7 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
     assert mx.cummax(a, reverse=True, inclusive=False).shape == (3,)
     assert mx.cummin(a, reverse=True, inclusive=False).shape == (3,)
     assert mx.logcumsumexp(a, reverse=True, inclusive=False).shape == (3,)
-    assert z_ops._apply_scan_1d([], "sum", False, True) == []
+    assert mx.cumsum(array([]), inclusive=False).size == 0
     assert mx.diff(a, n=1, prepend=array([0.0]), append=array([4.0])).tolist() == [
         1.0,
         1.0,
@@ -1353,8 +1391,21 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
     with pytest.raises(ValueError):
         z_nn.init.sparse(0.5)(array([1.0]))
 
+    from typing import TYPE_CHECKING
+
     class SubMod(z_nn.Module):
         """Test composite module."""
+
+        if TYPE_CHECKING:
+            lin: z_nn.Linear | z_nn.QuantizedLinear | z_nn.QQLinear
+            emb: z_nn.Embedding | z_nn.QuantizedEmbedding
+            seq: z_nn.Sequential
+            extra_val: int
+        else:
+            lin = z_nn.base.ModuleAttr("lin")
+            emb = z_nn.base.ModuleAttr("emb")
+            seq = z_nn.base.ModuleAttr("seq")
+            extra_val = z_nn.base.ModuleAttr("extra_val")
 
         def __init__(self) -> None:
             """Initialize composite module."""
@@ -1568,7 +1619,7 @@ def test_ops_and_nn_comprehensive(tmp_path: pathlib.Path) -> None:
     ).shape == (1,)
     assert z_nn.losses.hinge_loss(array([1.0, -1.0]), array([1.0, -1.0])).shape == (2,)
     assert z_nn.losses.huber_loss(array([0.5, 2.0]), array([0.0, 0.0]), delta=1.0).shape == (2,)
-    assert z_nn.losses.kl_div_loss(array([-0.5, -0.5]), array([0.5, 0.5])).shape == (2,)
+    assert z_nn.losses.kl_div_loss(array([[-0.5, -0.5]]), array([[0.5, 0.5]])).shape == (1,)
     assert z_nn.losses.l1_loss(array([1.0, 2.0]), array([0.0, 2.0])).ndim == 0
     assert z_nn.losses.log_cosh_loss(array([1.0, 2.0]), array([0.0, 1.0])).shape == (2,)
     assert z_nn.losses.margin_ranking_loss(array([1.0]), array([0.5]), array([1.0])).shape == (1,)
