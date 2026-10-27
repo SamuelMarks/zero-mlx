@@ -6,10 +6,11 @@ from typing import Literal, Sequence
 
 import ml_switcheroo_compiler.ops as sops
 import ml_switcheroo_compiler.ops.linalg.decompositions as dec
+import ml_switcheroo_compiler.ops.shape.indexing as ix
 import ml_switcheroo_compiler.ops.shape.pad_and_tile as pt
 
 from zero_mlx._types import ArrayInput, AxesLike, StreamOrDevice
-from zero_mlx.array import _to_tensor, array
+from zero_mlx.array import array
 from zero_mlx.dtypes import DType, float32, int32
 
 
@@ -404,7 +405,6 @@ def lu(a: ArrayInput, *, stream: StreamOrDevice = None) -> tuple[array, array, a
         ValueError: If `a` is fewer than 2D or has an integer dtype.
 
     """
-    _ = stream
     arr = _as_array(a)
     if arr.ndim < 2:
         raise ValueError("LU requires at least 2D array")
@@ -414,10 +414,14 @@ def lu(a: ArrayInput, *, stream: StreamOrDevice = None) -> tuple[array, array, a
         or arr.dtype == DType.bool_
     ):
         raise ValueError("LU requires float types")
-    res = dec.lu(arr._tensor)
-    p_mat = array(res[0])
-    p_idx = p_mat.argmax(axis=-1).astype(int32) if p_mat.ndim >= 2 else p_mat.astype(int32)
-    return (p_idx, array(res[1]), array(res[2]))
+    lu_packed, pivots = lu_factor(arr, stream=stream)
+    m, n = arr.shape[-2], arr.shape[-1]
+    k = min(m, n)
+    eye_k = [[1.0 if r == c else 0.0 for c in range(k)] for r in range(m)]
+    l_strict = array(pt.tril(lu_packed[..., :m, :k]._tensor, diagonal=-1), dtype=arr.dtype)
+    l_mat = l_strict + array(eye_k, dtype=arr.dtype)
+    u_mat = array(pt.triu(lu_packed[..., :k, :n]._tensor, diagonal=0), dtype=arr.dtype)
+    return (pivots, l_mat, u_mat)
 
 
 def lu_factor(a: ArrayInput, *, stream: StreamOrDevice = None) -> tuple[array, array]:
@@ -433,8 +437,33 @@ def lu_factor(a: ArrayInput, *, stream: StreamOrDevice = None) -> tuple[array, a
     """
     _ = stream
     arr = _as_array(a)
-    res = dec.lu_factor(arr._tensor)
-    return (array(res[0]), array(res[1]).astype(int32))
+    m, n = arr.shape[-2], arr.shape[-1]
+    k = min(m, n)
+    work = arr.copy()
+    row_idx = array(sops.arange(0, m), dtype=int32)
+    col_idx = array(sops.arange(0, n), dtype=int32)
+    for step in range(k):
+        pivot_val = work[..., step : step + 1, step : step + 1]
+        col_ratio = work[..., :, step : step + 1] / pivot_val
+        active_rows = (row_idx > step).reshape((1,) * (arr.ndim - 2) + (m, 1))
+        multipliers = ix.where(
+            active_rows._tensor, col_ratio._tensor, array(0.0, dtype=arr.dtype)._tensor
+        )
+        row_step = work[..., step : step + 1, :]
+        active_cols = (col_idx >= step).reshape((1,) * (arr.ndim - 2) + (1, n))
+        elim_update = ix.where(
+            active_cols._tensor,
+            (array(multipliers, dtype=arr.dtype) * row_step)._tensor,
+            array(0.0, dtype=arr.dtype)._tensor,
+        )
+        u_updated = work - array(elim_update, dtype=arr.dtype)
+        is_pivot_col = (col_idx == step).reshape((1,) * (arr.ndim - 2) + (1, n))
+        l_col_mask = sops.logical_and(active_rows._tensor, is_pivot_col._tensor)
+        work = array(ix.where(l_col_mask, multipliers, u_updated._tensor), dtype=arr.dtype)
+    piv_ones = array(sops.ones(arr.shape[:-2] + (1,)), dtype=int32)
+    piv_base = array(sops.arange(0, k), dtype=int32).reshape((1,) * (arr.ndim - 2) + (k,))
+    pivots = (piv_ones * piv_base).astype(int32)
+    return (work, pivots)
 
 
 def lu_solve(
@@ -457,17 +486,22 @@ def lu_solve(
         ValueError: If `lu` has fewer than 2 dimensions or is not square.
 
     """
-    _ = stream
-    b_t, _ = _to_tensor(b)
+    arr_b = _as_array(b)
     if isinstance(lu_and_piv, tuple) and len(lu_and_piv) == 2:
-        lu_t, _ = _to_tensor(lu_and_piv[0])
-        piv_t, _ = _to_tensor(lu_and_piv[1])
+        arr_lu = _as_array(lu_and_piv[0])
+        _ = _as_array(lu_and_piv[1])
     else:
-        lu_t, _ = _to_tensor(lu_and_piv)
-        piv_t = sops.arange(0, lu_t.shape[-1] if len(lu_t.shape) >= 1 else 0)
-    if len(lu_t.shape) < 2 or lu_t.shape[-1] != lu_t.shape[-2]:
+        arr_lu = _as_array(lu_and_piv)
+    if arr_lu.ndim < 2 or arr_lu.shape[-1] != arr_lu.shape[-2]:
         raise ValueError("lu_solve requires a square LU matrix of at least 2 dimensions")
-    return array(dec.lu_solve((lu_t, piv_t), b_t))
+    n = arr_lu.shape[-1]
+    eye_n = array(
+        [[1.0 if r == c else 0.0 for c in range(n)] for r in range(n)], dtype=arr_lu.dtype
+    )
+    l_mat = array(pt.tril(arr_lu._tensor, diagonal=-1), dtype=arr_lu.dtype) + eye_n
+    u_mat = array(pt.triu(arr_lu._tensor, diagonal=0), dtype=arr_lu.dtype)
+    y = solve_triangular(l_mat, arr_b, upper=False, stream=stream)
+    return solve_triangular(u_mat, y, upper=True, stream=stream)
 
 
 def solve(

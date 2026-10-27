@@ -1378,9 +1378,24 @@ def erfinv(a: ArrayInput, *, stream: StreamOrDevice = None) -> array:
         Inverse error function `array`.
 
     """
-    _ = stream
-    arr = _as_array(a)
-    return array(sops.erfinv(arr._tensor), dtype=float32)
+    arr = _as_array(a).astype(float32)
+    c_val = 0.147
+    one_minus_x2 = clip(1.0 - arr * arr, a_min=1e-12, a_max=1.0, stream=stream)
+    ln_term = log(one_minus_x2, stream=stream)
+    t1 = 2.0 / (math.pi * c_val) + 0.5 * ln_term
+    t2 = ln_term / c_val
+    y = sign(arr, stream=stream) * sqrt(
+        maximum(
+            sqrt(maximum(t1 * t1 - t2, 0.0, stream=stream), stream=stream) - t1, 0.0, stream=stream
+        ),
+        stream=stream,
+    )
+    two_over_sqrt_pi = 2.0 / math.sqrt(math.pi)
+    for _ in range(2):
+        err = erf(y, stream=stream) - arr
+        deriv = two_over_sqrt_pi * exp(-(y * y), stream=stream)
+        y = y - err / (deriv + y * err)
+    return where(equal(arr, 0.0, stream=stream), 0.0, y, stream=stream).astype(float32)
 
 
 def sigmoid(a: ArrayInput, *, stream: StreamOrDevice = None) -> array:
@@ -4419,7 +4434,7 @@ def einsum_path(
     _ = stream
     tensors = [_as_array(x)._tensor for x in operands]
     _ = tensors
-    path = [tuple(range(len(operands)))] if len(operands) > 1 else [(0,)]
+    path: list[tuple[int, ...]] = [tuple(range(len(operands)))] if len(operands) > 1 else [(0,)]
     return (path, f"Complete contraction: {subscripts}")
 
 
